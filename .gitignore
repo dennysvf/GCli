@@ -1,0 +1,11 @@
+# Claude Code local config/skills — not part of the shipped project
+.claude/
+
+# Node / Next.js (added ahead of scaffolding, harmless if unused yet)
+node_modules/
+.next/
+out/
+.env
+.env.local
+.env*.local
+npm-debug.log*
