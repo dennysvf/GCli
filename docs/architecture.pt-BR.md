@@ -1,0 +1,402 @@
+# GCli — Arquitetura e Diretrizes de Engenharia
+
+Este documento define **como** o GCli é construído. O [PRD](prd.pt-BR.md) define **o que** é construído e as metas que precisa atingir. Em caso de conflito, o PRD prevalece sobre comportamento e este documento prevalece sobre implementação. Toda decisão relevante é registrada como ADR na [Seção 12](#12-registros-de-decisão-de-arquitetura-adrs).
+
+## 1. Direcionadores arquiteturais
+
+Os requisitos abaixo vêm do PRD e orientam todas as decisões deste documento.
+
+| Direcionador | Origem no PRD | Consequência para a arquitetura |
+|---|---|---|
+| Uma única empresa na V1, pronto para SaaS | Resumo Executivo, F01 | Toda linha de negócio carrega `organizationId`; o isolamento por organização é automático, não manual |
+| Crescimento modular sem reescrita | Briefing §4.3 | Monólito modular com fronteiras entre módulos verificadas automaticamente |
+| Confidencialidade clínica e LGPD | F01, F07, F14, F15 | Autorização centralizada, log de auditoria somente-inserção, armazenamento privado de arquivos |
+| Nenhum agendamento duplo sob concorrência | F06 | Restrições de exclusão no banco, não apenas verificações na aplicação |
+| Correção financeira | F09, F10, F11 | Dinheiro em inteiros, transações, chaves de idempotência, nenhuma exclusão definitiva |
+| Escala: 5 unidades, 50 profissionais, 30 usuários simultâneos, 500 atendimentos/dia, 100 mil pacientes | Seção 1 | Um único Postgres bem indexado é suficiente; não há necessidade de sistemas distribuídos |
+| Metas p95: busca ≤ 1 s, painel ≤ 3 s, auditoria ≤ 3 s | F05, F12, F15 | Índices trigram, consultas agregadas com cache de curta duração, paginação por keyset |
+| Trabalho demorado (exportação LGPD, expirações, despesas recorrentes) | F10, F11, F14 | Fila de tarefas em segundo plano com um processo worker separado |
+
+**Fora dos objetivos:** microsserviços, event sourcing, Kubernetes, GraphQL, multirregião. Nenhum deles se justifica nesta escala, e cada um adicionaria custo operacional sem atender a nenhum requisito acima.
+
+## 2. Visão geral da arquitetura
+
+O GCli é um **monólito modular**: uma aplicação Next.js implantável e um processo worker, construídos a partir do mesmo código e compartilhando um único banco PostgreSQL.
+
+```mermaid
+graph LR
+  U[Navegador] -->|HTTPS| W[App Next.js<br/>RSC + Server Actions + Route Handlers]
+  W --> A[Camada de aplicação<br/>casos de uso por módulo]
+  A --> DB[(PostgreSQL)]
+  A --> S3[(Armazenamento de objetos<br/>bucket privado)]
+  A -->|enfileira| Q[Fila pg-boss<br/>no PostgreSQL]
+  K[Processo worker] -->|consome| Q
+  K --> A
+  K --> M[Provedor de e-mail]
+  W --> O[Sentry / logs estruturados]
+  K --> O
+```
+
+- **Processo web**: renderiza páginas (React Server Components), trata Server Actions e Route Handlers, e chama casos de uso. Não contém regras de negócio.
+- **Processo worker**: executa tarefas em segundo plano (e-mails, exportações LGPD, expiração de pacotes, despesas recorrentes, sinalização de caixas não fechados) usando os mesmos casos de uso.
+- **PostgreSQL**: a única fonte de verdade, incluindo a fila de tarefas (pg-boss), então não é preciso Redis.
+- **Armazenamento de objetos**: bucket privado compatível com S3 para anexos e documentos gerados, acessado apenas por URLs pré-assinadas.
+
+## 3. Mapa de módulos
+
+Cada módulo é dono de suas tabelas, suas regras e sua API pública. Os módulos são nomeados por capacidade de negócio, não por camada técnica.
+
+| Módulo | Funcionalidades do PRD | Tipo | Responsável por |
+|---|---|---|---|
+| `identity` | F01 | Rico | Organização, usuários, perfis, sessões, convites |
+| `audit` | F01 (registro), F15 (visualizador) | Simples | Eventos de auditoria |
+| `units` | F02 | Simples | Unidades, salas, horário de funcionamento, fechamentos |
+| `catalog` | F03 | Simples | Serviços, categorias, histórico de preços |
+| `professionals` | F04 | Simples | Profissionais, serviços habilitados, horários de trabalho, folgas |
+| `patients` | F05 | Simples | Pacientes, responsáveis, registros de consentimento, etiquetas |
+| `scheduling` | F06 | Rico | Agendamentos, histórico de status, séries recorrentes |
+| `clinical-records` | F07 | Rico | Notas clínicas, versões, adendos, anexos clínicos |
+| `documents` | F08 | Simples | Documentos do paciente, modelos, geração de PDF |
+| `billing` | F09 | Rico | Cobranças, pagamentos, estornos, aprovações de desconto, recibos |
+| `packages` | F10 | Rico | Modelos de pacote, pacotes vendidos, extrato de sessões |
+| `cash` | F11 | Rico | Caixas, lançamentos manuais, despesas, extratos |
+| `analytics` | F12, F13 | Somente leitura | Indicadores do painel e relatórios (apenas consultas) |
+| `privacy` | F14 | Rico | Linha do tempo do paciente, solicitações LGPD, exportações, anonimização |
+
+**Dois tipos de módulo, de propósito:**
+- **Módulos ricos** têm invariantes reais (conflitos, máquinas de estado, saldos, travas). Eles têm uma camada `domain` pura, repositórios como portas e testes unitários no domínio.
+- **Módulos simples** são basicamente CRUD com validação. Eles chamam o Prisma diretamente da camada de aplicação. Adicionar entidades de domínio e repositórios ali seria cerimônia sem benefício.
+
+Um módulo simples passa a ser rico quando ganha invariantes difíceis de testar pelo banco de dados.
+
+### Dependências entre módulos
+
+```mermaid
+graph TD
+  identity --> units
+  identity --> catalog
+  identity --> patients
+  units --> professionals
+  catalog --> professionals
+  units --> scheduling
+  catalog --> scheduling
+  professionals --> scheduling
+  patients --> scheduling
+  scheduling --> clinical-records
+  scheduling -. eventos .-> billing
+  scheduling -. eventos .-> packages
+  billing --> packages
+  billing -. eventos .-> cash
+  patients --> documents
+  professionals --> documents
+```
+
+- Uma seta sólida significa "chama a API pública de". Uma seta pontilhada significa "reage a eventos de domínio publicados por".
+- `analytics`, `privacy` e `audit` leem dados de vários módulos por consultas de leitura dedicadas. Eles nunca escrevem nas tabelas de outros módulos.
+- **Sem ciclos.** O PRD exige que a cobrança não seja gerada para agendamentos cobertos por pacote, mas `billing` não pode depender de `packages`. A solução é inversão de dependência: `billing` declara uma porta `ChargeExemptionPolicy`, e `packages` a implementa. Quando o módulo de pacotes não existe, a política padrão não isenta nada (ver ADR-007).
+
+## 4. Estrutura de código e camadas
+
+```
+src/
+  app/                        Rotas Next.js: páginas, layouts, Server Actions, Route Handlers (finos)
+  modules/
+    scheduling/
+      domain/                 Entidades, objetos de valor, serviços de domínio, eventos de domínio, erros de domínio
+                              TypeScript puro: sem Prisma, sem Next.js, sem I/O
+      application/            Casos de uso (comandos e consultas), portas (interfaces), schemas Zod de entrada, DTOs
+      infrastructure/         Repositórios Prisma, adaptadores que implementam as portas
+      ui/                     Componentes React específicos deste módulo
+      index.ts                API pública: o único arquivo que outros módulos podem importar
+    patients/
+      application/            Módulo simples: casos de uso chamam o Prisma diretamente
+      ui/
+      index.ts
+  shared/
+    kernel/                   Tipo Result, base DomainError, Money, DateTimeRange, IDs tipados
+    db/                       Cliente Prisma, fábrica de cliente com escopo de organização, helper de transação
+    authz/                    Matriz de permissões e funções de política
+    audit/                    Gravador de auditoria usado dentro das transações
+    events/                   Barramento de eventos em processo e outbox
+    jobs/                     Configuração do pg-boss e registro de tarefas
+    storage/                  Adaptador de armazenamento de objetos, helpers de URL pré-assinada
+    config/                   Variáveis de ambiente validadas com Zod na inicialização
+    logging/                  Logger estruturado com ID de requisição
+    ui/                       Componentes do design system (baseados em shadcn/ui)
+  worker/                     Ponto de entrada do worker: registra os handlers de tarefas
+prisma/
+  schema.prisma
+  migrations/                 Inclui SQL puro para restrições que o Prisma não expressa
+tests/
+  integration/                PostgreSQL real (Testcontainers)
+  e2e/                        Playwright
+```
+
+**Regras de dependência (verificadas por lint, ver ADR-002):**
+1. `domain` não importa nada fora de `domain` e `shared/kernel`.
+2. `application` importa `domain` e portas; nunca importa `infrastructure`.
+3. `infrastructure` implementa as portas declaradas em `application`.
+4. `app/` (rotas) chama apenas casos de uso. Nunca chama o Prisma nem contém regras de negócio.
+5. Um módulo importa outro **somente** pelo seu `index.ts`.
+
+**Fluxo de uma requisição de comando**, usando "registrar a chegada de um paciente" como exemplo:
+
+```
+Server Action (app/)
+  → valida a entrada com o schema Zod
+  → getSession() → monta RequestContext { user, organizationId, requestId }
+  → caso de uso CheckInAppointment (scheduling/application)
+      → authz.assert(ctx, 'appointment:check-in', appointment)
+      → dentro de uma transação:
+          → o repositório carrega Appointment (entidade de domínio)
+          → appointment.checkIn(now)          ← a máquina de estados garante uma transição válida
+          → o repositório salva (verificação de versão otimista)
+          → audit.record(...)
+          → events.publish(AppointmentCheckedIn)  ← o handler de billing cria a cobrança na mesma transação
+  → Result<Ok, DomainError> convertido em mensagem para a interface
+```
+
+## 5. Aspectos transversais
+
+### 5.1 Isolamento por organização
+- Toda tabela de negócio tem um `organizationId` não nulo, com um índice que começa por ele.
+- O cliente Prisma usado pelo código de aplicação é sempre criado com `forTenant(organizationId)`. É uma extensão do Prisma Client que injeta `organizationId` em todo `where`, `create` e `upsert`.
+- O cliente sem escopo é exportado apenas para `shared/db`, migrações e a inicialização do worker. Uma regra de lint proíbe importá-lo em qualquer outro lugar.
+- Uma suíte de testes de integração cria duas organizações e verifica que todo caso de uso retorna zero registros da outra organização.
+- O Row-Level Security do PostgreSQL fica para a fase SaaS (ADR-003).
+
+### 5.2 Autorização
+- A matriz de permissões do PRD (F01) existe como código em `shared/authz/permissions.ts`, mapeando `perfil → ação[]`, por exemplo `'clinical-note:read'` ou `'charge:void'`.
+- **Regras por recurso** são funções de política junto ao módulo. Por exemplo, `canReadClinicalNote(ctx, patientId)` verifica se o profissional tem pelo menos um agendamento com o paciente.
+- Todo caso de uso começa com uma verificação de autorização. Ocultar na interface é conveniência, nunca proteção.
+- Toda negação é gravada no log de auditoria como `permission-denied`.
+
+### 5.3 Log de auditoria
+- O log de auditoria é uma tabela `audit_event` somente-inserção, gravada por `audit.record()` **dentro da mesma transação** da alteração. Assim, nunca existe uma alteração sem seu registro de auditoria.
+- Os valores antes/depois são calculados pelo caso de uso para os campos que ele alterou. Texto clínico é registrado como "alterado" com contagem de caracteres, nunca como diff.
+- O usuário de banco da aplicação tem `INSERT` e `SELECT` em `audit_event`, mas não `UPDATE` nem `DELETE`.
+- A tabela é particionada por mês; partições com mais de 5 anos são desanexadas e arquivadas.
+
+### 5.4 Eventos de domínio
+- Os eventos têm nomes no passado: `AppointmentCheckedIn`, `AppointmentCompleted`, `AppointmentCancelled`, `PaymentRegistered`, `PaymentRefunded`, `PackageSold`.
+- **Handlers síncronos em processo** rodam dentro da transação de quem publica quando a consistência é obrigatória. Exemplos: a cobrança é criada no check-in; a sessão do pacote é debitada na conclusão. Se um handler falhar, a operação inteira é desfeita, como o PRD exige (F10: "a venda é totalmente revertida").
+- **Efeitos colaterais assíncronos** (e-mails, pré-geração de PDF) passam por um **outbox transacional**: a linha do evento é gravada na mesma transação, e o worker a entrega. Não há e-mails perdidos nem enviados para alterações que foram desfeitas.
+
+### 5.5 Tarefas em segundo plano
+O pg-boss roda no mesmo banco PostgreSQL (ADR-008).
+
+| Tarefa | Gatilho | Funcionalidade |
+|---|---|---|
+| Enviar e-mail de convite / redefinição de senha | Outbox | F01 |
+| Converter HEIC em JPG, gerar miniaturas | Upload concluído | F07, F08 |
+| Expirar pacotes, desvincular agendamentos futuros | Diariamente às 00:10 (fuso da organização) | F10 |
+| Gerar ocorrências de despesas recorrentes | Mensalmente, no dia 1º | F11 |
+| Sinalizar caixas não fechados | Diariamente às 00:05 | F11 |
+| Gerar o ZIP de exportação LGPD | Sob solicitação | F14 |
+| Apagar arquivos de exportação expirados (mais de 7 dias) | Diariamente | F14 |
+
+As tarefas são idempotentes: cada uma pode rodar duas vezes sem duplicar efeitos, usando chaves únicas e verificação de estado.
+
+### 5.6 Arquivos
+- Os arquivos vão para um bucket privado compatível com S3: Cloudflare R2 em produção, MinIO localmente.
+- **Uploads**: o servidor valida tipo e tamanho e emite uma URL PUT pré-assinada. O navegador envia o arquivo diretamente, e o servidor confirma verificando os metadados do objeto antes de criar o registro.
+- **Downloads**: URLs GET pré-assinadas válidas por 5 minutos, emitidas somente após a autorização. Arquivos clínicos são auditados a cada acesso.
+- As chaves dos objetos nunca contêm dados pessoais: `org/{orgId}/{module}/{uuid}`.
+
+### 5.7 Validação e erros
+- Schemas Zod em `application/` validam toda entrada externa. O mesmo schema alimenta o formulário (react-hook-form) e o servidor.
+- Os casos de uso retornam `Result<T, DomainError>` para falhas **esperadas** (conflito, saldo insuficiente, nota travada). Exceções ficam reservadas para falhas **inesperadas** (banco fora do ar, bug).
+- Todo `DomainError` tem um `code` estável (por exemplo `SCHEDULING_ROOM_CONFLICT`) e uma mensagem em pt-BR. As mensagens de erro do PRD são a fonte dessas mensagens.
+- Erros inesperados mostram uma mensagem genérica, são registrados com o ID da requisição e reportados ao Sentry.
+
+### 5.8 Dinheiro, datas e fusos horários
+- Dinheiro é armazenado em **centavos inteiros** (`Int`, ou `BigInt` para agregados) e manipulado pelo objeto de valor `Money`. Números de ponto flutuante nunca são usados para dinheiro.
+- Datas/horas são armazenadas como `timestamptz` em UTC. A lógica de calendário (horário de trabalho, horário de funcionamento, "hoje") usa o fuso horário da organização, America/Sao_Paulo por padrão.
+- Durações e intervalos são tratados pelo objeto de valor `DateTimeRange`, que tem lógica de sobreposição, testes unitários e as regras de granularidade de 5 minutos.
+
+## 6. Modelagem de dados
+
+- **Chaves primárias**: UUIDv7 (ordenado no tempo, bom para índices, seguro para expor em URLs).
+- **Colunas padrão** nas tabelas de negócio: `id`, `organizationId`, `createdAt`, `createdById`, `updatedAt`, `updatedById`, e `version` para trava otimista em registros editados de forma concorrente (pacientes, notas clínicas, agendamentos).
+- **Nenhuma exclusão definitiva** de registros referenciados. Os registros são desativados (`active = false`) ou arquivados com motivo, como o PRD exige.
+- **Restrições garantem no banco as invariantes que a aplicação também verifica** (defesa em profundidade). Elas são escritas em SQL puro nas migrações:
+  - **Nenhum agendamento duplo**: uma restrição de exclusão do PostgreSQL com `btree_gist` em `(professionalId, tstzrange(startsAt, endsAt))` quando o status está ativo e `isOverbooking = false`, e outra em `(roomId, tstzrange(...))` para salas. Isso garante a regra do PRD de que dois salvamentos simultâneos geram exatamente um agendamento (F06).
+  - **Pagamentos idempotentes**: índice único em `(organizationId, idempotencyKey)`.
+  - **Um caixa por unidade por dia**: índice único em `(unitId, date)`.
+  - **CPF único por organização**: índice único parcial quando o CPF não é nulo.
+- **Preço congelado**: agendamentos e cobranças copiam o preço no momento do agendamento. Só registros novos leem o catálogo de preços.
+
+## 7. Segurança
+
+| Área | Decisão |
+|---|---|
+| Senhas | Argon2id (`@node-rs/argon2`); mínimo de 10 caracteres; bloqueio de 15 minutos após 5 falhas (F01) |
+| Sessões | Sessões guardadas no banco, com tokens opacos em cookies `HttpOnly; Secure; SameSite=Lax`; 60 min de inatividade, 12 h absolutas; revogáveis imediatamente (ADR-004) |
+| CSRF | Verificação de origem nativa das Server Actions; Route Handlers que alteram estado exigem a verificação de mesma origem |
+| Limite de requisições | Endpoints de login, redefinição de senha e convite limitados por IP e por e-mail (contador no Postgres) |
+| Cabeçalhos | CSP estrita com nonces, HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `frame-ancestors 'none'` |
+| Segredos | Apenas variáveis de ambiente, validadas com Zod na inicialização; a aplicação não sobe com configuração ausente ou inválida; nunca commitados |
+| Dados pessoais em logs | Proibido. O logger oculta campos conhecidos (`cpf`, `email`, `phone`, `name`, `content`); os logs carregam apenas IDs |
+| Dados em repouso | Postgres gerenciado e armazenamento de objetos com criptografia do provedor; TLS em todas as conexões |
+| Dependências | Dependabot e `npm audit` no CI; lockfile commitado |
+| Dados clínicos | Acessíveis apenas pelas políticas de autorização da seção 5.2; toda leitura é auditada |
+| LGPD | Registros de consentimento, exportação e anonimização conforme F05 e F14; registros clínicos retidos por 20 anos (Lei 13.787/2018) |
+
+## 8. Performance e escalabilidade
+
+A carga do PRD (500 atendimentos/dia, 30 usuários simultâneos) é pequena para o PostgreSQL. O risco não é o volume, mas **consultas sem índice** e **padrões de acesso N+1**.
+
+| Meta (PRD) | Abordagem |
+|---|---|
+| Busca de paciente ≤ 1 s com 100 mil registros (F05) | Índice GIN com `pg_trgm` + `unaccent` no nome normalizado; índices B-tree nos dígitos do CPF e no final do telefone |
+| Painel ≤ 3 s para 30 dias (F12) | Consultas agregadas em SQL (sem loops no ORM), com cache de 5 minutos por combinação de filtros; views materializadas apenas se as medições mostrarem necessidade |
+| Visualizador de auditoria ≤ 3 s com 1 milhão de linhas (F15) | Partições mensais, índices compostos em `(organizationId, occurredAt)` e `(entityType, entityId)`, paginação por keyset |
+| Agenda atualizada em ≤ 30 s (F06) | Polling do cliente a cada 30 s via TanStack Query, num endpoint leve que retorna os agendamentos alterados desde o último `updatedAt` |
+| Exportação CSV de 50 mil linhas ≤ 10 s (F13) | Respostas em streaming com cursores do banco, sem carregar todas as linhas na memória |
+
+**Regras:**
+- Toda lista é paginada: paginação por offset nas tabelas da interface com até 50 linhas, paginação por keyset para dados grandes ou somente-inserção.
+- Toda consulta nova em tabela grande vem com seu índice na mesma migração.
+- O resultado de `EXPLAIN ANALYZE` acompanha o pull request de qualquer consulta em `appointment`, `charge`, `payment`, `patient` ou `audit_event` que não seja busca por chave primária.
+
+**Caminho de escala:** o processo web não guarda estado e escala horizontalmente. Além da V1, a escala segue esta ordem: mais instâncias web → réplicas de leitura para `analytics` → particionamento de tabelas grandes. Cada passo só é dado quando uma medição mostra a necessidade.
+
+## 9. Observabilidade e operação
+
+- **Logs**: JSON estruturado (`pino`) com `requestId`, `organizationId`, `userId`, `module` e `useCase`; sem dados pessoais.
+- **Erros**: Sentry nos processos web e worker, com source maps; dados pessoais são removidos antes do envio.
+- **Saúde**: `/api/health` verifica o banco e o armazenamento; o worker reporta um heartbeat pelo pg-boss.
+- **Métricas que importam**: latência p95 por rota, falhas de tarefas, tamanho da fila e falhas de login (possível ataque).
+- **Backups**: PostgreSQL gerenciado com snapshots diários e recuperação para um ponto no tempo, retidos por 30 dias. Um teste de restauração é feito a cada trimestre. O armazenamento de objetos tem versionamento ativado.
+- **Migrações**: `prisma migrate deploy` roda na etapa de release, nunca na inicialização da aplicação. Mudanças destrutivas seguem expandir → migrar → contrair, em duas releases.
+
+## 10. Estratégia de testes
+
+| Nível | Ferramenta | O que cobre | Meta |
+|---|---|---|---|
+| Unitário | Vitest | Camada de domínio dos módulos ricos: máquinas de estado, regras de conflito, `Money`, `DateTimeRange`, cálculos de saldo | ≥ 90% de cobertura de linhas em `domain/` |
+| Integração | Vitest + Testcontainers (PostgreSQL real) | Casos de uso de ponta a ponta com o banco: restrições de exclusão, isolamento por organização, matriz de autorização, transações e rollbacks, handlers de eventos | Todo critério de aceitação da Seção 9 do PRD que envolva regras de dados |
+| Ponta a ponta | Playwright | Jornadas críticas: login → agendar → registrar chegada → receber pagamento → fechar caixa; profissional escreve nota clínica; recepção não consegue abrir uma nota | 1 teste por jornada crítica, rodando em todo PR |
+
+**Regras:**
+- Os critérios de aceitação do PRD são a lista de testes. Cada critério corresponde a pelo menos um teste, e o nome do teste referencia o ID da funcionalidade (`F06: room conflict is always blocked`).
+- Os testes nunca simulam o banco de dados para regras de dados. Mocks são permitidos apenas para serviços externos (e-mail, armazenamento).
+- A correção de um bug começa com um teste que falha e reproduz o problema.
+
+## 11. Diretrizes de engenharia
+
+### 11.1 SOLID, aplicado com pragmatismo
+- **Responsabilidade Única**: um caso de uso por operação de negócio (`CheckInAppointment`, `RegisterPayment`), e não "services" genéricos com 30 métodos.
+- **Aberto/Fechado**: pontos de extensão existem apenas onde o PRD mostra variação, como as regras de conflito (Strategy) e as variáveis de modelos de documento (registro de resolvedores).
+- **Substituição de Liskov**: implementações de uma porta precisam respeitar seu contrato, inclusive os erros. Por exemplo, toda `ChargeExemptionPolicy` retorna um resultado e nunca lança exceção para "não isento".
+- **Segregação de Interfaces**: as portas são pequenas e específicas para quem as consome (`AppointmentReader`, e não um `AppointmentRepository` com 20 métodos do qual todos dependem).
+- **Inversão de Dependência**: usada nas fronteiras entre módulos e para serviços externos (armazenamento, e-mail, relógio). **Não é usada para o Prisma nos módulos simples** (ver Seção 3).
+
+### 11.2 Design patterns em uso
+Um padrão só é usado quando resolve um problema presente no PRD. Esta lista cobre os padrões que atendem a esse critério.
+
+| Padrão | Onde | Por quê |
+|---|---|---|
+| Máquina de estados | Status do agendamento (F06), status da cobrança (F09), ciclo da nota clínica (F07) | Torna transições inválidas impossíveis e testáveis |
+| Strategy | Regras de conflito da agenda (F06) | Cada regra (profissional, sala, horário de trabalho, fechamento) fica isolada, testável, e informa se pode ser sobreposta |
+| Eventos de domínio + Observer | Chegada → cobrança, conclusão → débito do pacote, pagamento → caixa | Desacopla os módulos sem criar ciclos |
+| Outbox transacional | E-mails e efeitos assíncronos | Nenhuma mensagem perdida e nenhuma mensagem para alterações desfeitas |
+| Repository (porta) | Apenas módulos ricos | Mantém o domínio testável sem o banco |
+| Objeto de valor | `Money`, `DateTimeRange`, `Cpf`, `PhoneNumber` | Validação e comportamento num só lugar, imutáveis |
+| Specification | Detecção de paciente duplicado (F05), busca de disponibilidade (F06) | Regras combináveis, reaproveitadas na validação e na busca |
+| Template method / builder | Geração de PDF para documentos, recibos e relatórios (F08, F09, F13) | Cabeçalho, rodapé e paginação compartilhados, com corpo variável |
+| Tipo Result | Todos os casos de uso | Falhas esperadas ficam explícitas nas assinaturas |
+
+Padrões **deliberadamente não usados**: repositório genérico sobre o Prisma, abstract factory para entidades, service locator ou contêiner de injeção de dependência (injeção simples por construtor e por função é suficiente), CQRS com bancos separados e event sourcing.
+
+### 11.3 Convenções de código limpo
+- **Idioma**: código, identificadores, commits e documentação técnica em inglês. Textos para o usuário em pt-BR, centralizados por módulo em `messages.ts`.
+- **TypeScript**: `strict: true`, `noUncheckedIndexedAccess: true`; sem `any` (use `unknown` e refine o tipo); sem asserções de não nulo (`!`) fora dos testes.
+- **Nomes**: casos de uso são verbos (`RescheduleAppointment`), eventos estão no passado (`AppointmentRescheduled`), booleanos se leem como perguntas (`isOverbooking`, `hasBalance`), e o vocabulário de domínio segue o PRD (patient, appointment, charge, package, cash register).
+- **Funções**: pequenas e num único nível de abstração; no máximo 3 parâmetros posicionais, e um objeto de opções a partir disso.
+- **Comentários**: explicam o *porquê* (uma regra de negócio, uma lei, uma referência ao PRD como `// PRD F07: locked 24h after creation`), nunca o *quê*.
+- **Sem números mágicos**: limites de negócio (aprovação de desconto em 20%, trava de 24 h, 52 ocorrências) ficam em constantes nomeadas por módulo, com referência ao PRD.
+- **Arquivos**: no máximo cerca de 300 linhas; divididos por responsabilidade, não por tipo.
+- **Formatação e lint**: Prettier + ESLint (typescript-eslint strict, `eslint-plugin-boundaries` para as regras de módulo), aplicados no CI e no pre-commit (lint-staged).
+
+### 11.4 Fluxo de trabalho
+- **Branches**: `main` está sempre pronta para deploy; use branches curtas `feat/F06-recurrence`, `fix/...`, `docs/...`.
+- **Commits**: Conventional Commits (`feat(scheduling): block room conflicts [F06]`).
+- **Pull requests**: o CI precisa passar em lint, typecheck, testes unitários, de integração e ponta a ponta, além de `prisma migrate diff` para detectar divergência de schema. A descrição do PR cita o ID da funcionalidade e lista os critérios de aceitação cobertos.
+- **Definição de pronto** de uma funcionalidade: seus critérios de aceitação estão cobertos por testes, suas alterações geram eventos de auditoria, a autorização é verificada em cada ação, as mensagens em pt-BR vêm do PRD, e este documento é atualizado se alguma decisão mudou.
+
+## 12. Registros de Decisão de Arquitetura (ADRs)
+
+Cada ADR vale até ser substituído por um novo ADR. Para mudar uma decisão, adicione um novo ADR que referencie o antigo; não edite o antigo.
+
+**ADR-001 — Monólito modular em Next.js (App Router) com TypeScript**
+- *Decisão:* Uma única aplicação Next.js para interface e backend (Server Actions e Route Handlers), organizada em módulos de negócio, mais um processo worker do mesmo código.
+- *Por quê:* Atende ao requisito de modularidade e à escala da V1 com uma única unidade implantável e uma única linguagem de ponta a ponta.
+- *Contrapartida:* As fronteiras entre módulos dependem de disciplina e de regras de lint, não de fronteiras de rede. Um módulo pode ser extraído como serviço no futuro se surgir uma necessidade real.
+
+**ADR-002 — Fronteiras de módulo verificadas automaticamente**
+- *Decisão:* `eslint-plugin-boundaries` aplica as regras de camadas e a regra "importar apenas pelo `index.ts`". O CI falha quando há violação.
+- *Por quê:* Um monólito só continua modular se as fronteiras forem verificadas automaticamente.
+
+**ADR-003 — Isolamento por organização com cliente Prisma com escopo; RLS adiado**
+- *Decisão:* Todas as consultas da aplicação passam por `forTenant(organizationId)`, e testes entre organizações rodam no CI. O Row-Level Security do PostgreSQL fica para a fase SaaS.
+- *Por quê:* A V1 tem uma única organização, então o risco é baixo. RLS com pool de conexões exige variáveis de sessão por transação, o que adiciona complexidade agora. O cliente com escopo deixa a migração para RLS simples.
+
+**ADR-004 — Autenticação: Better Auth com sessões no banco e Argon2id**
+- *Decisão:* Better Auth com o adaptador Prisma, e-mail e senha, sessões no banco e hash de senha trocado para Argon2id. Os fluxos de convite e bloqueio são construídos sobre ele.
+- *Por quê:* Atende aos requisitos do F01 (revogação imediata, expiração por inatividade e absoluta, bloqueio) sem escrever criptografia de sessão manualmente.
+- *Alternativa:* Um pequeno módulo de sessão próprio (tabela de sessões e token opaco), caso a biblioteca impeça algum requisito do PRD.
+
+**ADR-005 — Autorização centralizada como código**
+- *Decisão:* Matriz de permissões e políticas por recurso em `shared/authz`, verificadas no início de todo caso de uso.
+- *Por quê:* Cobre os quatro perfis fixos do PRD e as regras de confidencialidade clínica num único lugar auditável.
+
+**ADR-006 — PostgreSQL + Prisma, com SQL puro para restrições avançadas**
+- *Decisão:* Prisma para schema, migrações e consultas. Restrições de exclusão, índices parciais, índices trigram e particionamento são adicionados em migrações com SQL puro.
+- *Por quê:* O Prisma traz segurança de tipos e produtividade. Os recursos do PostgreSQL garantem invariantes que o código de aplicação sozinho não garante, principalmente sob concorrência.
+
+**ADR-007 — Eventos de domínio em processo com outbox transacional**
+- *Decisão:* Handlers síncronos dentro da transação para reações em que a consistência é crítica; um outbox processado pelo worker para efeitos assíncronos. Reações entre módulos que criariam ciclos usam inversão de dependência (por exemplo, `ChargeExemptionPolicy`).
+- *Por quê:* Mantém os módulos desacoplados e preserva a atomicidade exigida pelo PRD, sem um message broker.
+
+**ADR-008 — pg-boss para tarefas em segundo plano**
+- *Decisão:* A fila de tarefas roda no PostgreSQL com pg-boss, e um processo worker separado a consome.
+- *Por quê:* Não exige infraestrutura extra (Redis); as tarefas podem ser enfileiradas na mesma transação da alteração de negócio.
+
+**ADR-009 — Armazenamento de objetos privado compatível com S3, com URLs pré-assinadas**
+- *Decisão:* Cloudflare R2 em produção e MinIO localmente. Upload direto do navegador por PUT pré-assinado; downloads por GET pré-assinado de 5 minutos, após a autorização.
+- *Por quê:* O tráfego de arquivos não passa pelo servidor da aplicação, o acesso é controlado e o provedor pode ser trocado.
+
+**ADR-010 — Dinheiro em centavos inteiros; datas em UTC; fuso da organização para a lógica de calendário**
+- *Decisão:* Ver Seção 5.8.
+- *Por quê:* Evita erros de arredondamento nos totais financeiros e bugs de horário de verão e fuso horário na agenda.
+
+**ADR-011 — Stack de interface: React Server Components, Tailwind CSS, shadcn/ui, react-hook-form + Zod, TanStack Query para polling**
+- *Decisão:* Server Components por padrão; Client Components apenas nas superfícies interativas (agenda, editores, formulários).
+- *Por quê:* Carregamento inicial rápido em dispositivos simples e um único schema de validação compartilhado entre cliente e servidor.
+
+**ADR-012 — Hospedagem: contêineres para web e worker, PostgreSQL gerenciado**
+- *Decisão:* Uma imagem Docker implantada como dois serviços (web e worker) numa plataforma de contêineres (Railway, Render ou Fly.io), com PostgreSQL gerenciado com recuperação para um ponto no tempo, e Cloudflare R2 para armazenamento.
+- *Por quê:* O worker precisa de um processo de longa duração, o que descarta uma implantação somente serverless. Serviços gerenciados mantêm a operação mínima.
+- *Situação:* O provedor final é escolhido antes do primeiro deploy e registrado como um novo ADR.
+
+**ADR-013 — Testes com banco de dados real**
+- *Decisão:* Os testes de integração rodam contra PostgreSQL em Testcontainers; o banco nunca é simulado para regras de dados.
+- *Por quê:* As invariantes mais importantes (nenhum agendamento duplo, isolamento por organização, consistência financeira) vivem em parte no banco e só podem ser testadas nele.
+
+**ADR-014 — Better Auth usado apenas pela API de servidor (refina o ADR-004)**
+- *Decisão:* A rota HTTP do Better Auth (`/api/auth/[...all]`) não é exposta. Login, aceite de convite e redefinição de senha passam pelos nossos casos de uso, que chamam `auth.api.*`. A expiração por inatividade usa a sessão deslizante do Better Auth (60 min); o limite absoluto de 12 horas é um campo extra da sessão, verificado pelo contexto da requisição; o cache de sessão em cookie fica desligado. Bloqueio, convites e auditoria ficam no módulo `identity`.
+- *Por quê:* Nenhum endpoint público consegue burlar o bloqueio, o cadastro só por convite ou a auditoria, e a revogação é imediata.
+- *Contrapartida:* O SDK de cliente do Better Auth não é usado; a interface usa Server Actions.
+
+**ADR-015 — URLs em inglês**
+- *Decisão:* As rotas usam caminhos em inglês (`/login`, `/schedule`, `/settings/users`); só o texto exibido ao usuário é em pt-BR.
+- *Por quê:* Um único padrão de nomes para rotas, pastas em `src/app/` e código.
+
+## 13. Evolução para SaaS
+
+O desenho da V1 mantém estes passos como acréscimos, sem reescrita:
+1. Ativar o Row-Level Security do PostgreSQL usando `organizationId` (substitui o ADR-003).
+2. Adicionar cadastro self-service de organizações, cobrança de assinatura e limites por plano (um novo módulo `tenancy`).
+3. Restringir usuários a unidades específicas (o PRD coloca isso fora do escopo da V1; as políticas de autorização já recebem a unidade do recurso).
+4. Adicionar réplicas de leitura para `analytics` se a carga do painel crescer.

@@ -15,6 +15,7 @@ Clínicas de pequeno e médio porte costumam operar com planilhas, agendas de pa
 
 - **Levantamento de requisitos de ponta a ponta:** PRD completo com 15 funcionalidades, personas, objetivos com métricas de sucesso mensuráveis, histórias de usuário, critérios de aceitação e grafo de dependências com ondas de execução (o que pode ser construído em paralelo).
 - **Modelagem de um domínio real e complexo:** agenda multi-recurso (profissional × sala × unidade) com regras de conflito, pacotes de sessões com saldo, prontuário com trava temporal e adendos, fluxo de LGPD (exportação e anonimização de dados).
+- **Arquitetura pensada antes do código:** monólito modular com fronteiras verificadas por lint, isolamento por organização pronto para SaaS, autorização centralizada, auditoria transacional, restrições no banco contra agendamento duplo e 15 decisões registradas como ADRs.
 - **Documentação como artefato de trabalho:** PRD e briefing mantidos em português e inglês, com rastreabilidade entre problema → funcionalidade → história de usuário → critério de aceitação.
 
 ## Funcionalidades principais
@@ -33,29 +34,36 @@ Detalhamento completo de cada uma no PRD (seção 6).
 
 ## Stack
 
-- **Frontend/Backend:** Next.js
-- **ORM:** Prisma
-- **Banco de dados:** PostgreSQL
+- **Aplicação:** Next.js (App Router) + TypeScript, em monólito modular
+- **Dados:** PostgreSQL + Prisma
+- **Tarefas em segundo plano:** pg-boss (fila no próprio PostgreSQL)
+- **Autenticação:** Better Auth com sessões no banco e Argon2id
+- **Interface:** React Server Components, Tailwind CSS, shadcn/ui
+- **Arquivos:** armazenamento compatível com S3 (Cloudflare R2 / MinIO)
+- **Testes:** Vitest, Testcontainers, Playwright
 - **Idioma da interface:** pt-BR · **Moeda:** BRL
 
 ## Documentação
 
-| Documento | Português | English |
-|---|---|---|
-| PRD (requisitos completos) | [docs/prd.pt-BR.md](docs/prd.pt-BR.md) | [docs/prd.en.md](docs/prd.en.md) |
-| Briefing do produto | [docs/briefing.pt-BR.md](docs/briefing.pt-BR.md) | [docs/briefing.en.md](docs/briefing.en.md) |
+| Documento                              | Português                                                | English                                            |
+| -------------------------------------- | -------------------------------------------------------- | -------------------------------------------------- |
+| PRD (requisitos completos)             | [docs/prd.pt-BR.md](docs/prd.pt-BR.md)                   | [docs/prd.en.md](docs/prd.en.md)                   |
+| Arquitetura e diretrizes de engenharia | [docs/architecture.pt-BR.md](docs/architecture.pt-BR.md) | [docs/architecture.en.md](docs/architecture.en.md) |
+| Briefing do produto                    | [docs/briefing.pt-BR.md](docs/briefing.pt-BR.md)         | [docs/briefing.en.md](docs/briefing.en.md)         |
 
-O PRD é a fonte de verdade sobre escopo, funcionalidades (F01–F15), dependências entre elas e critérios de aceitação.
+O PRD é a fonte de verdade sobre **o que** construir: escopo, funcionalidades (F01–F15), dependências entre elas e critérios de aceitação. O documento de arquitetura define **como** construir: monólito modular, camadas, segurança, performance, estratégia de testes, padrões de código e as decisões registradas como ADRs.
 
 ## Estrutura do repositório
 
 ```
-docs/     PRD e briefing do produto (pt-BR e en)
+docs/       PRD, arquitetura e briefing do produto (pt-BR e en)
+CLAUDE.md   Regras de engenharia resumidas para desenvolvimento assistido por IA
 ```
 
 ## Status e roadmap
 
 - [x] Briefing e PRD completo
+- [x] Arquitetura, diretrizes de engenharia e ADRs
 - [ ] Especificação técnica por funcionalidade
 - [ ] Implementação (Next.js + Prisma)
 - [ ] Deploy de uma versão de demonstração
