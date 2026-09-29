@@ -1,0 +1,100 @@
+import type { Role } from "@/shared/kernel/roles";
+
+// Ports implemented by identity/infrastructure and wired in identity/index.ts.
+
+export type RequestMeta = {
+  requestId: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  headers: Headers;
+};
+
+export type UserStatus = "ACTIVE" | "INACTIVE";
+
+export type IdentityUser = {
+  id: string;
+  organizationId: string;
+  name: string;
+  email: string;
+  role: Role;
+  status: UserStatus;
+  lockedUntil: Date | null;
+  failedLoginCount: number;
+};
+
+export type AuthSession = {
+  id: string;
+  userId: string;
+  createdAt: Date;
+  lastActiveAt: Date;
+};
+
+// Better Auth, used only through its server API (ADR-014).
+export interface AuthGateway {
+  signIn(
+    email: string,
+    password: string,
+    meta: RequestMeta,
+  ): Promise<{ ok: true; setCookies: string[] } | { ok: false }>;
+  signOut(headers: Headers): Promise<string[]>;
+  getSession(headers: Headers): Promise<AuthSession | null>;
+  requestPasswordReset(email: string): Promise<void>;
+  resetPassword(token: string, newPassword: string): Promise<boolean>;
+  hashPassword(password: string): Promise<string>;
+  // Verifies against a fixed hash so unknown or inactive accounts take as long as real ones.
+  equalizeTiming(password: string): Promise<void>;
+}
+
+// Lookups that happen before the organization is known (sign-in, reset, invitation links).
+export interface IdentityDirectory {
+  findUserByEmail(email: string): Promise<IdentityUser | null>;
+  findUserById(id: string): Promise<IdentityUser | null>;
+  findResetTokenUserId(token: string): Promise<string | null>;
+  findInvitationByTokenHash(tokenHash: string): Promise<InvitationRecord | null>;
+  findOrganizationName(organizationId: string): Promise<string | null>;
+  touchSession(sessionId: string, now: Date): Promise<void>;
+  deleteSession(sessionId: string): Promise<void>;
+}
+
+export type InvitationRecord = {
+  id: string;
+  organizationId: string;
+  email: string;
+  name: string;
+  role: Role;
+  status: "PENDING" | "ACCEPTED" | "REVOKED";
+  expiresAt: Date;
+  acceptedUserId: string | null;
+};
+
+export interface RateLimiter {
+  consume(key: string, rule: { limit: number; windowSeconds: number }, now: Date): Promise<boolean>;
+  isBlocked(key: string, now: Date): Promise<boolean>;
+  registerFailure(
+    key: string,
+    options: { maxFailures: number; lockMinutes: number },
+    now: Date,
+  ): Promise<{ locked: boolean }>;
+  clear(key: string): Promise<void>;
+}
+
+export interface LogoStore {
+  put(key: string, body: Uint8Array, contentType: string): Promise<void>;
+  get(key: string): Promise<{ body: Uint8Array; contentType: string | undefined } | null>;
+  delete(key: string): Promise<void>;
+}
+
+// Converts an uploaded logo to a PNG within the maximum size (spec section 3).
+export interface LogoProcessor {
+  toPng(input: Uint8Array, maxWidth: number, maxHeight: number): Promise<Uint8Array>;
+}
+
+export type IdentityDeps = {
+  auth: AuthGateway;
+  directory: IdentityDirectory;
+  rateLimiter: RateLimiter;
+  logos: LogoStore;
+  logoProcessor: LogoProcessor;
+  appUrl: string;
+  clock: () => Date;
+};

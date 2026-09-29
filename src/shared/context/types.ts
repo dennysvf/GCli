@@ -1,6 +1,7 @@
-// Role and request context shared by every module (spec F01 sections 3 and 5).
-export const ROLES = ["ADMINISTRATOR", "MANAGER", "FRONT_DESK", "PROFESSIONAL"] as const;
-export type Role = (typeof ROLES)[number];
+// Request context shared by every module (spec F01 sections 3 and 5).
+import type { Role } from "@/shared/kernel/roles";
+
+export { ROLES, type Role } from "@/shared/kernel/roles";
 
 export type RequestUser = {
   id: string;

@@ -9,6 +9,8 @@ export type MessageCatalog = Record<string, string>;
 
 const GENERIC_MESSAGE = "Não foi possível concluir a operação. Tente novamente.";
 
+export function toActionResult<T>(result: Result<T>, messages: MessageCatalog): ActionResult<T>;
+export function toActionResult(result: Result<unknown>, messages: MessageCatalog): ActionResult<never>;
 export function toActionResult<T>(result: Result<T>, messages: MessageCatalog): ActionResult<T> {
   if (result.ok) return { ok: true, data: result.value };
   const { code, fields } = result.error;

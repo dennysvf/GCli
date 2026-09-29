@@ -1,0 +1,88 @@
+import { hash } from "@node-rs/argon2";
+import { Pool } from "pg";
+import { db } from "@/shared/db/client";
+import { newId } from "@/shared/kernel/ids";
+import type { Role } from "@/shared/kernel/roles";
+import type { RequestMeta } from "@/modules/identity";
+
+// Test fixtures that write directly to the database, plus request helpers.
+
+let ownerPool: Pool | undefined;
+
+function owner(): Pool {
+  ownerPool ??= new Pool({ connectionString: process.env.DATABASE_MIGRATION_URL, max: 1 });
+  return ownerPool;
+}
+
+// Empties every application table. Runs as the owner role, which may truncate audit_event.
+export async function resetDatabase(): Promise<void> {
+  await owner().query(`TRUNCATE organization, app_user, session, account, verification, invitation,
+    rate_limit_bucket, outbox_message, audit_event CASCADE`);
+}
+
+export async function closeHelpers(): Promise<void> {
+  await ownerPool?.end();
+  ownerPool = undefined;
+}
+
+export async function createOrganization(name = "Clínica Exemplo"): Promise<string> {
+  const id = newId();
+  await db().organization.create({ data: { id, legalName: `${name} Ltda`, tradeName: name } });
+  return id;
+}
+
+export const DEFAULT_PASSWORD = "senhaForte2026";
+
+export async function createUser(input: {
+  organizationId: string;
+  role?: Role;
+  email?: string;
+  name?: string;
+  password?: string;
+  status?: "ACTIVE" | "INACTIVE";
+}): Promise<{ id: string; email: string; password: string }> {
+  const id = newId();
+  const email = input.email ?? `${id}@exemplo.com.br`;
+  const password = input.password ?? DEFAULT_PASSWORD;
+  await db().user.create({
+    data: {
+      id,
+      organizationId: input.organizationId,
+      name: input.name ?? "Pessoa Teste",
+      email,
+      emailVerified: true,
+      role: input.role ?? "FRONT_DESK",
+      status: input.status ?? "ACTIVE",
+    },
+  });
+  await db().account.create({
+    data: {
+      id: newId(),
+      accountId: id,
+      providerId: "credential",
+      userId: id,
+      password: await hash(password),
+    },
+  });
+  return { id, email, password };
+}
+
+let ipCounter = 1;
+
+// A fresh IP per test keeps the per-IP rate limit from leaking between tests.
+export function freshIp(): string {
+  ipCounter += 1;
+  return `203.0.${Math.floor(ipCounter / 250)}.${ipCounter % 250}`;
+}
+
+export function meta(options: { cookies?: string[]; ip?: string } = {}): RequestMeta {
+  const headers = new Headers({ "user-agent": "vitest" });
+  if (options.cookies?.length) {
+    headers.set("cookie", options.cookies.map((cookie) => cookie.split(";")[0]).join("; "));
+  }
+  return { requestId: newId(), ipAddress: options.ip ?? freshIp(), userAgent: "vitest", headers };
+}
+
+export async function auditEvents(where: { action?: string; entityId?: string } = {}) {
+  return db().auditEvent.findMany({ where, orderBy: { occurredAt: "asc" } });
+}
