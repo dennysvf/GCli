@@ -1,11 +1,29 @@
 # Claude Code local config/skills — not part of the shipped project
 .claude/
 
-# Node / Next.js (added ahead of scaffolding, harmless if unused yet)
+# dependencies
 node_modules/
+
+# next.js
 .next/
 out/
-.env
-.env.local
-.env*.local
+next-env.d.ts
+*.tsbuildinfo
+
+# generated Prisma client
+src/generated/
+
+# env files (the example file is committed)
+.env*
+!.env.example
+
+# testing
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# misc
+.DS_Store
+*.pem
 npm-debug.log*
