@@ -31,6 +31,7 @@ export const identity = {
   resolveRequestContext: (meta: RequestMeta) => resolveRequestContext(deps(), meta),
   requestPasswordReset: (input: unknown, meta: RequestMeta) => requestPasswordReset(deps(), input, meta),
   resetPassword: (input: unknown, meta: RequestMeta) => resetPassword(deps(), input, meta),
+  organizationName: (ctx: RequestContext) => deps().directory.findOrganizationName(ctx.organizationId),
 };
 
 export { homeFor } from "./application/sign-in";

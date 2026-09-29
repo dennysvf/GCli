@@ -1,7 +1,10 @@
 // Next.js entry point of the identity module: request context for pages and Server Actions.
 import "server-only";
-import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { forbidden, redirect } from "next/navigation";
 import { cache } from "react";
+import { recordDenial } from "@/shared/authz/guard";
+import { can, type Action } from "@/shared/authz/permissions";
 import type { RequestContext } from "@/shared/context/types";
 import { identity } from "./index";
 import { applySetCookies, getRequestMeta } from "./infrastructure/next";
@@ -11,10 +14,27 @@ export const getRequestContext = cache(async (): Promise<RequestContext | null> 
   return identity.resolveRequestContext(await getRequestMeta());
 });
 
-// For pages under (app): unauthenticated visitors go to the login page.
-export async function requireRequestContext(returnTo?: string): Promise<RequestContext> {
+// For pages under (app): without a valid session the user goes to the login page and comes back
+// to the same path afterwards. The proxy forwards the current path in x-pathname.
+export async function requireRequestContext(): Promise<RequestContext> {
   const ctx = await getRequestContext();
-  if (!ctx) redirect(returnTo ? `/login?next=${encodeURIComponent(returnTo)}` : "/login");
+  if (!ctx) {
+    const path = (await headers()).get("x-pathname");
+    const params = new URLSearchParams({ reason: "expired" });
+    if (path && path !== "/") params.set("next", path);
+    redirect(`/login?${params.toString()}`);
+  }
+  return ctx;
+}
+
+// For pages that need a permission (any of the given actions): renders the 403 page and records
+// PERMISSION_DENIED.
+export async function requirePermission(...anyOf: [Action, ...Action[]]): Promise<RequestContext> {
+  const ctx = await requireRequestContext();
+  if (!anyOf.some((action) => can(ctx, action))) {
+    await recordDenial(ctx, anyOf[0], (await headers()).get("x-pathname") ?? undefined);
+    forbidden();
+  }
   return ctx;
 }
 
