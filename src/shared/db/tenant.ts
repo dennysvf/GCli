@@ -3,7 +3,16 @@ import { db, type Db } from "./client";
 
 // Tenant isolation (architecture 5.1, ADR-003): every query on a tenant model is filtered by
 // organizationId and every create receives it. Register new tenant models here.
-const TENANT_MODELS = new Set<string>(["User", "Invitation"]);
+const TENANT_MODELS = new Set<string>([
+  "User",
+  "Invitation",
+  // F02
+  "Unit",
+  "UnitBusinessHours",
+  "UnitClosure",
+  "Room",
+  "UnitSelection",
+]);
 // The organization row itself is scoped by its id.
 const ORGANIZATION_MODEL = "Organization";
 

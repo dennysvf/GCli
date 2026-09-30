@@ -13,7 +13,15 @@ export function toActionResult<T>(result: Result<T>, messages: MessageCatalog): 
 export function toActionResult(result: Result<unknown>, messages: MessageCatalog): ActionResult<never>;
 export function toActionResult<T>(result: Result<T>, messages: MessageCatalog): ActionResult<T> {
   if (result.ok) return { ok: true, data: result.value };
-  const { code, fields } = result.error;
-  const message = messages[code] ?? GENERIC_MESSAGE;
+  const { code, fields, params } = result.error;
+  const message = interpolate(messages[code] ?? GENERIC_MESSAGE, params);
   return fields ? { ok: false, error: { code, message, fields } } : { ok: false, error: { code, message } };
+}
+
+// Replaces {name} placeholders with error params; unknown placeholders are left as they are.
+export function interpolate(template: string, params?: Record<string, string | number>): string {
+  if (!params) return template;
+  return template.replace(/\{(\w+)\}/g, (match, name: string) =>
+    name in params ? String(params[name]) : match,
+  );
 }

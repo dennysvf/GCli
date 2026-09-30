@@ -405,6 +405,10 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 - *Decision:* Boundaries are enforced with the core ESLint rule `no-restricted-imports`, configured per layer in `eslint.config.mjs`, instead of `eslint-plugin-boundaries`.
 - *Why:* The plugin's version 7 policy API changed substantially. The core rule expresses the same restrictions (public entry points only, pure domain, no database access from routes, unscoped client limited to infrastructure) with a stable, well-documented configuration.
 
+**ADR-019 — Time zone per unit (refines ADR-010)**
+- *Decision:* Each unit has its own IANA time zone, defaulting to the organization's time zone when the unit is created. Calendar logic (business hours, closures, working hours, the agenda, "today" for the daily cash register) uses the unit's time zone; the organization's time zone is only the default.
+- *Why:* A clinic with units in different states (for example São Paulo and Manaus) has different local clocks; one organization-wide zone would shift opening hours and daily closings in one of them.
+
 ## 13. Evolution to SaaS
 
 The V1 design keeps these steps additive, with no rewrites:

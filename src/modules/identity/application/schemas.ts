@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ROLES } from "@/shared/kernel/roles";
-import { normalizeCnpj } from "../domain/cnpj";
+import { normalizeCnpj } from "@/shared/kernel/cnpj";
 import {
   BRAZIL_TIME_ZONES,
   checkPassword,

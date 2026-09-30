@@ -1,4 +1,4 @@
-// CNPJ validation, numeric and alphanumeric (spec F01 section 3): alphanumeric CNPJs are issued
+// CNPJ validation (shared by identity and units), numeric and alphanumeric (spec F01 section 3): alphanumeric CNPJs are issued
 // from July 2026. Each of the first 12 characters is valued as (ASCII code - 48); the two check
 // digits use the classic modulo-11 weights.
 const FIRST_WEIGHTS = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];

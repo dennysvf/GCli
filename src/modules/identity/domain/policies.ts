@@ -52,24 +52,7 @@ export const MAX_USERS = 100;
 
 // PRD F01: agenda slot granularity options and organization time zones (Brazilian IANA zones).
 export const SLOT_GRANULARITIES = [5, 10, 15, 30] as const;
-export const BRAZIL_TIME_ZONES = [
-  "America/Sao_Paulo",
-  "America/Manaus",
-  "America/Cuiaba",
-  "America/Campo_Grande",
-  "America/Porto_Velho",
-  "America/Boa_Vista",
-  "America/Rio_Branco",
-  "America/Eirunepe",
-  "America/Belem",
-  "America/Santarem",
-  "America/Araguaina",
-  "America/Fortaleza",
-  "America/Recife",
-  "America/Maceio",
-  "America/Bahia",
-  "America/Noronha",
-] as const;
+export { BRAZIL_TIME_ZONES } from "@/shared/kernel/time-zones";
 
 // PRD F01: logo PNG/JPG/SVG up to 2 MB; stored as PNG at most 400×160 (2× the 200×80 display).
 export const LOGO_MAX_BYTES = 2 * 1024 * 1024;

@@ -4,7 +4,7 @@ import type { Action } from "@/shared/authz/permissions";
 // server before rendering. Later features add their entries here.
 export type NavItem = { href: string; label: string; icon: NavIcon; anyOf: Action[] };
 export type NavGroup = { label: string; items: NavItem[] };
-export type NavIcon = "calendar" | "dashboard" | "building" | "users";
+export type NavIcon = "calendar" | "dashboard" | "building" | "users" | "map-pin";
 
 export const NAVIGATION: NavGroup[] = [
   {
@@ -28,6 +28,7 @@ export const NAVIGATION: NavGroup[] = [
         icon: "building",
         anyOf: ["organization:update"],
       },
+      { href: "/settings/units", label: "Unidades", icon: "map-pin", anyOf: ["setup:read"] },
       { href: "/settings/users", label: "Usuários", icon: "users", anyOf: ["user:read"] },
     ],
   },

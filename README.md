@@ -15,7 +15,7 @@ Clínicas de pequeno e médio porte costumam operar com planilhas, agendas de pa
 
 - **Levantamento de requisitos de ponta a ponta:** PRD completo com 15 funcionalidades, personas, objetivos com métricas de sucesso mensuráveis, histórias de usuário, critérios de aceitação e grafo de dependências com ondas de execução (o que pode ser construído em paralelo).
 - **Modelagem de um domínio real e complexo:** agenda multi-recurso (profissional × sala × unidade) com regras de conflito, pacotes de sessões com saldo, prontuário com trava temporal e adendos, fluxo de LGPD (exportação e anonimização de dados).
-- **Arquitetura pensada antes do código:** monólito modular com fronteiras verificadas por lint, isolamento por organização pronto para SaaS, autorização centralizada, auditoria transacional, restrições no banco contra agendamento duplo e 15 decisões registradas como ADRs.
+- **Arquitetura pensada antes do código:** monólito modular com fronteiras verificadas por lint, isolamento por organização pronto para SaaS, autorização centralizada, auditoria transacional, restrições no banco contra agendamento duplo e 19 decisões registradas como ADRs.
 - **Documentação como artefato de trabalho:** PRD e briefing mantidos em português e inglês, com rastreabilidade entre problema → funcionalidade → história de usuário → critério de aceitação.
 
 ## Funcionalidades principais

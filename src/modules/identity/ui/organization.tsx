@@ -15,7 +15,7 @@ import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import { useFormDraft } from "@/shared/ui/forms/use-form-draft";
-import { formatCnpj } from "../domain/cnpj";
+import { formatCnpj } from "@/shared/kernel/cnpj";
 import { BRAZIL_TIME_ZONES, LOGO_MAX_BYTES, SLOT_GRANULARITIES } from "../domain/policies";
 import { updateOrganizationSchema } from "../application/schemas";
 import type { OrganizationProfile } from "../application/organization";

@@ -84,7 +84,7 @@ export type { InvitationPreview } from "./application/invitations";
 
 export { homeFor } from "./application/sign-in";
 export { BRAZIL_TIME_ZONES, SLOT_GRANULARITIES } from "./domain/policies";
-export { formatCnpj } from "./domain/cnpj";
+export { formatCnpj } from "@/shared/kernel/cnpj";
 export { identityMessages, PASSWORD_RESET_REQUESTED_MESSAGE } from "./messages";
 export type { RequestMeta } from "./application/ports";
 export { SESSION_COOKIE_NAMES } from "@/shared/security/session-cookie";

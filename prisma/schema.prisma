@@ -27,6 +27,7 @@ model Organization {
 
   users       User[]
   invitations Invitation[]
+  units       Unit[]
 
   @@map("organization")
 }
@@ -49,9 +50,10 @@ model User {
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_app_user_org")
-  sessions     Session[]
-  accounts     Account[]
+  organization  Organization   @relation(fields: [organizationId], references: [id], map: "fk_app_user_org")
+  sessions      Session[]
+  accounts      Account[]
+  unitSelection UnitSelection?
 
   @@index([organizationId, status, role], map: "ix_app_user_org_status_role")
   @@map("app_user")
@@ -180,4 +182,101 @@ model AuditEvent {
   @@index([entityType, entityId, occurredAt(sort: Desc)], map: "ix_audit_entity")
   @@index([actorUserId, occurredAt(sort: Desc)], map: "ix_audit_actor")
   @@map("audit_event")
+}
+
+// F02 — Units and Rooms (spec docs/F02-units-and-rooms/spec.md, section 6).
+// Case-insensitive unique names and CHECK constraints are hand-written in migration 0003.
+model Unit {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String   @db.VarChar(80)
+  cnpj           String?  @db.Char(14)
+  timeZone       String   @map("time_zone") @db.VarChar(64)
+  phone          String?  @db.VarChar(11)
+  email          String?  @db.VarChar(254)
+  cep            String?  @db.Char(8)
+  street         String?  @db.VarChar(150)
+  number         String?  @db.VarChar(20)
+  complement     String?  @db.VarChar(80)
+  district       String?  @db.VarChar(80)
+  city           String?  @db.VarChar(80)
+  state          String?  @db.Char(2)
+  active         Boolean  @default(true)
+  version        Int      @default(1)
+  createdById    String?  @map("created_by_id") @db.Uuid
+  updatedById    String?  @map("updated_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization  Organization        @relation(fields: [organizationId], references: [id], map: "fk_unit_org")
+  businessHours UnitBusinessHours[]
+  closures      UnitClosure[]
+  rooms         Room[]
+  selections    UnitSelection[]
+
+  @@index([organizationId, active], map: "ix_unit_org_active")
+  @@map("unit")
+}
+
+model UnitBusinessHours {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  unitId         String   @map("unit_id") @db.Uuid
+  weekday        Int      @db.SmallInt
+  startMinute    Int      @map("start_minute") @db.SmallInt
+  endMinute      Int      @map("end_minute") @db.SmallInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade, map: "fk_ubh_unit")
+
+  @@index([unitId, weekday], map: "ix_ubh_unit_weekday")
+  @@map("unit_business_hours")
+}
+
+model UnitClosure {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  unitId         String   @map("unit_id") @db.Uuid
+  startsOn       DateTime @map("starts_on") @db.Date
+  endsOn         DateTime @map("ends_on") @db.Date
+  reason         String   @db.VarChar(120)
+  createdById    String?  @map("created_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  unit Unit @relation(fields: [unitId], references: [id], map: "fk_closure_unit")
+
+  @@index([unitId, endsOn, startsOn], map: "ix_closure_unit_period")
+  @@map("unit_closure")
+}
+
+model Room {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  unitId         String   @map("unit_id") @db.Uuid
+  name           String   @db.VarChar(50)
+  description    String?  @db.VarChar(200)
+  active         Boolean  @default(true)
+  version        Int      @default(1)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  unit Unit @relation(fields: [unitId], references: [id], map: "fk_room_unit")
+
+  @@index([unitId, active], map: "ix_room_unit_active")
+  @@map("room")
+}
+
+// The unit chosen in the header, remembered per user (spec F02 section 3).
+model UnitSelection {
+  userId         String   @id @map("user_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  unitId         String   @map("unit_id") @db.Uuid
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_unit_selection_user")
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade, map: "fk_unit_selection_unit")
+
+  @@map("unit_selection")
 }
