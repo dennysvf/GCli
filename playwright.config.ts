@@ -8,7 +8,9 @@ export default defineConfig({
   testDir: "tests/e2e",
   fullyParallel: false,
   workers: 1,
-  retries: process.env.CI ? 1 : 0,
+  // No retries: the journeys share database state (an accepted invitation cannot be accepted again),
+  // so a retry would fail for a different reason and hide the real one.
+  retries: 0,
   timeout: 60_000,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   globalSetup: "./tests/e2e/global-setup.ts",

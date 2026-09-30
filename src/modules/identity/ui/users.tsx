@@ -30,6 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/components/table";
 import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
+import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import { inviteUserSchema } from "../application/schemas";
 import type { UserListItem } from "../application/users";
 
@@ -94,37 +95,39 @@ export function InviteUserDialog({
           <DialogDescription>O convite é enviado por e-mail e vale por 72 horas.</DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="grid gap-4" noValidate>
-          <Field id="invite-name" label="Nome completo" error={errors.name?.message}>
-            <Input id="invite-name" {...form.register("name")} />
-          </Field>
-          <Field id="invite-email" label="E-mail" error={errors.email?.message}>
-            <Input id="invite-email" type="email" {...form.register("email")} />
-          </Field>
-          <Field id="invite-role" label="Perfil" error={errors.role?.message}>
-            <Controller
-              control={form.control}
-              name="role"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="invite-role" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </Field>
-          <DialogFooter>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Enviando..." : "Enviar convite"}
-            </Button>
-          </DialogFooter>
+          <HydratedFieldset>
+            <Field id="invite-name" label="Nome completo" error={errors.name?.message}>
+              <Input id="invite-name" {...form.register("name")} />
+            </Field>
+            <Field id="invite-email" label="E-mail" error={errors.email?.message}>
+              <Input id="invite-email" type="email" {...form.register("email")} />
+            </Field>
+            <Field id="invite-role" label="Perfil" error={errors.role?.message}>
+              <Controller
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="invite-role" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </Field>
+            <DialogFooter>
+              <Button type="submit" disabled={pending}>
+                {pending ? "Enviando..." : "Enviar convite"}
+              </Button>
+            </DialogFooter>
+          </HydratedFieldset>
         </form>
       </DialogContent>
     </Dialog>

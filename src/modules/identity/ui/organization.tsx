@@ -13,6 +13,7 @@ import { Input } from "@/shared/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
+import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import { useFormDraft } from "@/shared/ui/forms/use-form-draft";
 import { formatCnpj } from "../domain/cnpj";
 import { BRAZIL_TIME_ZONES, LOGO_MAX_BYTES, SLOT_GRANULARITIES } from "../domain/policies";
@@ -59,67 +60,74 @@ export function OrganizationForm({
 
   return (
     <form onSubmit={onSubmit} className="grid max-w-xl gap-4" noValidate>
-      <input type="hidden" {...form.register("version")} />
-      <Field id="legalName" label="Razão social" error={errors.legalName?.message}>
-        <Input id="legalName" defaultValue={profile.legalName} {...form.register("legalName")} />
-      </Field>
-      <Field id="tradeName" label="Nome fantasia" error={errors.tradeName?.message}>
-        <Input id="tradeName" defaultValue={profile.tradeName ?? ""} {...form.register("tradeName")} />
-      </Field>
-      <Field id="cnpj" label="CNPJ" error={errors.cnpj?.message} hint="Aceita CNPJ numérico e alfanumérico.">
-        <Input
+      <HydratedFieldset>
+        <input type="hidden" {...form.register("version")} />
+        <Field id="legalName" label="Razão social" error={errors.legalName?.message}>
+          <Input id="legalName" defaultValue={profile.legalName} {...form.register("legalName")} />
+        </Field>
+        <Field id="tradeName" label="Nome fantasia" error={errors.tradeName?.message}>
+          <Input id="tradeName" defaultValue={profile.tradeName ?? ""} {...form.register("tradeName")} />
+        </Field>
+        <Field
           id="cnpj"
-          placeholder="00.000.000/0000-00"
-          maxLength={18}
-          defaultValue={profile.cnpj ? formatCnpj(profile.cnpj) : ""}
-          {...form.register("cnpj")}
-        />
-      </Field>
-      <Field id="timeZone" label="Fuso horário" error={errors.timeZone?.message}>
-        <Controller
-          control={form.control}
-          name="timeZone"
-          render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger id="timeZone" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {BRAZIL_TIME_ZONES.map((zone) => (
-                  <SelectItem key={zone} value={zone}>
-                    {zone.replace("America/", "").replaceAll("_", " ")}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
-      </Field>
-      <Field id="slot" label="Intervalo da agenda" error={errors.slotGranularityMinutes?.message}>
-        <Controller
-          control={form.control}
-          name="slotGranularityMinutes"
-          render={({ field }) => (
-            <Select value={String(field.value)} onValueChange={(value) => field.onChange(Number(value))}>
-              <SelectTrigger id="slot" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SLOT_GRANULARITIES.map((minutes) => (
-                  <SelectItem key={minutes} value={String(minutes)}>
-                    {minutes} minutos
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
-      </Field>
-      <div>
-        <Button type="submit" disabled={pending}>
-          {pending ? "Salvando..." : "Salvar"}
-        </Button>
-      </div>
+          label="CNPJ"
+          error={errors.cnpj?.message}
+          hint="Aceita CNPJ numérico e alfanumérico."
+        >
+          <Input
+            id="cnpj"
+            placeholder="00.000.000/0000-00"
+            maxLength={18}
+            defaultValue={profile.cnpj ? formatCnpj(profile.cnpj) : ""}
+            {...form.register("cnpj")}
+          />
+        </Field>
+        <Field id="timeZone" label="Fuso horário" error={errors.timeZone?.message}>
+          <Controller
+            control={form.control}
+            name="timeZone"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="timeZone" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BRAZIL_TIME_ZONES.map((zone) => (
+                    <SelectItem key={zone} value={zone}>
+                      {zone.replace("America/", "").replaceAll("_", " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Field>
+        <Field id="slot" label="Intervalo da agenda" error={errors.slotGranularityMinutes?.message}>
+          <Controller
+            control={form.control}
+            name="slotGranularityMinutes"
+            render={({ field }) => (
+              <Select value={String(field.value)} onValueChange={(value) => field.onChange(Number(value))}>
+                <SelectTrigger id="slot" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SLOT_GRANULARITIES.map((minutes) => (
+                    <SelectItem key={minutes} value={String(minutes)}>
+                      {minutes} minutos
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Field>
+        <div>
+          <Button type="submit" disabled={pending}>
+            {pending ? "Salvando..." : "Salvar"}
+          </Button>
+        </div>
+      </HydratedFieldset>
     </form>
   );
 }

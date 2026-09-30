@@ -11,6 +11,7 @@ import { Button } from "@/shared/ui/components/button";
 import { Input } from "@/shared/ui/components/input";
 import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
+import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import { requestPasswordResetSchema, resetPasswordSchema, signInSchema } from "../application/schemas";
 import { PasswordInput, PasswordStrength } from "./password-field";
 
@@ -45,27 +46,29 @@ export function SignInForm({
 
   return (
     <form onSubmit={onSubmit} className="grid gap-4" noValidate>
-      <Field id="email" label="E-mail" error={errors.email?.message}>
-        <Input
-          id="email"
-          type="email"
-          autoComplete="username"
-          aria-invalid={!!errors.email}
-          {...form.register("email")}
-        />
-      </Field>
-      <Field id="password" label="Senha" error={errors.password?.message}>
-        <Input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          aria-invalid={!!errors.password}
-          {...form.register("password")}
-        />
-      </Field>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Entrando..." : "Entrar"}
-      </Button>
+      <HydratedFieldset>
+        <Field id="email" label="E-mail" error={errors.email?.message}>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="username"
+            aria-invalid={!!errors.email}
+            {...form.register("email")}
+          />
+        </Field>
+        <Field id="password" label="Senha" error={errors.password?.message}>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            aria-invalid={!!errors.password}
+            {...form.register("password")}
+          />
+        </Field>
+        <Button type="submit" disabled={pending}>
+          {pending ? "Entrando..." : "Entrar"}
+        </Button>
+      </HydratedFieldset>
     </form>
   );
 }
@@ -100,12 +103,14 @@ export function ForgotPasswordForm({
   }
   return (
     <form onSubmit={onSubmit} className="grid gap-4" noValidate>
-      <Field id="email" label="E-mail" error={form.formState.errors.email?.message}>
-        <Input id="email" type="email" autoComplete="username" {...form.register("email")} />
-      </Field>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Enviando..." : "Enviar link de redefinição"}
-      </Button>
+      <HydratedFieldset>
+        <Field id="email" label="E-mail" error={form.formState.errors.email?.message}>
+          <Input id="email" type="email" autoComplete="username" {...form.register("email")} />
+        </Field>
+        <Button type="submit" disabled={pending}>
+          {pending ? "Enviando..." : "Enviar link de redefinição"}
+        </Button>
+      </HydratedFieldset>
     </form>
   );
 }
@@ -143,25 +148,27 @@ export function NewPasswordForm({
 
   return (
     <form onSubmit={onSubmit} className="grid gap-4" noValidate>
-      <Field
-        id="password"
-        label="Nova senha"
-        error={errors.password?.message}
-        hint="Mínimo de 10 caracteres, com pelo menos uma letra e um número."
-      >
-        <PasswordInput id="password" aria-invalid={!!errors.password} {...form.register("password")} />
-        <PasswordStrength value={password} />
-      </Field>
-      <Field id="confirmPassword" label="Confirme a senha" error={errors.confirmPassword?.message}>
-        <PasswordInput
-          id="confirmPassword"
-          aria-invalid={!!errors.confirmPassword}
-          {...form.register("confirmPassword")}
-        />
-      </Field>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Salvando..." : submitLabel}
-      </Button>
+      <HydratedFieldset>
+        <Field
+          id="password"
+          label="Nova senha"
+          error={errors.password?.message}
+          hint="Mínimo de 10 caracteres, com pelo menos uma letra e um número."
+        >
+          <PasswordInput id="password" aria-invalid={!!errors.password} {...form.register("password")} />
+          <PasswordStrength value={password} />
+        </Field>
+        <Field id="confirmPassword" label="Confirme a senha" error={errors.confirmPassword?.message}>
+          <PasswordInput
+            id="confirmPassword"
+            aria-invalid={!!errors.confirmPassword}
+            {...form.register("confirmPassword")}
+          />
+        </Field>
+        <Button type="submit" disabled={pending}>
+          {pending ? "Salvando..." : submitLabel}
+        </Button>
+      </HydratedFieldset>
     </form>
   );
 }
