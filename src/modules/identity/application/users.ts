@@ -229,3 +229,14 @@ export async function listLinkableUsers(ctx: RequestContext): Promise<LinkableUs
   });
   return result.ok ? result.value : [];
 }
+
+// Display names for author columns in other modules (e.g. F03 price history). Includes
+// deactivated users, since history keeps showing who made each change.
+export async function getUserNames(ctx: RequestContext, userIds: string[]): Promise<Map<string, string>> {
+  const ids = [...new Set(userIds)];
+  if (ids.length === 0) return new Map();
+  const result = await withTransaction(ctx, async (uow) =>
+    ok(await uow.tx.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })),
+  );
+  return new Map(result.ok ? result.value.map((user) => [user.id, user.name]) : []);
+}

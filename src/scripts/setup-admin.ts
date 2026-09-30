@@ -1,4 +1,5 @@
 import { parseArgs } from "node:util";
+import { registerModules } from "@/composition";
 import { identity, identityMessages } from "@/modules/identity";
 import { db } from "@/shared/db/client";
 
@@ -23,6 +24,7 @@ async function main(): Promise<number> {
     return 1;
   }
 
+  registerModules();
   const result = await identity.setupFirstAdministrator({
     organizationName: values["org-name"],
     legalName: values["legal-name"],

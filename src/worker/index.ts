@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { PgBoss } from "pg-boss";
+import { registerModules } from "@/composition";
 import { ensureAuditPartitions } from "@/modules/audit";
 import { getEnv } from "@/shared/config/env";
 import { createSmtpEmailSender } from "@/shared/email/email-sender";
@@ -13,6 +14,7 @@ import { startOutboxLoop } from "./outbox-dispatcher";
 // Worker process (architecture section 2): outbox delivery, email sending, and maintenance crons.
 async function main() {
   const env = getEnv();
+  registerModules();
   Sentry.init(sentryOptions(env.SENTRY_DSN, env.NODE_ENV));
   // The pgboss schema is created by migration 0001 (owned by the runtime role), which has no
   // CREATE privilege on the database.

@@ -6,6 +6,11 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs" || process.env.NEXT_RUNTIME === "edge") {
     Sentry.init(sentryOptions(process.env.SENTRY_DSN || undefined, process.env.NODE_ENV));
   }
+  // Module wiring touches the database layer, which only exists in the Node.js runtime.
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { registerModules } = await import("./composition");
+    registerModules();
+  }
 }
 
 export const onRequestError = Sentry.captureRequestError;
