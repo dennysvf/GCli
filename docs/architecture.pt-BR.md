@@ -405,6 +405,10 @@ Cada ADR vale até ser substituído por um novo ADR. Para mudar uma decisão, ad
 - *Decisão:* As fronteiras são verificadas pela regra nativa `no-restricted-imports` do ESLint, configurada por camada em `eslint.config.mjs`, em vez do `eslint-plugin-boundaries`.
 - *Por quê:* A API de políticas da versão 7 do plugin mudou bastante. A regra nativa expressa as mesmas restrições (só pontos de entrada públicos, domínio puro, nenhum acesso ao banco pelas rotas, cliente sem escopo restrito à infraestrutura) com uma configuração estável e bem documentada.
 
+**ADR-019 — Fuso horário por unidade (refina o ADR-010)**
+- *Decisão:* Cada unidade tem o próprio fuso horário IANA, que por padrão é o fuso da organização no momento da criação. A lógica de calendário (horário de funcionamento, fechamentos, horários de trabalho, agenda, o "hoje" do caixa diário) usa o fuso da unidade; o fuso da organização é só o padrão.
+- *Por quê:* Uma clínica com unidades em estados diferentes (por exemplo São Paulo e Manaus) tem relógios locais diferentes; um único fuso para a organização deslocaria o horário de funcionamento e o fechamento diário de uma delas.
+
 ## 13. Evolução para SaaS
 
 O desenho da V1 mantém estes passos como acréscimos, sem reescrita:

@@ -18,7 +18,7 @@ GCli is a clinic management platform: a modular monolith built with Next.js (App
 - **Authorization:** every use case starts with an `authz` check. Hiding UI is not protection.
 - **Audit:** every mutation calls `audit.record()` inside the same transaction. Clinical note reads are audited.
 - **Errors:** expected failures return `Result<T, DomainError>` with a stable `code`. User-facing messages are pt-BR, taken from the PRD, and stored in the module's `messages.ts`.
-- **Money:** use integer cents through `Money`, never floats. Store timestamps as UTC `timestamptz`; calendar logic uses the organization time zone.
+- **Money:** use integer cents through `Money`, never floats. Store timestamps as UTC `timestamptz`; calendar logic uses the unit time zone (ADR-019; the organization zone is only the default for new units).
 - **Data:** no hard deletes of referenced records. Invariants that matter under concurrency (double booking, idempotent payments, one cash register per day) are also enforced by database constraints in raw SQL migrations.
 - **Secrets and personal data:** never commit secrets. Never log personal data (CPF, name, email, phone, clinical content); log IDs.
 

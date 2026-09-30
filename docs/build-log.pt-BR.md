@@ -150,7 +150,7 @@ O PRD diz **o quê** e **quanto**; a arquitetura diz **como**. O documento [arch
 - **Estratégia de testes**: unitários no domínio, integração com PostgreSQL real e E2E nas jornadas críticas.
 - **Design patterns só onde o PRD mostra o problema**: State para status, Strategy para regras de conflito, Outbox, Specification. Também uma lista explícita do que **não** usar (repositório genérico sobre o ORM, contêiner de injeção de dependência, event sourcing).
 
-Cada decisão virou um **ADR** (Architecture Decision Record): decisão, porquê e contrapartida. A regra é nunca editar um ADR antigo; quando algo muda, cria-se um novo ADR que o refina. Hoje são 18.
+Cada decisão virou um **ADR** (Architecture Decision Record): decisão, porquê e contrapartida. A regra é nunca editar um ADR antigo; quando algo muda, cria-se um novo ADR que o refina. Hoje são 19.
 
 Também foi criado um `CLAUDE.md` na raiz: um resumo das regras em inglês, lido pelo assistente de IA antes de gerar código, para que todo código novo siga as mesmas convenções.
 

@@ -150,7 +150,7 @@ The PRD says **what** and **how much**; the architecture says **how**. The docum
 - **Testing strategy**: unit tests on the domain, integration tests against real PostgreSQL, E2E for critical journeys.
 - **Design patterns only where the PRD shows the problem**: State for statuses, Strategy for conflict rules, Outbox, Specification. Also an explicit list of what **not** to use (generic repository over the ORM, DI container, event sourcing).
 
-Each decision became an **ADR** (Architecture Decision Record): decision, why, and trade-off. The rule is never to edit an old ADR; when something changes, a new ADR refines it. There are 18 today.
+Each decision became an **ADR** (Architecture Decision Record): decision, why, and trade-off. The rule is never to edit an old ADR; when something changes, a new ADR refines it. There are 19 today.
 
 A `CLAUDE.md` was also added at the root: a summary of the rules in English that the AI assistant reads before generating code, so all new code follows the same conventions.
 
