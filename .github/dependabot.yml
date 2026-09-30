@@ -1,3 +1,6 @@
+# Automatic dependency updates. Major versions of npm packages and of the Node base image are
+# ignored: they need a planned migration (for example TypeScript, ESLint, or a new Node LTS) and
+# are upgraded deliberately. GitHub Actions majors are accepted.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -8,6 +11,9 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -16,3 +22,6 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
