@@ -45,29 +45,48 @@ Detalhamento completo de cada uma no PRD (seção 6).
 
 ## Documentação
 
-| Documento                              | Português                                                | English                                            |
-| -------------------------------------- | -------------------------------------------------------- | -------------------------------------------------- |
-| PRD (requisitos completos)             | [docs/prd.pt-BR.md](docs/prd.pt-BR.md)                   | [docs/prd.en.md](docs/prd.en.md)                   |
-| Arquitetura e diretrizes de engenharia | [docs/architecture.pt-BR.md](docs/architecture.pt-BR.md) | [docs/architecture.en.md](docs/architecture.en.md) |
-| Briefing do produto                    | [docs/briefing.pt-BR.md](docs/briefing.pt-BR.md)         | [docs/briefing.en.md](docs/briefing.en.md)         |
+| Documento                                       | Português                                                | English                                            |
+| ----------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------- |
+| PRD (requisitos completos)                      | [docs/prd.pt-BR.md](docs/prd.pt-BR.md)                   | [docs/prd.en.md](docs/prd.en.md)                   |
+| Arquitetura e diretrizes de engenharia          | [docs/architecture.pt-BR.md](docs/architecture.pt-BR.md) | [docs/architecture.en.md](docs/architecture.en.md) |
+| Briefing do produto                             | [docs/briefing.pt-BR.md](docs/briefing.pt-BR.md)         | [docs/briefing.en.md](docs/briefing.en.md)         |
+| Diário de bordo (como o projeto foi construído) | [docs/build-log.pt-BR.md](docs/build-log.pt-BR.md)       | [docs/build-log.en.md](docs/build-log.en.md)       |
 
 O PRD é a fonte de verdade sobre **o que** construir: escopo, funcionalidades (F01–F15), dependências entre elas e critérios de aceitação. O documento de arquitetura define **como** construir: monólito modular, camadas, segurança, performance, estratégia de testes, padrões de código e as decisões registradas como ADRs.
 
 ## Estrutura do repositório
 
 ```
-docs/       PRD, arquitetura e briefing do produto (pt-BR e en)
-CLAUDE.md   Regras de engenharia resumidas para desenvolvimento assistido por IA
+src/app/          Rotas Next.js (páginas, Server Actions, route handlers)
+src/modules/      Módulos de negócio (identity, audit, ...), cada um com domain/application/infrastructure/ui
+src/shared/       Núcleo compartilhado: banco, autorização, auditoria, eventos, e-mail, armazenamento
+src/worker/       Processo worker (outbox, e-mails, manutenção)
+prisma/           Schema e migrações
+tests/            Integração (Testcontainers) e E2E (Playwright)
+docs/             PRD, arquitetura, specs, briefing e diário de bordo (pt-BR e en)
+CLAUDE.md         Regras de engenharia resumidas para desenvolvimento assistido por IA
 ```
 
 ## Status e roadmap
 
 - [x] Briefing e PRD completo
 - [x] Arquitetura, diretrizes de engenharia e ADRs
-- [ ] Especificação técnica por funcionalidade
-- [ ] Implementação (Next.js + Prisma)
+- [x] F01 — Fundação, autenticação e controle de acesso (spec, plano e implementação)
+- [ ] F02 em diante, seguindo as ondas de execução do PRD
 - [ ] Deploy de uma versão de demonstração
 
 ## Como rodar localmente
 
-Ainda não há código de aplicação neste repositório — o projeto está na fase de especificação. Esta seção será atualizada com instruções de setup, variáveis de ambiente e scripts assim que o scaffold do Next.js for criado.
+Pré-requisitos: Node.js 22+, npm 10+ e Docker.
+
+```bash
+npm install
+cp .env.example .env          # defina BETTER_AUTH_SECRET
+docker compose up -d          # PostgreSQL 18, SeaweedFS (S3) e Mailpit
+npm run db:deploy
+npm run setup:admin -- --org-name "Minha Clínica" --admin-name "Seu Nome" --admin-email voce@exemplo.com
+npm run dev                   # http://localhost:3001
+npm run dev:worker            # em outro terminal: envia os e-mails
+```
+
+O convite do administrador chega no Mailpit (http://localhost:8025). Testes: `npm test`, `npm run test:integration` e `npm run test:e2e`. Para rodar tudo em contêineres: `docker compose --profile app up -d --build` (http://localhost:3000). O passo a passo completo está no [diário de bordo](docs/build-log.pt-BR.md#9-como-reproduzir-o-ambiente-do-zero).

@@ -198,7 +198,7 @@ pg-boss runs on the same PostgreSQL database (ADR-008).
 Jobs are idempotent: each job can run twice without duplicating effects, using unique keys and state checks.
 
 ### 5.6 Files
-- Files go to a private S3-compatible bucket: Cloudflare R2 in production, MinIO locally.
+- Files go to a private S3-compatible bucket: Cloudflare R2 in production, SeaweedFS locally (ADR-017).
 - **Uploads**: the server validates type and size, then issues a presigned PUT URL. The browser uploads directly, and the server confirms by checking object metadata before creating the record.
 - **Downloads**: presigned GET URLs valid for 5 minutes, issued only after authorization. Clinical files are audited on every access.
 - Object keys never contain personal data: `org/{orgId}/{module}/{uuid}`.
@@ -317,7 +317,7 @@ Patterns that are **deliberately not used**: generic repository over Prisma, abs
 - **Comments**: explain *why* (a business rule, a law, a PRD reference such as `// PRD F07: locked 24h after creation`), never *what*.
 - **No magic numbers**: business limits (20% discount approval, 24 h lock, 52 occurrences) live in named constants per module, referencing the PRD.
 - **Files**: at most around 300 lines; split by responsibility, not by type.
-- **Formatting and lint**: Prettier + ESLint (typescript-eslint strict, `eslint-plugin-boundaries` for module rules), enforced in CI and pre-commit (lint-staged).
+- **Formatting and lint**: Prettier + ESLint (typescript-eslint strict, `no-restricted-imports` rules for module boundaries, ADR-018), enforced in CI and pre-commit (lint-staged).
 
 ### 11.4 Workflow
 - **Branches**: `main` is always deployable; use short-lived branches `feat/F06-recurrence`, `fix/...`, `docs/...`.
@@ -392,6 +392,18 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 **ADR-015 — English URL paths**
 - *Decision:* Routes use English paths (`/login`, `/schedule`, `/settings/users`); only user-facing text is pt-BR.
 - *Why:* One naming system for routes, folders under `src/app/`, and code.
+
+**ADR-016 — Session expiry: fixed 12-hour session plus lastActiveAt (refines ADR-014)**
+- *Decision:* Better Auth sessions last a fixed 12 hours with sliding refresh disabled. The request context enforces the 60-minute idle timeout through a `lastActiveAt` session column, written at most once per minute.
+- *Why:* Better Auth refreshes the session cookie only inside Server Actions, not during page navigation, so a 60-minute sliding session would sign out users who are active but only navigating.
+
+**ADR-017 — SeaweedFS for local S3 storage (refines ADR-009)**
+- *Decision:* Local development and integration tests use the SeaweedFS S3 API instead of MinIO. Production still targets Cloudflare R2.
+- *Why:* MinIO no longer publishes container images (Docker Hub and quay.io refuse the pull). The application only speaks the S3 protocol, so the local tool is interchangeable.
+
+**ADR-018 — Module boundaries with ESLint no-restricted-imports (refines ADR-002)**
+- *Decision:* Boundaries are enforced with the core ESLint rule `no-restricted-imports`, configured per layer in `eslint.config.mjs`, instead of `eslint-plugin-boundaries`.
+- *Why:* The plugin's version 7 policy API changed substantially. The core rule expresses the same restrictions (public entry points only, pure domain, no database access from routes, unscoped client limited to infrastructure) with a stable, well-documented configuration.
 
 ## 13. Evolution to SaaS
 

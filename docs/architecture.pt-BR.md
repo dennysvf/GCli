@@ -198,7 +198,7 @@ O pg-boss roda no mesmo banco PostgreSQL (ADR-008).
 As tarefas são idempotentes: cada uma pode rodar duas vezes sem duplicar efeitos, usando chaves únicas e verificação de estado.
 
 ### 5.6 Arquivos
-- Os arquivos vão para um bucket privado compatível com S3: Cloudflare R2 em produção, MinIO localmente.
+- Os arquivos vão para um bucket privado compatível com S3: Cloudflare R2 em produção, SeaweedFS localmente (ADR-017).
 - **Uploads**: o servidor valida tipo e tamanho e emite uma URL PUT pré-assinada. O navegador envia o arquivo diretamente, e o servidor confirma verificando os metadados do objeto antes de criar o registro.
 - **Downloads**: URLs GET pré-assinadas válidas por 5 minutos, emitidas somente após a autorização. Arquivos clínicos são auditados a cada acesso.
 - As chaves dos objetos nunca contêm dados pessoais: `org/{orgId}/{module}/{uuid}`.
@@ -317,7 +317,7 @@ Padrões **deliberadamente não usados**: repositório genérico sobre o Prisma,
 - **Comentários**: explicam o *porquê* (uma regra de negócio, uma lei, uma referência ao PRD como `// PRD F07: locked 24h after creation`), nunca o *quê*.
 - **Sem números mágicos**: limites de negócio (aprovação de desconto em 20%, trava de 24 h, 52 ocorrências) ficam em constantes nomeadas por módulo, com referência ao PRD.
 - **Arquivos**: no máximo cerca de 300 linhas; divididos por responsabilidade, não por tipo.
-- **Formatação e lint**: Prettier + ESLint (typescript-eslint strict, `eslint-plugin-boundaries` para as regras de módulo), aplicados no CI e no pre-commit (lint-staged).
+- **Formatação e lint**: Prettier + ESLint (typescript-eslint strict, regras `no-restricted-imports` para as fronteiras de módulo, ADR-018), aplicados no CI e no pre-commit (lint-staged).
 
 ### 11.4 Fluxo de trabalho
 - **Branches**: `main` está sempre pronta para deploy; use branches curtas `feat/F06-recurrence`, `fix/...`, `docs/...`.
@@ -392,6 +392,18 @@ Cada ADR vale até ser substituído por um novo ADR. Para mudar uma decisão, ad
 **ADR-015 — URLs em inglês**
 - *Decisão:* As rotas usam caminhos em inglês (`/login`, `/schedule`, `/settings/users`); só o texto exibido ao usuário é em pt-BR.
 - *Por quê:* Um único padrão de nomes para rotas, pastas em `src/app/` e código.
+
+**ADR-016 — Expiração de sessão: sessão fixa de 12 horas mais lastActiveAt (refina o ADR-014)**
+- *Decisão:* As sessões do Better Auth duram 12 horas fixas, sem renovação deslizante. O contexto da requisição aplica o limite de 60 minutos de inatividade por meio da coluna `lastActiveAt` da sessão, gravada no máximo uma vez por minuto.
+- *Por quê:* O Better Auth só renova o cookie de sessão dentro de Server Actions, não na navegação entre páginas. Uma sessão deslizante de 60 minutos desconectaria usuários ativos que estivessem apenas navegando.
+
+**ADR-017 — SeaweedFS como armazenamento S3 local (refina o ADR-009)**
+- *Decisão:* O desenvolvimento local e os testes de integração usam a API S3 do SeaweedFS no lugar do MinIO. Em produção, o alvo continua sendo o Cloudflare R2.
+- *Por quê:* A MinIO deixou de publicar imagens de contêiner (Docker Hub e quay.io recusam o download). A aplicação usa apenas o protocolo S3, então a ferramenta local é intercambiável.
+
+**ADR-018 — Fronteiras de módulo com o no-restricted-imports do ESLint (refina o ADR-002)**
+- *Decisão:* As fronteiras são verificadas pela regra nativa `no-restricted-imports` do ESLint, configurada por camada em `eslint.config.mjs`, em vez do `eslint-plugin-boundaries`.
+- *Por quê:* A API de políticas da versão 7 do plugin mudou bastante. A regra nativa expressa as mesmas restrições (só pontos de entrada públicos, domínio puro, nenhum acesso ao banco pelas rotas, cliente sem escopo restrito à infraestrutura) com uma configuração estável e bem documentada.
 
 ## 13. Evolução para SaaS
 
