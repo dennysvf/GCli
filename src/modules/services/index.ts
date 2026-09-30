@@ -86,3 +86,7 @@ export {
   SERVICES_DEACTIVATED_WITH_APPOINTMENTS,
   SERVICES_PRICE_CHANGE_CONFIRMATION,
 } from "./messages";
+export { CategoriesDialog } from "./ui/categories-dialog";
+export { ServicesFilters } from "./ui/services-filters";
+export { ServiceSheet } from "./ui/service-sheet";
+export { ServicesTable } from "./ui/services-table";
