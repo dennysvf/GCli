@@ -12,7 +12,7 @@ test("F02: administrator creates a unit with hours, rooms and a closure", async 
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByText("Nenhuma unidade")).toBeVisible();
 
-  await page.getByRole("link", { name: "Unidades" }).click();
+  await page.locator("[data-sidebar=menu-button]", { hasText: "Unidades" }).click();
   await page.getByRole("link", { name: "Nova unidade" }).click();
   await page.getByLabel("Nome").fill("Unidade Centro");
   await page.getByLabel("Logradouro").fill("Avenida Paulista");
@@ -36,7 +36,7 @@ test("F02: administrator creates a unit with hours, rooms and a closure", async 
   await page.getByRole("button", { name: "Adicionar fechamento" }).click();
   await expect(page.getByRole("cell", { name: "Feriado municipal", exact: true })).toBeVisible();
 
-  await page.getByRole("link", { name: "Unidades" }).click();
+  await page.locator("[data-sidebar=menu-button]", { hasText: "Unidades" }).click();
   await expect(page.getByRole("combobox", { name: "Unidade" })).toHaveText(/Unidade Centro/);
   await expect(page.getByText("1 sala ativa")).toBeVisible();
 });
