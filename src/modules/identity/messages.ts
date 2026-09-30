@@ -20,6 +20,8 @@ export const identityMessages: MessageCatalog = {
   IDENTITY_USER_NOT_FOUND: "Usuário não encontrado.",
   ORG_INVALID_CNPJ: "CNPJ inválido.",
   ORG_LOGO_INVALID: "Envie um logotipo PNG, JPG ou SVG de até 2 MB.",
+  SETUP_ALREADY_DONE: "Já existe uma organização cadastrada neste ambiente.",
+  NOT_FOUND: "Registro não encontrado.",
   CONFLICT_STALE_VERSION:
     "Estes dados foram alterados por outra pessoa. Recarregue a página e tente novamente.",
 };

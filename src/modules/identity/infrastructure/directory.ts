@@ -79,3 +79,7 @@ export const prismaDirectory: IdentityDirectory = {
     await db().session.deleteMany({ where: { id: sessionId } });
   },
 };
+
+export async function countOrganizations(): Promise<number> {
+  return db().organization.count();
+}

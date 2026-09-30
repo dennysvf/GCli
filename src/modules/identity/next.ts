@@ -6,7 +6,11 @@ import { cache } from "react";
 import { recordDenial } from "@/shared/authz/guard";
 import { can, type Action } from "@/shared/authz/permissions";
 import type { RequestContext } from "@/shared/context/types";
+import { toActionResult, type ActionResult } from "@/shared/kernel/action-result";
+import { CommonErrors } from "@/shared/kernel/errors";
+import { fail } from "@/shared/kernel/result";
 import { identity } from "./index";
+import { identityMessages } from "./messages";
 import { applySetCookies, getRequestMeta } from "./infrastructure/next";
 
 // Resolved once per request (React cache).
@@ -39,3 +43,13 @@ export async function requirePermission(...anyOf: [Action, ...Action[]]): Promis
 }
 
 export { applySetCookies, getRequestMeta };
+
+// Wraps a Server Action body that needs a signed-in user. An expired session yields
+// AUTH_UNAUTHENTICATED, which the client turns into a redirect to /login (draft preserved).
+export async function withRequestContext<T>(
+  fn: (ctx: RequestContext) => Promise<ActionResult<T>>,
+): Promise<ActionResult<T>> {
+  const ctx = await getRequestContext();
+  if (!ctx) return toActionResult(fail(CommonErrors.unauthenticated()), identityMessages);
+  return fn(ctx);
+}

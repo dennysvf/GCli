@@ -11,7 +11,9 @@ import { startOutboxLoop } from "./outbox-dispatcher";
 // Worker process (architecture section 2): outbox delivery, email sending, and maintenance crons.
 async function main() {
   const env = getEnv();
-  const boss = new PgBoss({ connectionString: env.DATABASE_URL, schema: "pgboss" });
+  // The pgboss schema is created by migration 0001 (owned by the runtime role), which has no
+  // CREATE privilege on the database.
+  const boss = new PgBoss({ connectionString: env.DATABASE_URL, schema: "pgboss", createSchema: false });
   boss.on("error", (error) => logger.error({ err: error }, "pg-boss error"));
   await boss.start();
 

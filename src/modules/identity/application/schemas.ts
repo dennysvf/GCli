@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ROLES } from "@/shared/kernel/roles";
-import { isValidCnpj, normalizeCnpj } from "../domain/cnpj";
+import { normalizeCnpj } from "../domain/cnpj";
 import {
   BRAZIL_TIME_ZONES,
   checkPassword,
@@ -73,12 +73,12 @@ export const updateOrganizationSchema = z.object({
     .max(150, "Nome fantasia muito longo.")
     .optional()
     .transform((value) => value || null),
+  // Check digits are validated by the use case, which returns ORG_INVALID_CNPJ (spec section 5).
   cnpj: z
     .string()
     .trim()
     .optional()
-    .transform((value) => (value ? normalizeCnpj(value) : null))
-    .refine((value) => value === null || isValidCnpj(value), "CNPJ inválido."),
+    .transform((value) => (value ? normalizeCnpj(value) : null)),
   timeZone: z.enum(BRAZIL_TIME_ZONES, { error: "Selecione um fuso horário." }),
   slotGranularityMinutes: z.coerce
     .number()

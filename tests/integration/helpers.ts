@@ -86,3 +86,26 @@ export function meta(options: { cookies?: string[]; ip?: string } = {}): Request
 export async function auditEvents(where: { action?: string; entityId?: string } = {}) {
   return db().auditEvent.findMany({ where, orderBy: { occurredAt: "asc" } });
 }
+
+// Signs a fixture user in and returns the resolved request context and cookies.
+export async function signedInContext(user: { email: string; password: string }) {
+  const { identity } = await import("@/modules/identity");
+  const signIn = await identity.signIn({ email: user.email, password: user.password }, meta());
+  if (!signIn.ok) throw new Error(`sign-in failed: ${signIn.error.code}`);
+  const ctx = await identity.resolveRequestContext(meta({ cookies: signIn.value.setCookies }));
+  if (!ctx) throw new Error("no context");
+  return { ctx, cookies: signIn.value.setCookies };
+}
+
+// Reads the invitation token from the most recent outbox email for an address.
+export async function invitationTokenFor(email: string): Promise<string> {
+  const messages = await db().outboxMessage.findMany({
+    where: { type: "email.invitation" },
+    orderBy: { createdAt: "desc" },
+  });
+  const message = messages.find((row) => (row.payload as { to?: string }).to === email);
+  if (!message) throw new Error(`no invitation email for ${email}`);
+  const token = new URL((message.payload as { url: string }).url).searchParams.get("token");
+  if (!token) throw new Error("missing token");
+  return token;
+}

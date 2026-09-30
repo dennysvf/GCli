@@ -7,9 +7,9 @@ import type { FieldValues, UseFormReturn } from "react-hook-form";
 // session expires (PRD F01: unsaved form data is restored after re-login).
 const PREFIX = "gcli:draft:";
 
-export function useFormDraft<T extends FieldValues>(
+export function useFormDraft<T extends FieldValues, TOutput = T>(
   key: string,
-  form: UseFormReturn<T>,
+  form: UseFormReturn<T, unknown, TOutput>,
 ): { clear: () => void } {
   const storageKey = `${PREFIX}${key}`;
 

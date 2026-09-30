@@ -2,13 +2,35 @@
 // infrastructure adapters; callers never import files inside the module.
 import { getEnv } from "@/shared/config/env";
 import type { RequestContext } from "@/shared/context/types";
-import type { IdentityDeps, RequestMeta } from "./application/ports";
+import {
+  acceptInvitation,
+  getInvitation,
+  inviteUser,
+  resendInvitation,
+  revokeInvitation,
+} from "./application/invitations";
+import {
+  getOrganizationLogo,
+  getOrganizationProfile,
+  removeOrganizationLogo,
+  setupFirstAdministrator,
+  updateOrganization,
+  uploadOrganizationLogo,
+} from "./application/organization";
 import { requestPasswordReset, resetPassword } from "./application/password-reset";
+import type { IdentityDeps, RequestMeta } from "./application/ports";
 import { resolveRequestContext, signOut } from "./application/session";
 import { signIn } from "./application/sign-in";
+import {
+  changeUserRole,
+  deactivateUser,
+  listLinkableUsers,
+  listUsers,
+  reactivateUser,
+} from "./application/users";
 import { postgresRateLimiter, s3LogoStore, sharpLogoProcessor } from "./infrastructure/adapters";
 import { betterAuthGateway } from "./infrastructure/auth";
-import { prismaDirectory } from "./infrastructure/directory";
+import { countOrganizations, prismaDirectory } from "./infrastructure/directory";
 
 let cachedDeps: IdentityDeps | undefined;
 
@@ -26,16 +48,46 @@ function deps(): IdentityDeps {
 }
 
 export const identity = {
+  // Authentication and sessions
   signIn: (input: unknown, meta: RequestMeta) => signIn(deps(), input, meta),
   signOut: (ctx: RequestContext, meta: RequestMeta) => signOut(deps(), ctx, meta),
   resolveRequestContext: (meta: RequestMeta) => resolveRequestContext(deps(), meta),
   requestPasswordReset: (input: unknown, meta: RequestMeta) => requestPasswordReset(deps(), input, meta),
   resetPassword: (input: unknown, meta: RequestMeta) => resetPassword(deps(), input, meta),
+  // Invitations
+  getInvitation: (token: string) => getInvitation(deps(), token),
+  acceptInvitation: (input: unknown, meta: RequestMeta) => acceptInvitation(deps(), input, meta),
+  inviteUser: (ctx: RequestContext, input: unknown) => inviteUser(deps(), ctx, input),
+  resendInvitation: (ctx: RequestContext, input: unknown) => resendInvitation(deps(), ctx, input),
+  revokeInvitation: (ctx: RequestContext, input: unknown) => revokeInvitation(deps(), ctx, input),
+  // Users
+  listUsers: (ctx: RequestContext, input: unknown) => listUsers(deps(), ctx, input),
+  changeUserRole: (ctx: RequestContext, input: unknown) => changeUserRole(deps(), ctx, input),
+  deactivateUser: (ctx: RequestContext, input: unknown) => deactivateUser(deps(), ctx, input),
+  reactivateUser: (ctx: RequestContext, input: unknown) => reactivateUser(deps(), ctx, input),
+  // Organization
   organizationName: (ctx: RequestContext) => deps().directory.findOrganizationName(ctx.organizationId),
+  updateOrganization: (ctx: RequestContext, input: unknown) => updateOrganization(deps(), ctx, input),
+  uploadOrganizationLogo: (ctx: RequestContext, file: { bytes: Uint8Array; type: string }) =>
+    uploadOrganizationLogo(deps(), ctx, file),
+  removeOrganizationLogo: (ctx: RequestContext) => removeOrganizationLogo(deps(), ctx),
+  getOrganizationLogo: (ctx: RequestContext) => getOrganizationLogo(deps(), ctx),
+  setupFirstAdministrator: (input: unknown) => setupFirstAdministrator(deps(), input, countOrganizations),
 };
 
+// Provided to other features (PRD F01 Provides): F08 and F13 read the organization profile,
+// F04 lists users that can be linked to a professional profile.
+export { getOrganizationProfile, listLinkableUsers };
+export type { OrganizationProfile } from "./application/organization";
+export type { LinkableUser, UserList, UserListItem } from "./application/users";
+export type { InvitationPreview } from "./application/invitations";
+
 export { homeFor } from "./application/sign-in";
+export { BRAZIL_TIME_ZONES, SLOT_GRANULARITIES } from "./domain/policies";
+export { formatCnpj } from "./domain/cnpj";
 export { identityMessages, PASSWORD_RESET_REQUESTED_MESSAGE } from "./messages";
 export type { RequestMeta } from "./application/ports";
 export { SESSION_COOKIE_NAMES } from "@/shared/security/session-cookie";
 export { ForgotPasswordForm, NewPasswordForm, SignInForm } from "./ui/auth-forms";
+export { InviteUserDialog, UsersTable } from "./ui/users";
+export { LogoUploader, OrganizationForm } from "./ui/organization";
