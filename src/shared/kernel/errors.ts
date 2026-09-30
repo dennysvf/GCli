@@ -6,10 +6,17 @@ export type DomainError = {
   code: string;
   httpStatus: number;
   fields?: Record<string, string>;
+  // Values for {placeholders} in the pt-BR message, e.g. { count: 12 }.
+  params?: Record<string, string | number>;
 };
 
-export function domainError(code: string, httpStatus: number, fields?: Record<string, string>): DomainError {
-  return fields ? { code, httpStatus, fields } : { code, httpStatus };
+export function domainError(
+  code: string,
+  httpStatus: number,
+  fields?: Record<string, string>,
+  params?: Record<string, string | number>,
+): DomainError {
+  return { code, httpStatus, ...(fields ? { fields } : {}), ...(params ? { params } : {}) };
 }
 
 export const CommonErrors = {

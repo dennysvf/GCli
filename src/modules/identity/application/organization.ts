@@ -6,7 +6,7 @@ import { CommonErrors } from "@/shared/kernel/errors";
 import { newId } from "@/shared/kernel/ids";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import { parseInput } from "@/shared/kernel/validation";
-import { isValidCnpj, normalizeCnpj } from "../domain/cnpj";
+import { isValidCnpj, normalizeCnpj } from "@/shared/kernel/cnpj";
 import { LOGO_MAX_BYTES, LOGO_MAX_HEIGHT, LOGO_MAX_WIDTH } from "../domain/policies";
 import { IdentityErrors } from "./errors";
 import { createInvitation } from "./invitations";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isValidCnpj, normalizeCnpj } from "./cnpj";
+import { isValidCnpj, normalizeCnpj } from "@/shared/kernel/cnpj";
 import { checkPassword, isLocked, sessionState, shouldTouchSession } from "./policies";
 
 const T0 = new Date("2026-09-29T12:00:00.000Z");
