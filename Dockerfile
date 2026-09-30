@@ -8,7 +8,7 @@
 # intercept HTTPS (for example Norton Web Shield). It is used only while building, never stored:
 #   docker build --secret id=extra_ca,src=/path/to/root.pem .
 
-FROM node:22-bookworm-slim AS base
+FROM node:26-bookworm-slim AS base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
