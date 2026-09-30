@@ -71,13 +71,13 @@ export const updateOrganizationSchema = z.object({
     .string()
     .trim()
     .max(150, "Nome fantasia muito longo.")
-    .optional()
+    .nullish()
     .transform((value) => value || null),
   // Check digits are validated by the use case, which returns ORG_INVALID_CNPJ (spec section 5).
   cnpj: z
     .string()
     .trim()
-    .optional()
+    .nullish()
     .transform((value) => (value ? normalizeCnpj(value) : null)),
   timeZone: z.enum(BRAZIL_TIME_ZONES, { error: "Selecione um fuso horário." }),
   slotGranularityMinutes: z.coerce
