@@ -64,3 +64,8 @@ export {
   type Week,
 } from "./domain/business-hours";
 export { unitsMessages } from "./messages";
+export { BusinessHoursForm } from "./ui/business-hours-form";
+export { ClosuresPanel } from "./ui/closures-panel";
+export { RoomsPanel } from "./ui/rooms-panel";
+export { UnitForm } from "./ui/unit-form";
+export { UnitSelector } from "./ui/unit-selector";
