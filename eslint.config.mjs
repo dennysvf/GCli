@@ -41,6 +41,7 @@ export default defineConfig([
     files: [
       "src/shared/db/**",
       "src/shared/security/**",
+      "src/shared/observability/**",
       "src/modules/*/infrastructure/**",
       "src/worker/**",
       "src/scripts/**",

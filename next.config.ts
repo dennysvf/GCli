@@ -11,7 +11,6 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
-  output: "standalone",
   poweredByHeader: false,
   serverExternalPackages: ["@node-rs/argon2", "pg-boss", "pino", "sharp"],
   experimental: {

@@ -1,9 +1,11 @@
+import * as Sentry from "@sentry/node";
 import { PgBoss } from "pg-boss";
 import { ensureAuditPartitions } from "@/modules/audit";
 import { getEnv } from "@/shared/config/env";
 import { createSmtpEmailSender } from "@/shared/email/email-sender";
 import { QUEUES, type EmailJobData } from "@/shared/jobs/queues";
 import { logger } from "@/shared/logging/logger";
+import { sentryOptions } from "@/shared/observability/sentry";
 import { cleanupIdentityData } from "./jobs/identity-cleanup";
 import { sendOutboxEmail } from "./jobs/email-send";
 import { startOutboxLoop } from "./outbox-dispatcher";
@@ -11,10 +13,14 @@ import { startOutboxLoop } from "./outbox-dispatcher";
 // Worker process (architecture section 2): outbox delivery, email sending, and maintenance crons.
 async function main() {
   const env = getEnv();
+  Sentry.init(sentryOptions(env.SENTRY_DSN, env.NODE_ENV));
   // The pgboss schema is created by migration 0001 (owned by the runtime role), which has no
   // CREATE privilege on the database.
   const boss = new PgBoss({ connectionString: env.DATABASE_URL, schema: "pgboss", createSchema: false });
-  boss.on("error", (error) => logger.error({ err: error }, "pg-boss error"));
+  boss.on("error", (error) => {
+    logger.error({ err: error }, "pg-boss error");
+    Sentry.captureException(error);
+  });
   await boss.start();
 
   for (const queue of Object.values(QUEUES)) await boss.createQueue(queue);
