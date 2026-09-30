@@ -31,7 +31,7 @@ GCli is a clinic management platform: a modular monolith built with Next.js (App
 - Business limits go in named constants with a PRD reference, e.g. `// PRD F09: discounts above 20% need approval`.
 - Comments explain why, not what.
 - Commits follow Conventional Commits with the feature ID: `feat(scheduling): block room conflicts [F06]`.
-- Branches: `feat/F06-recurrence`, `fix/...`, `docs/...`.
+- Branches: `feat/F06-recurrence`, `fix/...`, `docs/...`. `main` is protected: every change goes through a pull request, and the four CI jobs (quality, integration, E2E, Docker image) must pass before merging. Never push directly to `main`.
 
 ## Testing
 
