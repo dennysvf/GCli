@@ -1,3 +1,4 @@
+import { subscribeServicesEvents } from "@/modules/services";
 import { eventBus } from "@/shared/db/transaction";
 
 // Composition root: cross-module wiring that must exist once per process (ADR-007). Called by
@@ -8,5 +9,5 @@ const globalForComposition = globalThis as unknown as { gcliModulesRegistered?: 
 export function registerModules(): void {
   if (globalForComposition.gcliModulesRegistered) return;
   globalForComposition.gcliModulesRegistered = true;
-  void eventBus;
+  subscribeServicesEvents(eventBus);
 }
