@@ -12,6 +12,11 @@ const TENANT_MODELS = new Set<string>([
   "UnitClosure",
   "Room",
   "UnitSelection",
+  // F03
+  "ServiceCategory",
+  "Service",
+  "ServiceAllowedRoom",
+  "ServicePriceChange",
 ]);
 // The organization row itself is scoped by its id.
 const ORGANIZATION_MODEL = "Organization";
