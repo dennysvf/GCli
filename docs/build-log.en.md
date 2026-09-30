@@ -117,6 +117,13 @@ Steps taken:
 
 **Problem:** the push failed with `SSL certificate problem: unable to get local issuer certificate`. **Cause:** Git for Windows uses OpenSSL's certificate store, which did not recognize the certificate presented by the network. **Fix:** `git config --global http.sslbackend schannel`, which makes Git use the Windows certificate store. The root cause showed up later (see [section 8](#8-problems-found-and-how-they-were-solved)).
 
+**Protecting `main`.** Once CI was running reliably, `main` was protected with a GitHub ruleset:
+- force pushes and branch deletion are blocked;
+- every change goes through a pull request (no approval from someone else is required, since the project has a single maintainer);
+- the four CI jobs (quality, integration, E2E and Docker image) must pass before merging.
+
+From then on, the flow is: `feat/F02-...` branch → commits → PR → green CI → merge.
+
 ---
 
 ## 5. Architecture before code

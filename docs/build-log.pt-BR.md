@@ -117,6 +117,13 @@ Passos executados:
 
 **Problema:** o push falhou com `SSL certificate problem: unable to get local issuer certificate`. **Causa:** o Git para Windows usa o repositório de certificados do OpenSSL, que não reconhecia o certificado apresentado pela rede. **Solução:** `git config --global http.sslbackend schannel`, que faz o Git usar o repositório de certificados do Windows. Mais adiante descobrimos a causa raiz (ver [seção 8](#8-problemas-encontrados-e-como-foram-resolvidos)).
 
+**Proteção da `main`.** Depois que o CI passou a rodar estável, a branch `main` foi protegida com um *ruleset* do GitHub:
+- bloqueio de force push e de exclusão da branch;
+- toda mudança entra por Pull Request (sem exigir aprovação de outra pessoa, já que o projeto tem um mantenedor);
+- os quatro jobs do CI (qualidade, integração, E2E e imagem Docker) precisam estar verdes para o merge.
+
+Desde então, o fluxo é: branch `feat/F02-...` → commits → PR → CI verde → merge.
+
 ---
 
 ## 5. Arquitetura antes do código
