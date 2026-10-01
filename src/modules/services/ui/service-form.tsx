@@ -31,7 +31,7 @@ import type { SaveServiceResult, ServiceDetails } from "../application/services"
 import type { ServiceColor } from "../domain/palette";
 import { DURATION_OPTIONS, formatDuration } from "../domain/service-rules";
 import { SERVICES_PRICE_CHANGE_CONFIRMATION } from "../messages";
-import { ColorPicker } from "./color-picker";
+import { ColorPicker } from "@/shared/ui/palette/color-picker";
 
 type Values = z.input<typeof createServiceSchema>;
 type Parsed = z.output<typeof createServiceSchema>;

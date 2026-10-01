@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/shared/ui/utils";
 import type { ServiceGroup } from "../application/services";
 import { formatDuration } from "../domain/service-rules";
-import { PALETTE } from "./palette";
+import { PALETTE } from "@/shared/ui/palette/palette";
 
 // Services grouped by category (PRD F03 Experience). Each row opens the side panel through the
 // ?service= query, keeping the current filters.

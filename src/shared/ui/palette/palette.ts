@@ -1,9 +1,9 @@
-import type { ServiceColor } from "../domain/palette";
+import type { PaletteColor } from "@/shared/kernel/palette";
 
-// Visual mapping of the service color keys (spec F03 section 3). Class names are literal so
+// Visual mapping of the agenda color keys (spec F03 section 3, F04 professionals). Class names are literal so
 // Tailwind generates them: 500 for swatches and the agenda accent, 100 background with 900 text
 // for readable chips (AA contrast in light and dark themes).
-export const PALETTE: Record<ServiceColor, { label: string; swatch: string; chip: string }> = {
+export const PALETTE: Record<PaletteColor, { label: string; swatch: string; chip: string }> = {
   slate: { label: "Cinza", swatch: "bg-slate-500", chip: "bg-slate-100 text-slate-900 border-slate-500" },
   red: { label: "Vermelho", swatch: "bg-red-500", chip: "bg-red-100 text-red-900 border-red-500" },
   orange: {

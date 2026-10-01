@@ -54,3 +54,14 @@ export function formatRegistration(registration: CouncilRegistration): string {
   if (!requiresRegistration(registration.type) || !registration.number || !registration.state) return "";
   return `${councilLabel(registration)} ${registration.number}/${registration.state}`;
 }
+
+// Up to two initials for the avatar: first and last word of the name ("Ana Paula Lima" → "AL").
+export function initialsOf(name: string): string {
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0 && !/^(dr|dra|prof|profa)\.?$/i.test(word));
+  const first = words[0]?.[0] ?? "";
+  const last = words.length > 1 ? (words[words.length - 1]?.[0] ?? "") : "";
+  return `${first}${last}`.toUpperCase();
+}
