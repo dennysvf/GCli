@@ -158,3 +158,26 @@ export async function setRoomActive(
     return ok({ active });
   });
 }
+
+export type RoomWithUnit = { id: string; name: string; active: boolean; unitId: string; unitName: string };
+
+// Rooms across units, for features that pick rooms per service (F03) or per appointment (F06).
+export async function getRooms(
+  ctx: RequestContext,
+  options: { roomIds?: string[]; activeOnly?: boolean } = {},
+): Promise<Result<RoomWithUnit[]>> {
+  const allowed = await authorize(ctx, "setup:read");
+  if (!allowed.ok) return allowed;
+  if (options.roomIds && options.roomIds.length === 0) return ok([]);
+  return withTransaction(ctx, async (uow) => {
+    const rooms = await uow.tx.room.findMany({
+      where: {
+        ...(options.roomIds ? { id: { in: options.roomIds } } : {}),
+        ...(options.activeOnly ? { active: true, unit: { active: true } } : {}),
+      },
+      orderBy: [{ unit: { name: "asc" } }, { name: "asc" }],
+      select: { id: true, name: true, active: true, unitId: true, unit: { select: { name: true } } },
+    });
+    return ok(rooms.map(({ unit, ...room }) => ({ ...room, unitName: unit.name })));
+  });
+}

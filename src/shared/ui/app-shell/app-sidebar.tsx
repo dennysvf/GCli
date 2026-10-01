@@ -1,6 +1,14 @@
 "use client";
 
-import { Building2, CalendarDays, LayoutDashboard, MapPin, Users, type LucideIcon } from "lucide-react";
+import {
+  Building2,
+  CalendarDays,
+  LayoutDashboard,
+  MapPin,
+  Stethoscope,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -22,6 +30,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   building: Building2,
   users: Users,
   "map-pin": MapPin,
+  stethoscope: Stethoscope,
 };
 
 // Receives only the groups and items the signed-in role may see (filtered on the server).

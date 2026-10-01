@@ -1,10 +1,10 @@
 # Build log — how GCli was built
 
-This log records, in order, everything done on the project from reading the briefing to implementing the first feature (F01). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
+This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01, F02 and F03). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
 
 The work was done as a pair: a product owner and an AI coding assistant. The product owner answered questions, made the business decisions and approved each stage; the assistant ran the interviews, wrote documents and code, ran the tests and recorded what it found along the way.
 
-> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage.
+> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03.
 
 Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 
@@ -19,9 +19,11 @@ Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 5. [Architecture before code](#5-architecture-before-code)
 6. [F01 technical spec and plan](#6-f01-technical-spec-and-plan)
 7. [Implementing F01, stage by stage](#7-implementing-f01-stage-by-stage)
-8. [Problems found and how they were solved](#8-problems-found-and-how-they-were-solved)
-9. [Reproducing the environment from scratch](#9-reproducing-the-environment-from-scratch)
-10. [Lessons learned](#10-lessons-learned)
+8. [Second feature: F02 — Units and Rooms](#8-second-feature-f02--units-and-rooms)
+9. [Third feature: F03 — Service Catalog](#9-third-feature-f03--service-catalog)
+10. [Problems found and how they were solved](#10-problems-found-and-how-they-were-solved)
+11. [Reproducing the environment from scratch](#11-reproducing-the-environment-from-scratch)
+12. [Lessons learned](#12-lessons-learned)
 
 ---
 
@@ -115,7 +117,7 @@ Steps taken:
 4. **First commit** on `main`, reviewing with `git status` what would be included (no secrets, no local folders).
 5. **Public repository created and pushed**: `gh repo create GCli --public --source=. --remote=origin --push`.
 
-**Problem:** the push failed with `SSL certificate problem: unable to get local issuer certificate`. **Cause:** Git for Windows uses OpenSSL's certificate store, which did not recognize the certificate presented by the network. **Fix:** `git config --global http.sslbackend schannel`, which makes Git use the Windows certificate store. The root cause showed up later (see [section 8](#8-problems-found-and-how-they-were-solved)).
+**Problem:** the push failed with `SSL certificate problem: unable to get local issuer certificate`. **Cause:** Git for Windows uses OpenSSL's certificate store, which did not recognize the certificate presented by the network. **Fix:** `git config --global http.sslbackend schannel`, which makes Git use the Windows certificate store. The root cause showed up later (see [section 10](#10-problems-found-and-how-they-were-solved)).
 
 **Protecting `main`.** Once CI was running reliably, `main` was protected with a GitHub ruleset:
 - force pushes and branch deletion are blocked;
@@ -247,7 +249,117 @@ Implementation followed the plan. Each stage ended with **lint + type checking +
 
 ---
 
-## 8. Problems found and how they were solved
+## 8. Second feature: F02 — Units and Rooms
+
+With the foundation in place, F02 was the first business feature. It registers the clinic's units (address, time zone, business hours and closures) and the rooms of each unit, and adds a unit selector to the top of the application. Scheduling (F06), professionals' working hours (F04), documents (F08) and the cash register (F11) depend on this data.
+
+### 8.1 Workflow: branch, PR and CI
+
+This was the first feature built with `main` protected (see [section 4](#4-public-github-repository)):
+
+1. Branch `feat/F02-units-and-rooms` created from an up-to-date `main`.
+2. Spec and plan committed first, on a branch pushed to GitHub.
+3. One commit per implementation stage, each with lint, types and tests passing.
+4. Pull Request #12, with all four CI jobs green, merged into `main` as a single commit (`ffecf7b`).
+
+### 8.2 The technical interview
+
+The script was the same as for F01: only what the PRD and the existing code did not answer was asked, one question at a time, always with a recommendation. The patterns created in F01 (modules, authorization, auditing, transactions, error messages, forms) were reused without discussion.
+
+| Decision | Outcome |
+|---|---|
+| Time zone | **Per unit**, starting from the organization's zone. A clinic with units in São Paulo and Manaus has different local clocks. Recorded as **ADR-019**, which refines ADR-010 |
+| CEP (postal code) lookup | **A route on our own server** (`/api/address/cep/:cep`) that queries BrasilAPI and falls back to ViaCEP, within 3 seconds. It requires sign-in and allows 30 lookups per minute per user. If both fail, the address is typed by hand |
+| Unit chosen in the header | **Its own table** (`unit_selection`), so it follows the user across devices |
+| Rules that depend on appointments (which only exist in F06) | A **port with a zero default**: F02 asks "how many future appointments does this room have?" and, for now, the answer is always 0. F06 will replace the implementation. The rules, messages and tests already exist |
+| Business hours | **One row per interval**, with database CHECKs (minutes from 0 to 1440, multiples of 5) and pure rules that F04 and F06 can reuse |
+| A closure over days with appointments | **Two-step confirmation**: the first submission returns the number of appointments; the second, confirmed, saves |
+| Duplicate names | **Case-insensitive unique index** in the database (`lower(name)`), plus a check in the code for the friendly message |
+
+The spec and plan are in [F02-units-and-rooms/](F02-units-and-rooms/).
+
+### 8.3 Implementation in 4 stages
+
+| Stage | Commit | What went in |
+|---|---|---|
+| 1 — Shared foundations | `667d0f6` | CNPJ rules moved to the shared kernel (now used by two modules); error messages with parameters, such as "Esta sala possui **12** agendamentos futuros"; CEP lookup |
+| 2 — Database and domain | `80fa920` | Migration `0003_units` with five tables, CHECK constraints and unique indexes; pure business-hours rules; limits as named constants; appointments port with a zero default |
+| 3 — Use cases | `66a6703` | Units (up to 20 active), rooms (up to 30 active per unit), business hours, closures and unit selection, all with authorization, auditing and optimistic locking; public API for F04, F06, F08, F11 and F12 |
+| 4 — Screens | `ddddf27`, `47153c2` | Units list, unit page with the Dados, Horário de funcionamento, Salas and Fechamentos tabs (read-only for users who cannot change them), header selector, "Unidades" menu item and the E2E journey |
+
+In the end: 22 integration tests against real PostgreSQL, 10 unit tests (business hours and CEP) and a full E2E journey in the browser (create unit → hours → room → closure → selector showing the unit).
+
+### 8.4 Problems found in F02
+
+| Problem | Cause | Fix |
+|---|---|---|
+| Type error when giving a schema object a default value | In Zod 4, `.default()` on an object with a transform expects the **already transformed** value | `.prefault({})`, which applies the default **before** validation |
+| The browser bundle pulled in the whole identity module | The form (browser code) imported the time zone list from the identity module's `index.ts`, which loads server code | The time zone list moved to the shared kernel (`shared/kernel/time-zones.ts`) |
+| The shadcn/ui component installer stopped waiting for an answer | While adding tabs, switch and dialogs, it asked whether to overwrite `button.tsx`, which had already been adjusted | Answer "no" automatically (`printf 'n\n' \| npx shadcn add ...`) |
+| The E2E test clicked the wrong element | The text "Unidades" appeared in more than one element on the page | The locator was scoped to the sidebar (`[data-sidebar=menu-button]`) |
+
+### 8.5 What F02 left in place
+
+- **Messages with numbers** (`{count}`), already reused by F03.
+- **Ports with a zero default** as a way to build a feature before another one it depends on, without faking anything in production.
+- **Time zone per unit** as the rule for everything calendar-related.
+
+---
+
+## 9. Third feature: F03 — Service Catalog
+
+F03 registers the clinic's services: name, category, duration, price, agenda color, whether it requires a room, which rooms are allowed, and whether it is active. Professionals (F04), scheduling (F06), charges (F09) and packages (F10) will use this catalog. The workflow was the same as for F02: branch `feat/F03-service-catalog`, spec and plan first (commit `c7ec239`), one commit per stage and a PR at the end.
+
+### 9.1 The technical interview
+
+Five questions, one at a time, each with a recommendation that was accepted:
+
+| Decision | Outcome |
+|---|---|
+| Categories: their own table or free text? | **Their own table**, with up to 50 categories, a configurable order and deletion only when the category has no services. With free text, "Consulta" and "Consultas" would become two groups |
+| Allowed rooms with several units | **Restricted per unit**: in a unit with no rooms selected, any active room works. A global rule would make a restriction in one unit block the service in the others |
+| When does a new price apply? | **Immediately**, with no scheduled price changes. Each change stores the previous price, the new price, the date and the author |
+| The 16 palette colors | **Stable keys** in the database (`blue`, `emerald`...), with a CHECK; the interface turns the key into colors. Changing the tones needs no migration |
+| Delete services? | **No**: only deactivate and reactivate. Names stay unique even among inactive services |
+
+Other decisions came from the project rules, with no need to ask:
+- **`Money`**: the project rules require money as integer cents through a `Money` object, which did not exist yet. F03 created it, plus a BRL-masked amount input (`R$ 1.234,56`) that later features will reuse.
+- **Default categories through an event**: when a clinic is created, the identity module publishes an "organization created" event, and the services module creates "Consultas", "Procedimentos" and "Terapias" in the same transaction. This way the foundation module does not depend on a business module. For clinics that already existed, the migration itself created the three categories.
+- **Composition root** (`src/composition.ts`): a single place wires the events between modules. The web server, the worker, the `setup:admin` command and the tests all call it.
+
+The spec and plan are in [F03-service-catalog/](F03-service-catalog/).
+
+### 9.2 Implementation in 5 stages
+
+| Stage | Commit | What went in |
+|---|---|---|
+| 1 — Foundations | `2f1167b` | `Money` and the BRL amount input; the "organization created" event; the composition root; room lookup in the units module; user names in the identity module |
+| 2 — Database and domain | `e9a5a33` | Migration `0004_services` with four tables, CHECKs for duration, price and color, case-insensitive unique names and a **price history the application can only insert into and read**; pure duration, price and room rules; the palette; zero-default ports for appointments (F06) and enabled professionals (F04) |
+| 3 — Use cases | `de4e12a` | Categories (create, rename, reorder, delete when empty) and services (list with filters, create, edit, deactivate), with authorization, auditing and optimistic locking; public API for F04, F06, F09 and F10; 22 integration tests |
+| 4 — Screens | `7214d94` | The `/settings/services` page with filters in the URL and a list grouped by category; the side panel with the form, the color picker, rooms by unit, the price confirmation dialog and the "Histórico de preços" tab; the categories dialog; the "Serviços" menu item |
+| 5 — Tests | `4fca520` | E2E journey: create a service, change its price with confirmation, see two history entries and deactivate it |
+
+Final check: lint and types clean, 43 unit tests, 100 integration tests and 7 E2E journeys passing.
+
+### 9.3 Problems found in F03
+
+| Problem | Cause | Fix |
+|---|---|---|
+| The spec relied on a function that did not exist | The spec assumed the identity module already returned a user's name by ID, to show the author of each price change | `getUserNames` was added to the identity module. **Lesson:** what a spec assumes should be checked in the code before implementing |
+| The event could be lost in the web server | Next.js may load the same file more than once (startup and routes), and each copy would have its own list of subscriptions | The event bus became one per process (kept in `globalThis`, as was already done for the database client) |
+| React Compiler warning in the form | react-hook-form's `form.watch()` cannot be optimized by the compiler | `useWatch()`, the compatible API |
+| The E2E test could not find the table rows | The side panel is modal and hides the rest of the page from the accessibility tree, which is what `getByRole` queries | Rows are located with CSS (`locator("tr", { hasText })`) |
+| The E2E test found two elements for "Preço" | `getByLabel("Preço")` also matched the "Histórico de **preços**" tab | An exact role query for the field: `getByRole("textbox", { name: "Preço" })` |
+
+### 9.4 What F03 left in place
+
+- **`Money`** and the **BRL amount input**, for charges (F09), packages (F10) and the cash register (F11).
+- **Events between modules** with a **composition root**, where F04 and F06 will plug in their port implementations.
+- **A history not even the application can change**, enforced by database privileges, as already done for the audit log.
+
+---
+
+## 10. Problems found and how they were solved
 
 This may be the most useful section for anyone reproducing the project. All of these problems showed up because **each stage was actually executed**, not just written.
 
@@ -270,7 +382,7 @@ This may be the most useful section for anyone reproducing the project. All of t
 
 ---
 
-## 9. Reproducing the environment from scratch
+## 11. Reproducing the environment from scratch
 
 ### Prerequisites
 
@@ -331,7 +443,7 @@ EXTRA_CA_CERTS=/path/to/root-certificate.pem docker compose --profile app build
 
 ---
 
-## 10. Lessons learned
+## 12. Lessons learned
 
 1. **Interview before document.** One question at a time, always with a recommendation, settles more than a long document written in the dark.
 2. **End-to-end IDs** (F01 → story → criterion → test → commit) make the project traceable at no extra cost.
@@ -340,3 +452,5 @@ EXTRA_CA_CERTS=/path/to/root-certificate.pem docker compose --profile app build
 5. **"I wrote the code" is not "it is done".** Four real bugs (session expiring while active, version conflict after a logo upload, pg-boss permissions, draft not restored) only appeared by actually running the server, the browser and the database.
 6. **Test against real infrastructure.** The database is never mocked in data-rule tests: constraints, privileges and concurrency can only be tested there.
 7. **Record changes of direction as new ADRs.** The history of decisions tells the project's story better than any summary.
+8. **Ports with a zero default unlock the build order.** F02 already has the rules that depend on appointments, with tests, before the agenda exists; when F06 arrives, only the port's implementation changes.
+9. **Check in the code what the spec assumes.** The F03 spec relied on a function that did not exist; the gap showed up during implementation, was fixed and was recorded.

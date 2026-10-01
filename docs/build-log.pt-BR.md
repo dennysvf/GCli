@@ -1,10 +1,10 @@
 # Diário de bordo — como o GCli foi construído
 
-Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação da primeira funcionalidade (F01). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
+Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01, F02 e F03). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
 
 O trabalho foi feito em dupla: uma pessoa responsável pelo produto e um assistente de programação com IA. A pessoa respondeu perguntas, tomou as decisões de negócio e aprovou cada etapa; o assistente conduziu entrevistas, escreveu documentos e código, rodou os testes e registrou o que encontrou pelo caminho.
 
-> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa.
+> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03.
 
 English version: [build-log.en.md](build-log.en.md).
 
@@ -19,9 +19,11 @@ English version: [build-log.en.md](build-log.en.md).
 5. [Arquitetura antes do código](#5-arquitetura-antes-do-código)
 6. [Especificação técnica e plano da F01](#6-especificação-técnica-e-plano-da-f01)
 7. [Implementação da F01, etapa por etapa](#7-implementação-da-f01-etapa-por-etapa)
-8. [Problemas encontrados e como foram resolvidos](#8-problemas-encontrados-e-como-foram-resolvidos)
-9. [Como reproduzir o ambiente do zero](#9-como-reproduzir-o-ambiente-do-zero)
-10. [Lições aprendidas](#10-lições-aprendidas)
+8. [Segunda funcionalidade: F02 — Unidades e Salas](#8-segunda-funcionalidade-f02--unidades-e-salas)
+9. [Terceira funcionalidade: F03 — Catálogo de Serviços](#9-terceira-funcionalidade-f03--catálogo-de-serviços)
+10. [Problemas encontrados e como foram resolvidos](#10-problemas-encontrados-e-como-foram-resolvidos)
+11. [Como reproduzir o ambiente do zero](#11-como-reproduzir-o-ambiente-do-zero)
+12. [Lições aprendidas](#12-lições-aprendidas)
 
 ---
 
@@ -115,7 +117,7 @@ Passos executados:
 4. **Primeiro commit** na branch `main`, revisando com `git status` o que entraria (nenhum segredo, nenhuma pasta local).
 5. **Criação do repositório público e push**: `gh repo create GCli --public --source=. --remote=origin --push`.
 
-**Problema:** o push falhou com `SSL certificate problem: unable to get local issuer certificate`. **Causa:** o Git para Windows usa o repositório de certificados do OpenSSL, que não reconhecia o certificado apresentado pela rede. **Solução:** `git config --global http.sslbackend schannel`, que faz o Git usar o repositório de certificados do Windows. Mais adiante descobrimos a causa raiz (ver [seção 8](#8-problemas-encontrados-e-como-foram-resolvidos)).
+**Problema:** o push falhou com `SSL certificate problem: unable to get local issuer certificate`. **Causa:** o Git para Windows usa o repositório de certificados do OpenSSL, que não reconhecia o certificado apresentado pela rede. **Solução:** `git config --global http.sslbackend schannel`, que faz o Git usar o repositório de certificados do Windows. Mais adiante descobrimos a causa raiz (ver [seção 10](#10-problemas-encontrados-e-como-foram-resolvidos)).
 
 **Proteção da `main`.** Depois que o CI passou a rodar estável, a branch `main` foi protegida com um *ruleset* do GitHub:
 - bloqueio de force push e de exclusão da branch;
@@ -247,7 +249,117 @@ A implementação seguiu o plano. Cada etapa terminou com **lint + checagem de t
 
 ---
 
-## 8. Problemas encontrados e como foram resolvidos
+## 8. Segunda funcionalidade: F02 — Unidades e Salas
+
+Com a fundação pronta, a F02 foi a primeira funcionalidade de negócio. Ela cadastra as unidades da clínica (endereço, fuso horário, horário de funcionamento e fechamentos) e as salas de cada unidade, e coloca um seletor de unidade no topo da aplicação. A agenda (F06), os horários dos profissionais (F04), os documentos (F08) e o caixa (F11) dependem desses dados.
+
+### 8.1 Fluxo de trabalho: branch, PR e CI
+
+Esta foi a primeira funcionalidade feita com a `main` protegida (ver [seção 4](#4-repositório-público-no-github)):
+
+1. Branch `feat/F02-units-and-rooms` criada a partir da `main` atualizada.
+2. Especificação e plano commitados primeiro, numa branch publicada no GitHub.
+3. Um commit por etapa da implementação, cada um com lint, tipos e testes passando.
+4. Pull Request #12, com os quatro jobs do CI verdes, e merge na `main` em um único commit (`ffecf7b`).
+
+### 8.2 A entrevista técnica
+
+O roteiro foi o mesmo da F01: só se perguntou o que o PRD e o código existente não respondiam, uma pergunta por vez, sempre com uma recomendação. Os padrões criados na F01 (módulos, autorização, auditoria, transações, mensagens de erro, formulários) foram reaproveitados sem discussão.
+
+| Decisão | Resultado |
+|---|---|
+| Fuso horário | **Por unidade**, começando com o fuso da organização. Uma clínica com unidades em São Paulo e Manaus tem relógios diferentes. Registrado como **ADR-019**, que refina o ADR-010 |
+| Busca de CEP | **Rota no próprio servidor** (`/api/address/cep/:cep`), que consulta a BrasilAPI e, se ela falhar, o ViaCEP, em até 3 segundos. Exige login e limita 30 consultas por minuto por usuário. Se as duas falharem, o endereço é digitado à mão |
+| Unidade escolhida no topo | **Tabela própria** (`unit_selection`), para acompanhar o usuário em qualquer aparelho |
+| Regras que dependem de agendamentos (que só existem na F06) | Uma **porta com padrão zero**: a F02 pergunta "quantos agendamentos futuros esta sala tem?" e, por enquanto, a resposta é sempre 0. A F06 vai trocar a implementação. As regras, mensagens e testes já existem |
+| Horário de funcionamento | **Uma linha por intervalo**, com CHECK no banco (minutos de 0 a 1440, múltiplos de 5) e regras puras reaproveitáveis pela F04 e F06 |
+| Fechamento sobre dias com agendamentos | **Confirmação em dois passos**: o primeiro envio devolve a quantidade de agendamentos; o segundo, confirmado, salva |
+| Nomes repetidos | **Índice único sem diferenciar maiúsculas** no banco (`lower(name)`), além da checagem no código para a mensagem amigável |
+
+A especificação e o plano estão em [F02-units-and-rooms/](F02-units-and-rooms/).
+
+### 8.3 Implementação em 4 etapas
+
+| Etapa | Commit | O que entrou |
+|---|---|---|
+| 1 — Fundações compartilhadas | `667d0f6` | Regras de CNPJ movidas para o núcleo compartilhado (agora usadas por dois módulos); mensagens de erro com parâmetros, como "Esta sala possui **12** agendamentos futuros"; busca de CEP |
+| 2 — Banco e domínio | `80fa920` | Migração `0003_units` com cinco tabelas, CHECK constraints e índices únicos; regras puras do horário de funcionamento; limites como constantes nomeadas; porta de agendamentos com padrão zero |
+| 3 — Casos de uso | `66a6703` | Unidades (até 20 ativas), salas (até 30 ativas por unidade), horários, fechamentos e seleção de unidade, todos com autorização, auditoria e trava otimista; API pública para F04, F06, F08, F11 e F12 |
+| 4 — Telas | `ddddf27`, `47153c2` | Lista de unidades, página da unidade com as abas Dados, Horário de funcionamento, Salas e Fechamentos (somente leitura para quem não pode alterar), seletor no topo, item "Unidades" no menu e a jornada E2E |
+
+Ao final: 22 testes de integração contra PostgreSQL real, 10 testes unitários (horários e CEP) e uma jornada E2E completa no navegador (criar unidade → horário → sala → fechamento → seletor mostrando a unidade).
+
+### 8.4 Problemas encontrados na F02
+
+| Problema | Causa | Solução |
+|---|---|---|
+| Erro de tipos ao dar valor padrão a um objeto do schema | No Zod 4, `.default()` em um objeto com transformação exige o valor **já transformado** | `.prefault({})`, que aplica o padrão **antes** da validação |
+| O pacote do navegador puxava o módulo de identidade inteiro | O formulário (código do navegador) importava a lista de fusos horários do `index.ts` do módulo de identidade, que carrega código de servidor | A lista de fusos foi movida para o núcleo compartilhado (`shared/kernel/time-zones.ts`) |
+| O instalador de componentes do shadcn/ui parou esperando uma resposta | Ao adicionar abas, interruptor e diálogos, ele perguntou se podia sobrescrever o `button.tsx`, que já tinha sido ajustado | Responder "não" automaticamente (`printf 'n\n' \| npx shadcn add ...`) |
+| O teste E2E clicava no lugar errado | O texto "Unidades" aparecia em mais de um elemento da página | O seletor foi restrito ao menu lateral (`[data-sidebar=menu-button]`) |
+
+### 8.5 O que a F02 deixou pronto
+
+- **Mensagens com números** (`{count}`), que a F03 já reaproveitou.
+- **Portas com padrão zero** como forma de construir uma funcionalidade antes de outra da qual ela depende, sem simular nada em produção.
+- **Fuso por unidade** como regra para tudo que envolve calendário.
+
+---
+
+## 9. Terceira funcionalidade: F03 — Catálogo de Serviços
+
+A F03 cadastra os serviços da clínica: nome, categoria, duração, preço, cor na agenda, se exige sala, quais salas são permitidas e se está ativo. Os profissionais (F04), a agenda (F06), as cobranças (F09) e os pacotes (F10) vão usar esse catálogo. O fluxo foi o mesmo da F02: branch `feat/F03-service-catalog`, spec e plano primeiro (commit `c7ec239`), um commit por etapa e PR no final.
+
+### 9.1 A entrevista técnica
+
+Cinco perguntas, uma por vez, cada uma com uma recomendação aceita:
+
+| Decisão | Resultado |
+|---|---|
+| Categorias: tabela própria ou texto livre? | **Tabela própria**, com até 50 categorias, ordem configurável e exclusão só quando a categoria não tem serviços. Com texto livre, "Consulta" e "Consultas" virariam dois grupos |
+| Salas permitidas com várias unidades | **Restrição por unidade**: numa unidade sem salas marcadas, qualquer sala ativa serve. Uma regra global faria a restrição de uma unidade bloquear o serviço nas outras |
+| Quando o novo preço vale? | **Na hora**, sem reajuste agendado. Cada mudança grava preço anterior, preço novo, data e autor |
+| As 16 cores da paleta | **Chaves estáveis** no banco (`blue`, `emerald`...), com CHECK; a interface converte a chave em cores. Trocar os tons não exige migração |
+| Excluir serviços? | **Não**: só desativar e reativar. O nome continua único mesmo entre serviços inativos |
+
+Outras decisões vieram das regras do projeto, sem precisar de pergunta:
+- **`Money`**: as regras do projeto exigem dinheiro em centavos inteiros por meio de um objeto `Money`, que ainda não existia. A F03 criou esse objeto e um campo de valor com máscara de reais (`R$ 1.234,56`), que as próximas funcionalidades vão reaproveitar.
+- **Categorias iniciais por evento**: quando uma clínica é criada, o módulo de identidade publica o evento "organização criada", e o módulo de serviços cria "Consultas", "Procedimentos" e "Terapias" na mesma transação. Assim o módulo de fundação não depende de um módulo de negócio. Para as clínicas que já existiam, a própria migração criou as três categorias.
+- **Registro central** (`src/composition.ts`): um único lugar liga os eventos entre módulos. Ele é chamado pelo servidor web, pelo worker, pelo comando `setup:admin` e pelos testes.
+
+A especificação e o plano estão em [F03-service-catalog/](F03-service-catalog/).
+
+### 9.2 Implementação em 5 etapas
+
+| Etapa | Commit | O que entrou |
+|---|---|---|
+| 1 — Fundações | `2f1167b` | `Money` e campo de valor em reais; evento "organização criada"; registro central; leitura de salas no módulo de unidades; nomes de usuários no módulo de identidade |
+| 2 — Banco e domínio | `e9a5a33` | Migração `0004_services` com quatro tabelas, CHECKs de duração, preço e cor, nomes únicos sem diferenciar maiúsculas e **histórico de preços em que a aplicação só pode inserir e ler**; regras puras de duração, preço e salas; paleta; portas com padrão zero para agendamentos (F06) e profissionais habilitados (F04) |
+| 3 — Casos de uso | `de4e12a` | Categorias (criar, renomear, reordenar, excluir vazias) e serviços (listar com filtros, criar, editar, desativar), com autorização, auditoria e trava otimista; API pública para F04, F06, F09 e F10; 22 testes de integração |
+| 4 — Telas | `7214d94` | Página `/settings/services` com filtros na URL e lista agrupada por categoria; painel lateral com o formulário, o seletor de cores, as salas por unidade, o diálogo de confirmação de preço e a aba "Histórico de preços"; diálogo de categorias; item "Serviços" no menu |
+| 5 — Testes | `4fca520` | Jornada E2E: criar serviço, trocar o preço confirmando, ver duas entradas no histórico e desativar |
+
+Verificação final: lint e tipos sem erros, 43 testes unitários, 100 testes de integração e 7 jornadas E2E passando.
+
+### 9.3 Problemas encontrados na F03
+
+| Problema | Causa | Solução |
+|---|---|---|
+| A spec contava com uma função que não existia | A spec supôs que o módulo de identidade já devolvia o nome de um usuário pelo ID, para mostrar o autor de cada mudança de preço | A função `getUserNames` foi criada no módulo de identidade. **Lição:** o que a spec supõe deve ser conferido no código antes de implementar |
+| O evento podia se perder no servidor web | O Next.js pode carregar o mesmo arquivo mais de uma vez (inicialização e rotas), e cada cópia teria sua lista de inscrições | O barramento de eventos passou a ser único por processo (guardado em `globalThis`, como já era feito com o cliente do banco) |
+| Aviso do React Compiler no formulário | `form.watch()` do react-hook-form não pode ser otimizado pelo compilador | `useWatch()`, a forma compatível |
+| O E2E não encontrava as linhas da tabela | O painel lateral é modal e esconde o resto da página da árvore de acessibilidade, que é o que `getByRole` consulta | As linhas são buscadas por CSS (`locator("tr", { hasText })`) |
+| O E2E achava dois elementos para "Preço" | `getByLabel("Preço")` também encontrava a aba "Histórico de **preços**" | Busca exata pelo papel do campo: `getByRole("textbox", { name: "Preço" })` |
+
+### 9.4 O que a F03 deixou pronto
+
+- **`Money`** e o **campo de valor em reais**, para cobranças (F09), pacotes (F10) e caixa (F11).
+- **Eventos entre módulos** com um **registro central**, onde a F04 e a F06 vão ligar as suas implementações das portas.
+- **Histórico que nem a aplicação consegue alterar**, garantido por permissão no banco, como já acontecia com a auditoria.
+
+---
+
+## 10. Problemas encontrados e como foram resolvidos
 
 Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos esses problemas apareceram porque **cada etapa foi executada de verdade**, e não só escrita.
 
@@ -270,7 +382,7 @@ Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos es
 
 ---
 
-## 9. Como reproduzir o ambiente do zero
+## 11. Como reproduzir o ambiente do zero
 
 ### Pré-requisitos
 
@@ -331,7 +443,7 @@ EXTRA_CA_CERTS=/caminho/para/certificado-raiz.pem docker compose --profile app b
 
 ---
 
-## 10. Lições aprendidas
+## 12. Lições aprendidas
 
 1. **Entrevista antes de documento.** Uma pergunta por vez, sempre com uma recomendação, resolve mais do que um documento longo escrito no escuro.
 2. **IDs de ponta a ponta** (F01 → história → critério → teste → commit) tornam o projeto rastreável sem esforço extra.
@@ -340,3 +452,5 @@ EXTRA_CA_CERTS=/caminho/para/certificado-raiz.pem docker compose --profile app b
 5. **"Escrevi o código" não é "está pronto".** Quatro bugs reais (sessão caindo, conflito de versão após o upload do logotipo, permissão do pg-boss, rascunho não restaurado) só apareceram ao executar de verdade: servidor, navegador e banco.
 6. **Testar contra infraestrutura real.** O banco nunca é simulado nos testes de regra de dados: restrições, permissões e concorrência só são testáveis nele.
 7. **Registrar as mudanças de rumo como ADRs novos.** O histórico de decisões conta a história do projeto melhor do que qualquer resumo.
+8. **Portas com padrão zero destravam a ordem de construção.** A F02 já tem as regras que dependem de agendamentos, com testes, antes de a agenda existir; quando a F06 chegar, só a implementação da porta muda.
+9. **Conferir no código o que a spec supõe.** A spec da F03 contava com uma função que não existia; a diferença apareceu na implementação, foi resolvida e ficou registrada.

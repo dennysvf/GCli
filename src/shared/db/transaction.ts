@@ -18,7 +18,10 @@ export type UnitOfWork = {
 // tenant-scoped queries must match nothing until they switch to the resolved organization.
 const NO_TENANT = "00000000-0000-0000-0000-000000000000";
 
-export const eventBus = new EventBus<UnitOfWork>();
+// One bus per process: bundlers may load this file more than once (for example instrumentation
+// and route bundles), and subscriptions must reach every copy.
+const globalForEvents = globalThis as unknown as { gcliEventBus?: EventBus<UnitOfWork> };
+export const eventBus = (globalForEvents.gcliEventBus ??= new EventBus<UnitOfWork>());
 
 class RollbackSignal<T> extends Error {
   constructor(readonly result: Result<T>) {

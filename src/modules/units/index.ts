@@ -4,7 +4,7 @@ import { getBusinessHours, replaceBusinessHours } from "./application/business-h
 import { createClosure, deleteClosure, listClosures } from "./application/closures";
 import type { ScheduledAppointments, UnitsDeps } from "./application/ports";
 import { getUnitContact, getUnitSchedule } from "./application/provided";
-import { createRoom, listRooms, setRoomActive, updateRoom } from "./application/rooms";
+import { createRoom, getRooms, listRooms, setRoomActive, updateRoom } from "./application/rooms";
 import { getSelectedUnit, selectUnit } from "./application/selection";
 import { createUnit, getUnit, listUnits, setUnitActive, updateUnit } from "./application/units";
 import { noAppointments } from "./infrastructure/no-appointments";
@@ -29,6 +29,8 @@ export const units = {
   // Rooms
   listRooms: (ctx: RequestContext, unitId: string, options?: { activeOnly?: boolean }) =>
     listRooms(ctx, unitId, options),
+  getRooms: (ctx: RequestContext, options?: { roomIds?: string[]; activeOnly?: boolean }) =>
+    getRooms(ctx, options),
   createRoom: (ctx: RequestContext, input: unknown) => createRoom(ctx, input),
   updateRoom: (ctx: RequestContext, input: unknown) => updateRoom(ctx, input),
   setRoomActive: (ctx: RequestContext, input: unknown) => setRoomActive(deps, ctx, input),
@@ -50,7 +52,7 @@ export const units = {
 
 export type { ScheduledAppointments } from "./application/ports";
 export type { UnitDetails, UnitSummary } from "./application/units";
-export type { RoomItem } from "./application/rooms";
+export type { RoomItem, RoomWithUnit } from "./application/rooms";
 export type { ClosureItem } from "./application/closures";
 export type { SelectedUnit } from "./application/selection";
 export type { UnitContact, UnitSchedule } from "./application/provided";

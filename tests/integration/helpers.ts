@@ -18,7 +18,8 @@ function owner(): Pool {
 export async function resetDatabase(): Promise<void> {
   await owner().query(`TRUNCATE organization, app_user, session, account, verification, invitation,
     rate_limit_bucket, outbox_message, audit_event,
-    unit, unit_business_hours, unit_closure, room, unit_selection CASCADE`);
+    unit, unit_business_hours, unit_closure, room, unit_selection,
+    service_category, service, service_allowed_room, service_price_change CASCADE`);
 }
 
 export async function closeHelpers(): Promise<void> {

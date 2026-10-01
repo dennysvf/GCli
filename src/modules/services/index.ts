@@ -1,0 +1,92 @@
+// Public API of the services module (spec F03 section 5).
+import { getUserNames } from "@/modules/identity";
+import { units } from "@/modules/units";
+import type { RequestContext } from "@/shared/context/types";
+import {
+  createCategory,
+  deleteCategory,
+  listCategories,
+  moveCategory,
+  renameCategory,
+} from "./application/categories";
+import type { ScheduledServiceAppointments, ServiceProfessionals, ServicesDeps } from "./application/ports";
+import { getAllowedRooms, listActiveServices } from "./application/provided";
+import {
+  createService,
+  getService,
+  listPriceHistory,
+  listServices,
+  setServiceActive,
+  suggestServiceColor,
+  updateService,
+} from "./application/services";
+import { noServiceAppointments, noServiceProfessionals } from "./infrastructure/no-usage";
+
+let scheduledAppointments: ScheduledServiceAppointments = noServiceAppointments;
+let serviceProfessionals: ServiceProfessionals = noServiceProfessionals;
+
+const deps: ServicesDeps = {
+  rooms: {
+    findRooms: async (ctx, roomIds) => {
+      const rooms = await units.getRooms(ctx, { roomIds });
+      return rooms.ok ? rooms.value : [];
+    },
+  },
+  users: { namesOf: (ctx, userIds) => getUserNames(ctx, userIds) },
+  appointments: () => scheduledAppointments,
+  professionals: () => serviceProfessionals,
+  clock: () => new Date(),
+};
+
+export const services = {
+  // Services
+  listServices: (ctx: RequestContext, input?: unknown) => listServices(deps, ctx, input),
+  getService: (ctx: RequestContext, serviceId: string) => getService(ctx, serviceId),
+  suggestServiceColor: (ctx: RequestContext) => suggestServiceColor(ctx),
+  createService: (ctx: RequestContext, input: unknown) => createService(deps, ctx, input),
+  updateService: (ctx: RequestContext, input: unknown) => updateService(deps, ctx, input),
+  setServiceActive: (ctx: RequestContext, input: unknown) => setServiceActive(deps, ctx, input),
+  listPriceHistory: (ctx: RequestContext, serviceId: string) => listPriceHistory(deps, ctx, serviceId),
+  // Categories
+  listCategories: (ctx: RequestContext) => listCategories(ctx),
+  createCategory: (ctx: RequestContext, input: unknown) => createCategory(ctx, input),
+  renameCategory: (ctx: RequestContext, input: unknown) => renameCategory(ctx, input),
+  moveCategory: (ctx: RequestContext, input: unknown) => moveCategory(ctx, input),
+  deleteCategory: (ctx: RequestContext, input: unknown) => deleteCategory(ctx, input),
+  // Provided to F04, F06, F09 and F10
+  listActiveServices: (ctx: RequestContext) => listActiveServices(ctx),
+  getAllowedRooms: (ctx: RequestContext, serviceId: string, unitId: string) =>
+    getAllowedRooms(deps, ctx, serviceId, unitId),
+  // Extension points for scheduling (F06) and professionals (F04); null restores the default.
+  registerScheduledServiceAppointments: (implementation: ScheduledServiceAppointments | null) => {
+    scheduledAppointments = implementation ?? noServiceAppointments;
+  },
+  registerServiceProfessionals: (implementation: ServiceProfessionals | null) => {
+    serviceProfessionals = implementation ?? noServiceProfessionals;
+  },
+};
+
+export { subscribeServicesEvents } from "./events";
+export type { ScheduledServiceAppointments, ServiceProfessionals } from "./application/ports";
+export type { CategoryItem } from "./application/categories";
+export type { ActiveService, AllowedRooms } from "./application/provided";
+export type {
+  PriceChangeItem,
+  SaveServiceResult,
+  ServiceDetails,
+  ServiceGroup,
+  ServiceList,
+  ServiceListItem,
+} from "./application/services";
+export { SERVICE_STATUSES, type ServiceStatusFilter } from "./application/schemas";
+export { SERVICE_COLORS, type ServiceColor } from "./domain/palette";
+export { formatDuration } from "./domain/service-rules";
+export {
+  servicesMessages,
+  SERVICES_DEACTIVATED_WITH_APPOINTMENTS,
+  SERVICES_PRICE_CHANGE_CONFIRMATION,
+} from "./messages";
+export { CategoriesDialog } from "./ui/categories-dialog";
+export { ServicesFilters } from "./ui/services-filters";
+export { ServiceSheet } from "./ui/service-sheet";
+export { ServicesTable } from "./ui/services-table";

@@ -8,6 +8,7 @@ import { fail, ok, type Result } from "@/shared/kernel/result";
 import { parseInput } from "@/shared/kernel/validation";
 import { isValidCnpj, normalizeCnpj } from "@/shared/kernel/cnpj";
 import { LOGO_MAX_BYTES, LOGO_MAX_HEIGHT, LOGO_MAX_WIDTH } from "../domain/policies";
+import { IDENTITY_EVENTS } from "../events";
 import { IdentityErrors } from "./errors";
 import { createInvitation } from "./invitations";
 import type { IdentityDeps } from "./ports";
@@ -241,6 +242,12 @@ export async function setupFirstAdministrator(
       entityType: "organization",
       entityId: organizationId,
       summary: "Organização criada pelo setup:admin",
+    });
+    // Other modules add their defaults in this same transaction (e.g. F03 service categories).
+    await uow.publish({
+      type: IDENTITY_EVENTS.organizationCreated,
+      occurredAt: new Date(),
+      payload: { organizationId },
     });
     return ok(undefined);
   });

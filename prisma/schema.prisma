@@ -25,9 +25,11 @@ model Organization {
   updatedAt              DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   updatedById            String?  @map("updated_by_id") @db.Uuid
 
-  users       User[]
-  invitations Invitation[]
-  units       Unit[]
+  users             User[]
+  invitations       Invitation[]
+  units             Unit[]
+  serviceCategories ServiceCategory[]
+  services          Service[]
 
   @@map("organization")
 }
@@ -262,7 +264,8 @@ model Room {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  unit Unit @relation(fields: [unitId], references: [id], map: "fk_room_unit")
+  unit            Unit                 @relation(fields: [unitId], references: [id], map: "fk_room_unit")
+  allowedServices ServiceAllowedRoom[]
 
   @@index([unitId, active], map: "ix_room_unit_active")
   @@map("room")
@@ -279,4 +282,81 @@ model UnitSelection {
   unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade, map: "fk_unit_selection_unit")
 
   @@map("unit_selection")
+}
+
+// F03 Service Catalog -----------------------------------------------------------------------
+
+model ServiceCategory {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String   @db.VarChar(50)
+  sortOrder      Int      @map("sort_order") @db.SmallInt
+  version        Int      @default(1)
+  createdById    String?  @map("created_by_id") @db.Uuid
+  updatedById    String?  @map("updated_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_service_category_org")
+  services     Service[]
+
+  @@index([organizationId, sortOrder], map: "ix_service_category_org_order")
+  @@map("service_category")
+}
+
+model Service {
+  id              String   @id @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  categoryId      String   @map("category_id") @db.Uuid
+  name            String   @db.VarChar(100)
+  description     String?  @db.VarChar(500)
+  durationMinutes Int      @map("duration_minutes") @db.SmallInt
+  priceCents      Int      @map("price_cents")
+  color           String   @db.VarChar(16)
+  requiresRoom    Boolean  @default(false) @map("requires_room")
+  active          Boolean  @default(true)
+  version         Int      @default(1)
+  createdById     String?  @map("created_by_id") @db.Uuid
+  updatedById     String?  @map("updated_by_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization         @relation(fields: [organizationId], references: [id], map: "fk_service_org")
+  category     ServiceCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict, map: "fk_service_category")
+  allowedRooms ServiceAllowedRoom[]
+  priceChanges ServicePriceChange[]
+
+  @@index([organizationId, active], map: "ix_service_org_active")
+  @@index([categoryId], map: "ix_service_category")
+  @@map("service")
+}
+
+model ServiceAllowedRoom {
+  serviceId      String @map("service_id") @db.Uuid
+  roomId         String @map("room_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade, map: "fk_service_allowed_room_service")
+  room    Room    @relation(fields: [roomId], references: [id], onDelete: Restrict, map: "fk_service_allowed_room_room")
+
+  @@id([serviceId, roomId], map: "pk_service_allowed_room")
+  @@index([roomId], map: "ix_service_allowed_room_room")
+  @@map("service_allowed_room")
+}
+
+// Append-only: the runtime role may only insert and read (migration 0004).
+model ServicePriceChange {
+  id                 String   @id @db.Uuid
+  organizationId     String   @map("organization_id") @db.Uuid
+  serviceId          String   @map("service_id") @db.Uuid
+  previousPriceCents Int?     @map("previous_price_cents")
+  priceCents         Int      @map("price_cents")
+  changedAt          DateTime @default(now()) @map("changed_at") @db.Timestamptz(6)
+  changedById        String?  @map("changed_by_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Restrict, map: "fk_price_change_service")
+
+  @@index([serviceId, changedAt(sort: Desc)], map: "ix_price_change_service_time")
+  @@map("service_price_change")
 }
