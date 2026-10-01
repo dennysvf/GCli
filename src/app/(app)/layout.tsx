@@ -25,8 +25,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
   return (
     <SidebarProvider>
+      {/* Design system 8: the first focusable element skips to the content. */}
+      <a
+        href="#conteudo"
+        className="bg-card sr-only z-50 px-4 py-2 focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+      >
+        Pular para o conteúdo
+      </a>
       <AppSidebar groups={groups} organizationName={organizationName ?? ""} />
-      <SidebarInset>
+      <SidebarInset className="bg-card">
         <AppHeader
           unitSelector={
             <UnitSelector
@@ -45,7 +52,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             />
           }
         />
-        <div className="flex flex-1 flex-col p-4 md:p-6">{children}</div>
+        <div id="conteudo" className="flex w-full max-w-(--content-max-width) flex-1 flex-col p-4 md:p-8">
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

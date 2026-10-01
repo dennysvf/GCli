@@ -1,3 +1,4 @@
+import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getOrganizationProfile, LogoUploader, OrganizationForm } from "@/modules/identity";
@@ -18,7 +19,7 @@ export default async function OrganizationSettingsPage() {
 
   return (
     <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">Configurações da organização</h1>
+      <PageHeader title="Configurações da organização" />
       <LogoUploader
         logoUrl={profile.value.logoUrl}
         uploadAction={uploadOrganizationLogoAction}

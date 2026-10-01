@@ -72,7 +72,7 @@ export function BusinessHoursForm({
       const result = await action({ unitId, days: week });
       if (!result.ok && result.error.fields) {
         setErrors(result.error.fields);
-        toast.error(result.error.message);
+        toast.error(result.error.message, { duration: Infinity, closeButton: true });
         return;
       }
       if (handleActionResult(result, { successMessage: "Horário de funcionamento salvo" })) {
@@ -89,7 +89,7 @@ export function BusinessHoursForm({
     <div className="grid max-w-3xl gap-4">
       <HydratedFieldset disabled={readOnly}>
         {week.map((day, index) => (
-          <div key={day.weekday} className="grid gap-2 rounded-lg border p-3" data-weekday={day.weekday}>
+          <div key={day.weekday} className="grid gap-2 border-b py-3" data-weekday={day.weekday}>
             <div className="flex flex-wrap items-center gap-3">
               <span className="w-24 font-medium">{WEEKDAY_LABELS[day.weekday]}</span>
               <div className="flex items-center gap-2">

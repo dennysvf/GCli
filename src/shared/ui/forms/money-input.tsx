@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { formatCents } from "@/shared/kernel/money";
 import { Input } from "@/shared/ui/components/input";
+import { cn } from "@/shared/ui/utils";
 
 // BRL amount typed like a cash register: digits fill from the right ("1" → R$ 0,01,
 // "18000" → R$ 180,00). Emits integer cents (ADR-010). Nine digits are enough for every limit
@@ -20,6 +21,7 @@ export function MoneyInput({
   return (
     <Input
       {...props}
+      className={cn("text-right", props.className)}
       type="text"
       inputMode="numeric"
       autoComplete="off"

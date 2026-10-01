@@ -1,3 +1,4 @@
+import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -5,7 +6,7 @@ import { requirePermission } from "@/modules/identity/next";
 import { BusinessHoursForm, ClosuresPanel, RoomsPanel, UnitForm, units } from "@/modules/units";
 import { can } from "@/shared/authz/permissions";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
-import { Badge } from "@/shared/ui/components/badge";
+import { Stamp } from "@/shared/ui/components/stamp";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
 import { UnitActiveToggle } from "./unit-active-toggle";
 import {
@@ -40,22 +41,24 @@ export default async function UnitPage({ params, searchParams }: PageProps<"/set
 
   return (
     <div className="grid gap-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <Link
-          href="/settings/units"
-          className="text-muted-foreground text-sm underline-offset-4 hover:underline"
-        >
-          Unidades
-        </Link>
-        <span className="text-muted-foreground">/</span>
-        <h1 className="text-2xl font-semibold">{unit.value.name}</h1>
-        <Badge variant={unit.value.active ? "default" : "secondary"}>
-          {unit.value.active ? "Ativa" : "Inativa"}
-        </Badge>
-        {readOnly ? null : (
-          <UnitActiveToggle unitId={unitId} active={unit.value.active} action={setUnitActiveAction} />
-        )}
-      </div>
+      <PageHeader
+        title={unit.value.name}
+        titleAddon={
+          <Stamp variant={unit.value.active ? "success" : "neutral"}>
+            {unit.value.active ? "Ativa" : "Inativa"}
+          </Stamp>
+        }
+        breadcrumb={
+          <Link href="/settings/units" className="underline-offset-4 hover:underline">
+            Unidades
+          </Link>
+        }
+        actions={
+          readOnly ? null : (
+            <UnitActiveToggle unitId={unitId} active={unit.value.active} action={setUnitActiveAction} />
+          )
+        }
+      />
       <Tabs defaultValue={activeTab}>
         <TabsList>
           <TabsTrigger value="dados">Dados</TabsTrigger>

@@ -12,7 +12,7 @@ export default async function ResetPasswordPage({ searchParams }: PageProps<"/re
   return (
     <>
       <div className="grid gap-1">
-        <h1 className="text-xl font-semibold">Redefinir senha</h1>
+        <h1 className="section-title">Redefinir senha</h1>
         <p className="text-muted-foreground text-sm">Escolha uma nova senha para sua conta.</p>
       </div>
       {typeof token === "string" && token ? (

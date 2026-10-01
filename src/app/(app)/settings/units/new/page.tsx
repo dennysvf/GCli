@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import type { Metadata } from "next";
 import { getOrganizationProfile } from "@/modules/identity";
 import { requirePermission } from "@/modules/identity/next";
@@ -14,7 +16,14 @@ export default async function NewUnitPage() {
 
   return (
     <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">Nova unidade</h1>
+      <PageHeader
+        title="Nova unidade"
+        breadcrumb={
+          <Link href="/settings/units" className="underline-offset-4 hover:underline">
+            Unidades
+          </Link>
+        }
+      />
       <UnitForm defaultTimeZone={defaultTimeZone} action={createUnitAction} />
     </div>
   );

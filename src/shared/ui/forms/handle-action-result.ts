@@ -30,6 +30,7 @@ export function handleActionResult<T, F extends FieldValues>(
     }
     return false;
   }
-  toast.error(message);
+  // Design system 5.8: errors stay until the user dismisses them.
+  toast.error(message, { duration: Infinity, closeButton: true });
   return false;
 }

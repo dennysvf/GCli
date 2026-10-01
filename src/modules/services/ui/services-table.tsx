@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { formatCents } from "@/shared/kernel/money";
-import { Badge } from "@/shared/ui/components/badge";
+import { Stamp } from "@/shared/ui/components/stamp";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/components/table";
 import { cn } from "@/shared/ui/utils";
 import type { ServiceGroup } from "../application/services";
@@ -11,11 +11,7 @@ import { PALETTE } from "./palette";
 // ?service= query, keeping the current filters.
 export function ServicesTable({ groups, query }: { groups: ServiceGroup[]; query: string }) {
   if (groups.length === 0) {
-    return (
-      <p className="text-muted-foreground rounded-lg border border-dashed p-12 text-center">
-        Nenhum serviço encontrado.
-      </p>
-    );
+    return <p className="text-muted-foreground">Nenhum serviço encontrado com estes filtros.</p>;
   }
   const hrefFor = (serviceId: string) => {
     const params = new URLSearchParams(query);
@@ -27,15 +23,14 @@ export function ServicesTable({ groups, query }: { groups: ServiceGroup[]; query
     <div className="grid gap-6">
       {groups.map(({ category, services }) => (
         <section key={category.id} aria-labelledby={`category-${category.id}`} className="grid gap-2">
-          <h2 id={`category-${category.id}`} className="text-lg font-medium">
-            {category.name} <span className="text-muted-foreground text-sm">({services.length})</span>
+          <h2 id={`category-${category.id}`} className="text-sm font-semibold">
+            {category.name}{" "}
+            <span className="text-muted-foreground text-xs font-normal">({services.length})</span>
           </h2>
           {services.length === 0 ? (
-            <p className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
-              Nenhum serviço nesta categoria.
-            </p>
+            <p className="text-muted-foreground border-y py-3 text-sm">Nenhum serviço nesta categoria.</p>
           ) : (
-            <div className="rounded-lg border">
+            <div className="border-y">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -70,9 +65,9 @@ export function ServicesTable({ groups, query }: { groups: ServiceGroup[]; query
                         {service.enabledProfessionals}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={service.active ? "default" : "secondary"}>
+                        <Stamp variant={service.active ? "success" : "neutral"}>
                           {service.active ? "Ativo" : "Inativo"}
-                        </Badge>
+                        </Stamp>
                       </TableCell>
                     </TableRow>
                   ))}

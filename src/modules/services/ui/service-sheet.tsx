@@ -4,7 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { interpolate, type ActionResult } from "@/shared/kernel/action-result";
-import { Badge } from "@/shared/ui/components/badge";
+import { Stamp } from "@/shared/ui/components/stamp";
 import { Button } from "@/shared/ui/components/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/shared/ui/components/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
@@ -66,6 +66,7 @@ export function ServiceSheet({
       if (result.data.futureAppointments > 0) {
         toast.warning(
           interpolate(SERVICES_DEACTIVATED_WITH_APPOINTMENTS, { count: result.data.futureAppointments }),
+          { duration: 8000 },
         );
       } else {
         toast.success(result.data.active ? "Serviço reativado" : "Serviço desativado");
@@ -93,21 +94,21 @@ export function ServiceSheet({
 
   return (
     <Sheet open onOpenChange={(open) => !open && router.push(urlWith(null), { scroll: false })}>
-      <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-xl">
+      <SheetContent className="overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             {service ? service.name : "Novo serviço"}
             {service ? (
-              <Badge variant={service.active ? "default" : "secondary"}>
+              <Stamp variant={service.active ? "success" : "neutral"}>
                 {service.active ? "Ativo" : "Inativo"}
-              </Badge>
+              </Stamp>
             ) : null}
           </SheetTitle>
           <SheetDescription>
             {service ? service.categoryName : "Preencha os dados do serviço."}
           </SheetDescription>
         </SheetHeader>
-        <div className="grid gap-4 px-4 pb-6">
+        <div className="grid gap-4 px-6 pb-6">
           {service ? (
             <Tabs defaultValue="dados">
               <TabsList>

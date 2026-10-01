@@ -4,7 +4,7 @@ import { Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { ActionResult } from "@/shared/kernel/action-result";
-import { Badge } from "@/shared/ui/components/badge";
+import { Stamp } from "@/shared/ui/components/stamp";
 import { Button } from "@/shared/ui/components/button";
 import { Input } from "@/shared/ui/components/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/components/table";
@@ -96,9 +96,9 @@ export function RoomsPanel({
         </form>
       )}
       {rooms.length === 0 ? (
-        <p className="text-muted-foreground rounded-lg border p-6 text-center">Nenhuma sala cadastrada.</p>
+        <p className="text-muted-foreground">Nenhuma sala cadastrada nesta unidade.</p>
       ) : (
-        <div className="rounded-lg border">
+        <div className="border-y">
           <Table>
             <TableHeader>
               <TableRow>
@@ -154,9 +154,9 @@ export function RoomsPanel({
                     <TableCell className="font-medium">{room.name}</TableCell>
                     <TableCell>{room.description ?? "—"}</TableCell>
                     <TableCell>
-                      <Badge variant={room.active ? "default" : "secondary"}>
+                      <Stamp variant={room.active ? "success" : "neutral"}>
                         {room.active ? "Ativa" : "Inativa"}
-                      </Badge>
+                      </Stamp>
                     </TableCell>
                     {readOnly ? null : (
                       <TableCell className="flex gap-2">

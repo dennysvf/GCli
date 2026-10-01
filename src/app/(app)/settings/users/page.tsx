@@ -1,3 +1,4 @@
+import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { identity, InviteUserDialog, UsersTable } from "@/modules/identity";
@@ -28,10 +29,10 @@ export default async function UsersPage({ searchParams }: PageProps<"/settings/u
 
   return (
     <div className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Usuários</h1>
-        {canManage ? <InviteUserDialog action={inviteUserAction} /> : null}
-      </div>
+      <PageHeader
+        title="Usuários"
+        actions={canManage ? <InviteUserDialog action={inviteUserAction} /> : null}
+      />
       <form className="flex max-w-md gap-2" role="search">
         <Input
           name="q"
