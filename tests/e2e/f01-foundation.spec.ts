@@ -57,6 +57,8 @@ test("F01: forgotten password flow", async ({ page }) => {
   const requestedAt = new Date();
   await page.goto("/login");
   await page.getByRole("link", { name: "Esqueci minha senha" }).click();
+  // The login page also has an "E-mail" field: wait for the new page before filling it.
+  await expect(page.getByRole("heading", { name: "Esqueci minha senha" })).toBeVisible();
   await page.getByLabel("E-mail").fill(DESK.email);
   await page.getByRole("button", { name: "Enviar link de redefinição" }).click();
   await expect(page.getByText("Se o e-mail estiver cadastrado")).toBeVisible();
