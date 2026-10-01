@@ -76,7 +76,7 @@ CLAUDE.md         Regras de engenharia resumidas para desenvolvimento assistido 
 - [x] F01 — Fundação, autenticação e controle de acesso (spec, plano e implementação)
 - [x] F02 — Unidades e salas
 - [x] F03 — Catálogo de serviços
-- [ ] Design system "Tinta e Papel" aplicado às telas (documento pronto)
+- [x] Design system "Tinta e Papel" (documento e aplicação nas telas)
 - [ ] F04 em diante, seguindo as ondas de execução do PRD
 - [ ] Deploy de uma versão de demonstração
 

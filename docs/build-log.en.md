@@ -387,6 +387,15 @@ The idea comes from the objects clinics used before software: the patient record
 
 The tokens keep the shadcn/ui variable names, so applying the design system means swapping values in `globals.css` and adjusting component variants, without rewriting screens. Every new screen goes through a 6-question checklist (section 11 of the document), which was also added to the definition of done.
 
+### 10.3 Applying it to the code
+
+- **Tokens in `globals.css`** with the shadcn/ui names, plus the Tailwind theme adjusted so the components themselves follow the rules: radii capped at 8 px, small shadows removed, weight 500 rendered as 600 and a 15 px base text.
+- **Self-hosted fonts** through the `@fontsource-variable` packages.
+- **Components reviewed:** button (36 px, 44 px for touch), fields, table with uppercase headers, underlined tabs, a 560 px side panel, dialogs, a sidebar with an ink-blue bar on the active item and toasts with a colored stripe. The old pill `Badge` became the **stamp** (`Stamp`).
+- **Screens:** the page header with the double rule on every page, lists with fine rules and empty states as text.
+- **Verification:** screenshots on desktop and at 375 px, which revealed two fixes (the stamp inheriting the serif font and the table widening the page on phones), and the full suite (lint, types, 43 unit, 100 integration, 7 E2E).
+- **A lesson about the environment:** with the machine's CPU at 77% (browser, editor and antivirus), E2E tests with a 5-second limit failed intermittently. Running the same suite again with the development processes stopped separated an environment problem from a code problem.
+
 ---
 
 ## 11. Problems found and how they were solved

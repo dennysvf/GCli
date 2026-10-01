@@ -387,6 +387,15 @@ A ideia vem dos objetos que as clínicas usavam antes dos sistemas: a ficha do p
 
 Os tokens mantêm os nomes de variável do shadcn/ui, então aplicar o design system é trocar valores no `globals.css` e ajustar as variantes dos componentes, sem reescrever as telas. Cada tela nova passa por um checklist de 6 perguntas (seção 11 do documento), que também entrou na definição de pronto.
 
+### 10.3 Aplicação no código
+
+- **Tokens no `globals.css`** com os nomes do shadcn/ui, mais o tema do Tailwind ajustado para que os próprios componentes sigam as regras: raios limitados a 8 px, sombras pequenas zeradas, peso 500 renderizado como 600 e texto base de 15 px.
+- **Fontes servidas pelo sistema** com os pacotes `@fontsource-variable`.
+- **Componentes revisados:** botão (36 px, 44 px no toque), campos, tabela com cabeçalho em caixa alta, abas sublinhadas, painel lateral de 560 px, diálogos, menu lateral com barra azul no item ativo e avisos flutuantes com faixa colorida. O antigo `Badge` em pílula virou o **carimbo** (`Stamp`).
+- **Telas:** cabeçalho de página com a dupla linha em todas as páginas, listas com linhas finas e estados vazios em texto.
+- **Verificação:** capturas de tela no desktop e em 375 px, que revelaram dois ajustes (o carimbo herdando a fonte serifada e a tabela alargando a página no celular), e a suíte completa (lint, tipos, 43 unitários, 100 de integração, 7 E2E).
+- **Lição sobre o ambiente:** com a CPU da máquina em 77% (navegador, editor e antivírus), testes E2E com limite de 5 segundos falharam de forma intermitente. Rodar a mesma suíte de novo, com os processos de desenvolvimento parados, separou o problema de ambiente de um problema de código.
+
 ---
 
 ## 11. Problemas encontrados e como foram resolvidos

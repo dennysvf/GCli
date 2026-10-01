@@ -375,6 +375,7 @@ Everywhere else, information goes into a list or table. Never put a card inside 
 | Buttons, fields, selects, dropdown menus | 4 px |
 | Cards, dialogs, toasts | 8 px |
 | Side panel, tables, sidebar | 0 |
+| Switch | Rounded track and thumb: the only exception, because a square switch is not recognized as a switch |
 
 Nothing exceeds 8 px. Circles (`50%`) only for avatars and the service color dot.
 
@@ -659,10 +660,20 @@ In the `@theme inline` block of `globals.css`, the GCli tokens become utilities 
   --color-warning-bg: var(--warning-bg);
   --color-danger: var(--danger);
   --color-danger-bg: var(--danger-bg);
+  /* shadcn/ui uses rounded-lg on controls and rounded-xl on layers */
   --radius-sm: var(--radius-stamp);
   --radius-md: var(--radius-control);
-  --radius-lg: var(--radius-layer);
+  --radius-lg: var(--radius-control);
+  --radius-xl: var(--radius-layer);
+  --radius-2xl: var(--radius-layer);
+  --radius-4xl: var(--radius-layer);
+  /* one shadow: the small ones disappear, the large ones become the floating shadow */
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: var(--elevation-floating);
+  --shadow-lg: var(--elevation-floating);
   --shadow-floating: var(--elevation-floating);
+  /* weights 400 and 600 only: the 500 used by shadcn/ui renders as 600 */
+  --font-weight-medium: 600;
   --ease-standard: var(--motion-curve);
 }
 
