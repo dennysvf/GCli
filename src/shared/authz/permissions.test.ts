@@ -14,6 +14,14 @@ const EXPECTED: Record<string, Record<(typeof ROLES)[number], boolean>> = {
   "dashboard:read": { ADMINISTRATOR: true, MANAGER: true, FRONT_DESK: false, PROFESSIONAL: false },
   "billing:approve": { ADMINISTRATOR: true, MANAGER: true, FRONT_DESK: false, PROFESSIONAL: false },
   "billing:operate": { ADMINISTRATOR: true, MANAGER: true, FRONT_DESK: true, PROFESSIONAL: false },
+  "professional:read-all": { ADMINISTRATOR: true, MANAGER: true, FRONT_DESK: true, PROFESSIONAL: false },
+  "professional:manage": { ADMINISTRATOR: true, MANAGER: true, FRONT_DESK: false, PROFESSIONAL: false },
+  "professional:manage-own-time-off": {
+    ADMINISTRATOR: false,
+    MANAGER: false,
+    FRONT_DESK: false,
+    PROFESSIONAL: true,
+  },
 };
 
 const user = (role: (typeof ROLES)[number]) => ({ id: "u", name: "U", email: "u@x", role });

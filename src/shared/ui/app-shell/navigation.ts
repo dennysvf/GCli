@@ -4,7 +4,7 @@ import type { Action } from "@/shared/authz/permissions";
 // server before rendering. Later features add their entries here.
 export type NavItem = { href: string; label: string; icon: NavIcon; anyOf: Action[] };
 export type NavGroup = { label: string; items: NavItem[] };
-export type NavIcon = "calendar" | "dashboard" | "building" | "users" | "map-pin" | "stethoscope";
+export type NavIcon = "calendar" | "dashboard" | "building" | "users" | "map-pin" | "stethoscope" | "contact";
 
 export const NAVIGATION: NavGroup[] = [
   {
@@ -30,6 +30,13 @@ export const NAVIGATION: NavGroup[] = [
       },
       { href: "/settings/units", label: "Unidades", icon: "map-pin", anyOf: ["setup:read"] },
       { href: "/settings/services", label: "Serviços", icon: "stethoscope", anyOf: ["setup:read"] },
+      // Professional-role users land on their own profile (spec F04 section 4).
+      {
+        href: "/settings/professionals",
+        label: "Profissionais",
+        icon: "contact",
+        anyOf: ["professional:read"],
+      },
       { href: "/settings/users", label: "Usuários", icon: "users", anyOf: ["user:read"] },
     ],
   },

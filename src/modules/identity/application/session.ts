@@ -1,7 +1,7 @@
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction } from "@/shared/db/transaction";
 import { ok } from "@/shared/kernel/result";
-import { sessionState, shouldTouchSession } from "../domain/policies";
+import { isLinkableRole, sessionState, shouldTouchSession } from "../domain/policies";
 import type { IdentityDeps, RequestMeta } from "./ports";
 
 // Resolves the signed-in user for a request (spec F01 section 4, "Request context"). Returns null
@@ -24,6 +24,11 @@ export async function resolveRequestContext(
     return null;
   }
   if (shouldTouchSession(session.lastActiveAt, now)) await deps.directory.touchSession(session.id, now);
+  // PRD F01: a linked professional profile grants Professional permissions, but only while the
+  // user's role is linkable and the professional is active (spec F04 section 3).
+  const linkedProfessionalId = isLinkableRole(user.role)
+    ? await deps.professionalLinks().findLinkedProfessionalId(user.organizationId, user.id)
+    : null;
 
   return {
     kind: "user",
@@ -31,7 +36,7 @@ export async function resolveRequestContext(
     organizationId: user.organizationId,
     user: { id: user.id, name: user.name, email: user.email, role: user.role },
     sessionId: session.id,
-    linkedProfessionalId: null,
+    linkedProfessionalId,
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
   };

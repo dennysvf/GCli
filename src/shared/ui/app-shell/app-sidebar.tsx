@@ -3,6 +3,7 @@
 import {
   Building2,
   CalendarDays,
+  Contact,
   LayoutDashboard,
   MapPin,
   Stethoscope,
@@ -31,6 +32,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   users: Users,
   "map-pin": MapPin,
   stethoscope: Stethoscope,
+  contact: Contact,
 };
 
 // Receives only the groups and items the signed-in role may see (filtered on the server).

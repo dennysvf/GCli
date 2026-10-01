@@ -1,5 +1,6 @@
 // Public API of the units module (spec F02 section 5).
 import type { RequestContext } from "@/shared/context/types";
+import { definePort } from "@/shared/ports/registry";
 import { getBusinessHours, replaceBusinessHours } from "./application/business-hours";
 import { createClosure, deleteClosure, listClosures } from "./application/closures";
 import type { ScheduledAppointments, UnitsDeps } from "./application/ports";
@@ -9,10 +10,13 @@ import { getSelectedUnit, selectUnit } from "./application/selection";
 import { createUnit, getUnit, listUnits, setUnitActive, updateUnit } from "./application/units";
 import { noAppointments } from "./infrastructure/no-appointments";
 
-let scheduledAppointments: ScheduledAppointments = noAppointments;
+const scheduledAppointments = definePort<ScheduledAppointments>(
+  "units.ScheduledAppointments",
+  noAppointments,
+);
 
 const deps: UnitsDeps = {
-  appointments: () => scheduledAppointments,
+  appointments: () => scheduledAppointments.get(),
   clock: () => new Date(),
 };
 
@@ -46,7 +50,7 @@ export const units = {
   getUnitContact: (ctx: RequestContext, unitId: string) => getUnitContact(ctx, unitId),
   // Extension point for scheduling (F06); pass null to restore the zero default.
   registerScheduledAppointments: (implementation: ScheduledAppointments | null) => {
-    scheduledAppointments = implementation ?? noAppointments;
+    scheduledAppointments.register(implementation);
   },
 };
 

@@ -89,6 +89,17 @@ export interface LogoProcessor {
   toPng(input: Uint8Array, maxWidth: number, maxHeight: number): Promise<Uint8Array>;
 }
 
+// Professional profiles linked to users, provided by professionals (F04) and registered by the
+// composition root (dependency inversion, ADR-007: professionals already depends on identity).
+// Only active professionals are returned.
+export interface ProfessionalLinks {
+  findLinkedProfessionalId(organizationId: string, userId: string): Promise<string | null>;
+  linkedProfessionals(
+    organizationId: string,
+    userIds: string[],
+  ): Promise<Map<string, { id: string; name: string }>>;
+}
+
 export type IdentityDeps = {
   auth: AuthGateway;
   directory: IdentityDirectory;
@@ -96,5 +107,6 @@ export type IdentityDeps = {
   logos: LogoStore;
   logoProcessor: LogoProcessor;
   appUrl: string;
+  professionalLinks: () => ProfessionalLinks;
   clock: () => Date;
 };

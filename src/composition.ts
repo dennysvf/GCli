@@ -1,3 +1,4 @@
+import { registerProfessionalsPorts } from "@/modules/professionals";
 import { subscribeServicesEvents } from "@/modules/services";
 import { eventBus } from "@/shared/db/transaction";
 
@@ -10,4 +11,6 @@ export function registerModules(): void {
   if (globalForComposition.gcliModulesRegistered) return;
   globalForComposition.gcliModulesRegistered = true;
   subscribeServicesEvents(eventBus);
+  // F04: linked professionals for identity (F01) and professional counts for services (F03).
+  registerProfessionalsPorts();
 }

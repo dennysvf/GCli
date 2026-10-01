@@ -1,10 +1,10 @@
 # Diário de bordo — como o GCli foi construído
 
-Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01, F02 e F03). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
+Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F04). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
 
 O trabalho foi feito em dupla: uma pessoa responsável pelo produto e um assistente de programação com IA. A pessoa respondeu perguntas, tomou as decisões de negócio e aprovou cada etapa; o assistente conduziu entrevistas, escreveu documentos e código, rodou os testes e registrou o que encontrou pelo caminho.
 
-> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system.
+> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04.
 
 English version: [build-log.en.md](build-log.en.md).
 
@@ -22,9 +22,10 @@ English version: [build-log.en.md](build-log.en.md).
 8. [Segunda funcionalidade: F02 — Unidades e Salas](#8-segunda-funcionalidade-f02--unidades-e-salas)
 9. [Terceira funcionalidade: F03 — Catálogo de Serviços](#9-terceira-funcionalidade-f03--catálogo-de-serviços)
 10. [Design system antes das telas mais pesadas](#10-design-system-antes-das-telas-mais-pesadas)
-11. [Problemas encontrados e como foram resolvidos](#11-problemas-encontrados-e-como-foram-resolvidos)
-12. [Como reproduzir o ambiente do zero](#12-como-reproduzir-o-ambiente-do-zero)
-13. [Lições aprendidas](#13-lições-aprendidas)
+11. [Quarta funcionalidade: F04 — Profissionais e Horários de Atendimento](#11-quarta-funcionalidade-f04--profissionais-e-horários-de-atendimento)
+12. [Problemas encontrados e como foram resolvidos](#12-problemas-encontrados-e-como-foram-resolvidos)
+13. [Como reproduzir o ambiente do zero](#13-como-reproduzir-o-ambiente-do-zero)
+14. [Lições aprendidas](#14-lições-aprendidas)
 
 ---
 
@@ -118,7 +119,7 @@ Passos executados:
 4. **Primeiro commit** na branch `main`, revisando com `git status` o que entraria (nenhum segredo, nenhuma pasta local).
 5. **Criação do repositório público e push**: `gh repo create GCli --public --source=. --remote=origin --push`.
 
-**Problema:** o push falhou com `SSL certificate problem: unable to get local issuer certificate`. **Causa:** o Git para Windows usa o repositório de certificados do OpenSSL, que não reconhecia o certificado apresentado pela rede. **Solução:** `git config --global http.sslbackend schannel`, que faz o Git usar o repositório de certificados do Windows. Mais adiante descobrimos a causa raiz (ver [seção 11](#11-problemas-encontrados-e-como-foram-resolvidos)).
+**Problema:** o push falhou com `SSL certificate problem: unable to get local issuer certificate`. **Causa:** o Git para Windows usa o repositório de certificados do OpenSSL, que não reconhecia o certificado apresentado pela rede. **Solução:** `git config --global http.sslbackend schannel`, que faz o Git usar o repositório de certificados do Windows. Mais adiante descobrimos a causa raiz (ver [seção 12](#12-problemas-encontrados-e-como-foram-resolvidos)).
 
 **Proteção da `main`.** Depois que o CI passou a rodar estável, a branch `main` foi protegida com um *ruleset* do GitHub:
 - bloqueio de force push e de exclusão da branch;
@@ -398,7 +399,57 @@ Os tokens mantêm os nomes de variável do shadcn/ui, então aplicar o design sy
 
 ---
 
-## 11. Problemas encontrados e como foram resolvidos
+## 11. Quarta funcionalidade: F04 — Profissionais e Horários de Atendimento
+
+A F04 cadastra os profissionais da clínica: identificação, registro no conselho ("CRM 123456/SP"), cor na agenda, vínculo opcional com um usuário, os serviços que cada um realiza, o horário semanal de atendimento por unidade e as ausências. A agenda (F06) vai usar esses dados para saber quem pode ser agendado, onde e quando; os documentos (F08) vão imprimir o nome e o registro. O fluxo foi o mesmo: branch `feat/F04-professionals-and-working-hours`, especificação e plano primeiro (commit `17ed233`), um commit por etapa e um PR no fim.
+
+Uma coisa mudou: a especificação foi escrita **em modo autônomo**, sem entrevista ao vivo. O assistente aplicou a própria recomendação a cada questão em aberto e registrou cada uma como premissa explícita na especificação, para que a pessoa responsável pelo produto possa revisá-las e alterá-las.
+
+### 11.1 Decisões tomadas na especificação
+
+| Decisão | Resultado |
+|---|---|
+| Como funciona "uma mudança futura de horário"? | Um **horário** cobre todas as unidades e tem data de início e data de término opcional. Salvar um horário que começa no futuro **encerra o atual na véspera**. Uma restrição de exclusão no banco (`btree_gist`) garante que um profissional nunca tenha dois horários sobrepostos, mesmo com gravações simultâneas |
+| Unidades em fusos diferentes | Os intervalos de unidades diferentes são comparados **no horário real**, convertendo o horário local de cada unidade pelo seu deslocamento UTC. Registrado como **ADR-021** |
+| Vínculo entre usuário e profissional | O módulo identity declara uma porta e o módulo professionals a implementa; assim o contexto da requisição conhece o profissional vinculado sem dependência circular. O vínculo só dá permissões enquanto o perfil do usuário permite e o profissional está ativo |
+| O que o perfil Profissional vê | **Apenas o próprio cadastro**, só leitura, e as próprias ausências. Uma permissão nova, `professional:read-all`, cobre os outros perfis |
+| Cor na agenda | A **mesma paleta de 16 cores** dos serviços, como um círculo antes do nome, nunca como fundo. O design system ganhou essa regra e o padrão da grade semanal de horários |
+| CPF | Um objeto de valor `Cpf` compartilhado e um campo de CPF com máscara, que o cadastro de pacientes (F05) vai reutilizar |
+
+A especificação e o plano estão em [F04-professionals-and-working-hours/](F04-professionals-and-working-hours/).
+
+### 11.2 Implementação em 4 etapas
+
+| Etapa | Commit | O que entrou |
+|---|---|---|
+| 1 — Fundamentos | `389b9f8` | ADR-021 e os acréscimos ao design system nos dois idiomas; `Cpf` e o campo de CPF; a permissão `professional:read-all`; a porta que preenche o profissional vinculado no contexto da requisição e a coluna "Profissional vinculado" na tela de Usuários |
+| 2 — Banco e domínio | `bed323d` | Migração `0005_professionals` com cinco tabelas, a restrição de exclusão dos horários, CHECKs do conselho e índices únicos parciais para CPF e registro no conselho; regras puras de intervalos, horário de funcionamento, conflito entre unidades, vigência e ausências; a porta de agendamentos para a F06 |
+| 3 — Casos de uso | `ccdc521` | Cadastro, serviços habilitados, horários e ausências, com autorização, auditoria e bloqueio otimista; a API pública para a F06 e a F08; 31 testes de integração, incluindo gravações simultâneas |
+| 4 — Telas | `8bd6aa2` | A lista, a página de novo profissional e a página do profissional com as abas Dados, Serviços, Horários e Ausências; a grade semanal marca intervalos fora do funcionamento antes de salvar; duas jornadas E2E; o registro de portas (ADR-022) |
+
+Verificação final: lint e tipos limpos, 62 testes unitários, 131 testes de integração e 9 jornadas E2E passando.
+
+### 11.3 Problemas encontrados na F04
+
+| Problema | Causa | Solução |
+|---|---|---|
+| **O servidor web nunca via o profissional vinculado** (encontrado pelo teste E2E) | O Next.js carrega cópias separadas de um módulo no mesmo processo. A raiz de composição registrava a porta em uma cópia, e as rotas usavam outra, que continuava com o padrão | As portas entre módulos passaram para um registro guardado em `globalThis` (`definePort`, **ADR-022**). Isso também corrigiu a contagem de profissionais na lista de serviços, que tinha o mesmo defeito desde a F03 mas nunca tinha sido exercitada por uma requisição web |
+| O seletor de cores ficava dentro do módulo de serviços | Uma tela de outro módulo que importasse a entrada do módulo de serviços levaria código de servidor para o pacote do navegador | A paleta foi para o núcleo compartilhado e o seletor para os componentes de interface compartilhados |
+| As regras de visualização e de ausências não podiam ficar em `domain/` | A regra de lint mantém `domain/` livre de tudo que está fora do núcleo compartilhado, inclusive a matriz de permissões | As políticas ficam em `application/`, com testes unitários próprios |
+| Uma verificação E2E procurava "ATIVO" e falhava | O carimbo é escrito "Ativo" e o CSS o deixa em maiúsculas; os testes leem o texto, não a renderização | O teste confere o texto real |
+| Testes falhavam por motivos alheios ao código | A máquina estava sobrecarregada: o contêiner do banco de testes não respondia a tempo e o build de produção passou do limite de 10 minutos do E2E | Nova execução depois que a carga caiu, com o build rodado antes, separado. As falhas nunca chegaram a um teste, então não diziam nada sobre o código |
+
+### 11.4 O que a F04 deixou pronto
+
+- **A API pública para a agenda (F06):** profissionais agendáveis por serviço e unidade, a verificação de serviço habilitado e um calendário de atendimento por data, com a vigência aplicada e as ausências incluídas.
+- **Nome e registro para os documentos (F08).**
+- **O profissional vinculado no contexto da requisição**, do qual dependem as permissões do prontuário (F07).
+- **O registro de portas**, onde a F06 vai registrar as portas de agendamentos.
+- **`Cpf` e o campo de CPF** para o cadastro de pacientes (F05).
+
+---
+
+## 12. Problemas encontrados e como foram resolvidos
 
 Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos esses problemas apareceram porque **cada etapa foi executada de verdade**, e não só escrita.
 
@@ -421,7 +472,7 @@ Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos es
 
 ---
 
-## 12. Como reproduzir o ambiente do zero
+## 13. Como reproduzir o ambiente do zero
 
 ### Pré-requisitos
 
@@ -482,7 +533,7 @@ EXTRA_CA_CERTS=/caminho/para/certificado-raiz.pem docker compose --profile app b
 
 ---
 
-## 13. Lições aprendidas
+## 14. Lições aprendidas
 
 1. **Entrevista antes de documento.** Uma pergunta por vez, sempre com uma recomendação, resolve mais do que um documento longo escrito no escuro.
 2. **IDs de ponta a ponta** (F01 → história → critério → teste → commit) tornam o projeto rastreável sem esforço extra.
@@ -494,3 +545,5 @@ EXTRA_CA_CERTS=/caminho/para/certificado-raiz.pem docker compose --profile app b
 8. **Portas com padrão zero destravam a ordem de construção.** A F02 já tem as regras que dependem de agendamentos, com testes, antes de a agenda existir; quando a F06 chegar, só a implementação da porta muda.
 9. **Conferir no código o que a spec supõe.** A spec da F03 contava com uma função que não existia; a diferença apareceu na implementação, foi resolvida e ficou registrada.
 10. **Definir o visual antes das telas densas.** Com poucas telas prontas, o design system custa um documento e uma troca de tokens; depois da agenda e do prontuário, custaria refazer as telas mais complexas.
+11. **Corrigir a classe inteira do problema, não só o caso encontrado.** A F03 levou o barramento de eventos para `globalThis` porque o Next.js carrega módulos mais de uma vez, mas deixou as portas em variáveis de módulo. A mesma causa voltou na F04.
+12. **Decisões tomadas sem a pessoa usuária precisam ficar escritas.** Quando a especificação foi escrita sem entrevista ao vivo, cada recomendação aplicada virou uma premissa explícita, para que a pessoa responsável pelo produto possa revisá-la e alterá-la depois.

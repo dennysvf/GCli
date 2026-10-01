@@ -3,7 +3,7 @@
 import { Check } from "lucide-react";
 import { useRef, type KeyboardEvent } from "react";
 import { cn } from "@/shared/ui/utils";
-import { SERVICE_COLORS, type ServiceColor } from "../domain/palette";
+import { PALETTE_COLORS, type PaletteColor } from "@/shared/kernel/palette";
 import { PALETTE } from "./palette";
 
 // Radio group of the 16 palette swatches; arrow keys move the selection, as in native radios.
@@ -14,8 +14,8 @@ export function ColorPicker({
   disabled,
 }: {
   id: string;
-  value: ServiceColor;
-  onChange: (color: ServiceColor) => void;
+  value: PaletteColor;
+  onChange: (color: PaletteColor) => void;
   disabled?: boolean;
 }) {
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -24,15 +24,15 @@ export function ColorPicker({
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
     if (!step || disabled) return;
     event.preventDefault();
-    const index = SERVICE_COLORS.indexOf(value);
-    const next = SERVICE_COLORS[(index + step + SERVICE_COLORS.length) % SERVICE_COLORS.length] ?? value;
+    const index = PALETTE_COLORS.indexOf(value);
+    const next = PALETTE_COLORS[(index + step + PALETTE_COLORS.length) % PALETTE_COLORS.length] ?? value;
     onChange(next);
     refs.current[next]?.focus();
   }
 
   return (
     <div id={id} role="radiogroup" aria-label="Cor" className="grid grid-cols-8 gap-2" onKeyDown={onKeyDown}>
-      {SERVICE_COLORS.map((color) => {
+      {PALETTE_COLORS.map((color) => {
         const selected = color === value;
         return (
           <button

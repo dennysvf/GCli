@@ -30,6 +30,7 @@ model Organization {
   units             Unit[]
   serviceCategories ServiceCategory[]
   services          Service[]
+  professionals     Professional[]
 
   @@map("organization")
 }
@@ -56,6 +57,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   unitSelection UnitSelection?
+  professional  Professional?
 
   @@index([organizationId, status, role], map: "ix_app_user_org_status_role")
   @@map("app_user")
@@ -210,11 +212,12 @@ model Unit {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization  Organization        @relation(fields: [organizationId], references: [id], map: "fk_unit_org")
-  businessHours UnitBusinessHours[]
-  closures      UnitClosure[]
-  rooms         Room[]
-  selections    UnitSelection[]
+  organization     Organization                  @relation(fields: [organizationId], references: [id], map: "fk_unit_org")
+  businessHours    UnitBusinessHours[]
+  closures         UnitClosure[]
+  rooms            Room[]
+  selections       UnitSelection[]
+  workingIntervals ProfessionalWorkingInterval[]
 
   @@index([organizationId, active], map: "ix_unit_org_active")
   @@map("unit")
@@ -321,10 +324,11 @@ model Service {
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization         @relation(fields: [organizationId], references: [id], map: "fk_service_org")
-  category     ServiceCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict, map: "fk_service_category")
-  allowedRooms ServiceAllowedRoom[]
-  priceChanges ServicePriceChange[]
+  organization  Organization          @relation(fields: [organizationId], references: [id], map: "fk_service_org")
+  category      ServiceCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict, map: "fk_service_category")
+  allowedRooms  ServiceAllowedRoom[]
+  priceChanges  ServicePriceChange[]
+  professionals ProfessionalService[]
 
   @@index([organizationId, active], map: "ix_service_org_active")
   @@index([categoryId], map: "ix_service_category")
@@ -359,4 +363,114 @@ model ServicePriceChange {
 
   @@index([serviceId, changedAt(sort: Desc)], map: "ix_price_change_service_time")
   @@map("service_price_change")
+}
+
+// F04 Professionals and Working Hours (spec docs/F04-professionals-and-working-hours/spec.md, section 6).
+// Partial unique indexes, CHECK constraints and the validity exclusion constraint are hand-written
+// in migration 0005.
+
+model Professional {
+  id               String    @id @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  fullName         String    @map("full_name") @db.VarChar(150)
+  displayName      String?   @map("display_name") @db.VarChar(60)
+  specialty        String?   @db.VarChar(100)
+  councilType      String    @default("NONE") @map("council_type") @db.VarChar(10)
+  councilOtherName String?   @map("council_other_name") @db.VarChar(20)
+  councilNumber    String?   @map("council_number") @db.VarChar(15)
+  councilState     String?   @map("council_state") @db.Char(2)
+  cpf              String?   @db.Char(11)
+  phone            String?   @db.VarChar(11)
+  email            String?   @db.VarChar(254)
+  color            String    @db.VarChar(16)
+  linkedUserId     String?   @unique(map: "uq_professional_linked_user") @map("linked_user_id") @db.Uuid
+  active           Boolean   @default(true)
+  deactivatedAt    DateTime? @map("deactivated_at") @db.Timestamptz(6)
+  version          Int       @default(1)
+  createdById      String?   @map("created_by_id") @db.Uuid
+  updatedById      String?   @map("updated_by_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization           @relation(fields: [organizationId], references: [id], map: "fk_professional_org")
+  linkedUser   User?                  @relation(fields: [linkedUserId], references: [id], onDelete: Restrict, map: "fk_professional_linked_user")
+  services     ProfessionalService[]
+  schedules    ProfessionalSchedule[]
+  timeOffs     ProfessionalTimeOff[]
+
+  @@index([organizationId, active], map: "ix_professional_org_active")
+  @@map("professional")
+}
+
+model ProfessionalService {
+  professionalId String   @map("professional_id") @db.Uuid
+  serviceId      String   @map("service_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Restrict, map: "fk_professional_service_professional")
+  service      Service      @relation(fields: [serviceId], references: [id], onDelete: Restrict, map: "fk_professional_service_service")
+
+  @@id([professionalId, serviceId], map: "pk_professional_service")
+  @@index([serviceId], map: "ix_professional_service_service")
+  @@map("professional_service")
+}
+
+// Weekly working hours valid in a date range. A professional's schedules never overlap
+// (exclusion constraint ex_schedule_no_overlap in migration 0005).
+model ProfessionalSchedule {
+  id             String    @id @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  professionalId String    @map("professional_id") @db.Uuid
+  validFrom      DateTime  @map("valid_from") @db.Date
+  validUntil     DateTime? @map("valid_until") @db.Date
+  version        Int       @default(1)
+  createdById    String?   @map("created_by_id") @db.Uuid
+  updatedById    String?   @map("updated_by_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  professional Professional                  @relation(fields: [professionalId], references: [id], onDelete: Restrict, map: "fk_schedule_professional")
+  intervals    ProfessionalWorkingInterval[]
+
+  @@index([professionalId, validFrom], map: "ix_schedule_professional_period")
+  @@map("professional_schedule")
+}
+
+model ProfessionalWorkingInterval {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  scheduleId     String   @map("schedule_id") @db.Uuid
+  unitId         String   @map("unit_id") @db.Uuid
+  weekday        Int      @db.SmallInt
+  startMinute    Int      @map("start_minute") @db.SmallInt
+  endMinute      Int      @map("end_minute") @db.SmallInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  schedule ProfessionalSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade, map: "fk_pwi_schedule")
+  unit     Unit                 @relation(fields: [unitId], references: [id], onDelete: Restrict, map: "fk_pwi_unit")
+
+  @@index([scheduleId, weekday], map: "ix_pwi_schedule_weekday")
+  @@index([unitId], map: "ix_pwi_unit")
+  @@map("professional_working_interval")
+}
+
+model ProfessionalTimeOff {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  professionalId String   @map("professional_id") @db.Uuid
+  type           String   @db.VarChar(12)
+  startsAt       DateTime @map("starts_at") @db.Timestamptz(6)
+  endsAt         DateTime @map("ends_at") @db.Timestamptz(6)
+  allDay         Boolean  @default(false) @map("all_day")
+  note           String?  @db.VarChar(200)
+  createdById    String?  @map("created_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Restrict, map: "fk_time_off_professional")
+
+  @@index([professionalId, endsAt, startsAt], map: "ix_time_off_professional_period")
+  @@map("professional_time_off")
 }

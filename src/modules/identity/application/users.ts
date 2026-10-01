@@ -4,7 +4,7 @@ import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import type { Role } from "@/shared/kernel/roles";
 import { parseInput } from "@/shared/kernel/validation";
-import { MAX_USERS } from "../domain/policies";
+import { LINKABLE_ROLES, MAX_USERS } from "../domain/policies";
 import { IdentityErrors } from "./errors";
 import type { IdentityDeps } from "./ports";
 import { changeRoleSchema, listUsersSchema, userIdSchema } from "./schemas";
@@ -17,7 +17,7 @@ export type UserListItem =
       email: string;
       role: Role;
       status: "ACTIVE" | "INACTIVE";
-      linkedProfessional: null;
+      linkedProfessional: { id: string; name: string } | null;
       lastLoginAt: string | null;
     }
   | {
@@ -60,6 +60,10 @@ export async function listUsers(
       uow.tx.user.findMany({ orderBy: { name: "asc" } }),
       uow.tx.invitation.findMany({ where: { status: "PENDING" }, orderBy: { createdAt: "desc" } }),
     ]);
+    const links = await deps.professionalLinks().linkedProfessionals(
+      ctx.organizationId,
+      users.map((user) => user.id),
+    );
     const items: UserListItem[] = [
       ...invitations.map((invitation) => ({
         kind: "invitation" as const,
@@ -77,7 +81,7 @@ export async function listUsers(
         email: user.email,
         role: user.role as Role,
         status: user.status as "ACTIVE" | "INACTIVE",
-        linkedProfessional: null,
+        linkedProfessional: links.get(user.id) ?? null,
         lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
       })),
     ];
@@ -221,7 +225,7 @@ export type LinkableUser = { id: string; name: string; email: string; role: Role
 export async function listLinkableUsers(ctx: RequestContext): Promise<LinkableUser[]> {
   const result = await withTransaction(ctx, async (uow) => {
     const users = await uow.tx.user.findMany({
-      where: { status: "ACTIVE", role: { in: ["PROFESSIONAL", "ADMINISTRATOR", "MANAGER"] } },
+      where: { status: "ACTIVE", role: { in: [...LINKABLE_ROLES] } },
       orderBy: { name: "asc" },
       select: { id: true, name: true, email: true, role: true },
     });
