@@ -3,7 +3,15 @@ import { Separator } from "@/shared/ui/components/separator";
 import { SidebarTrigger } from "@/shared/ui/components/sidebar";
 
 // Header of the authenticated shell. `unitSelector` is the slot F02 fills with the unit picker.
-export function AppHeader({ unitSelector, userMenu }: { unitSelector?: ReactNode; userMenu: ReactNode }) {
+export function AppHeader({
+  unitSelector,
+  search,
+  userMenu,
+}: {
+  unitSelector?: ReactNode;
+  search?: ReactNode;
+  userMenu: ReactNode;
+}) {
   return (
     <header className="bg-card sticky top-0 z-10 flex h-14 items-center gap-2 border-b px-4">
       <SidebarTrigger className="-ml-1" aria-label="Alternar menu" />
@@ -11,6 +19,7 @@ export function AppHeader({ unitSelector, userMenu }: { unitSelector?: ReactNode
       <div className="flex flex-1 items-center gap-2" data-slot="unit-selector">
         {unitSelector}
       </div>
+      {search ? <div className="hidden flex-1 justify-end md:flex">{search}</div> : null}
       {userMenu}
     </header>
   );

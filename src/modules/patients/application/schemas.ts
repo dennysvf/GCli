@@ -47,27 +47,45 @@ const nameField = z
   .max(NAME_MAX, "O nome deve ter no máximo 150 caracteres.")
   .refine(hasTwoWords, "Informe nome e sobrenome.");
 
-// A guardian section left empty in the form arrives as empty strings: treat it as absent.
-const guardianSchema = z.preprocess(
-  (value) => {
-    if (!value || typeof value !== "object") return null;
-    const filled = Object.values(value as Record<string, unknown>).some(
-      (field) => typeof field === "string" && field.trim() !== "",
-    );
-    return filled ? value : null;
-  },
-  z
-    .object({
-      name: nameField,
-      cpf: digits,
-      relationship: z.enum(GUARDIAN_RELATIONSHIPS, { error: "Selecione o parentesco." }),
-      phone: digits.refine(
-        (value) => value !== null && /^\d{10,11}$/.test(value),
-        "Informe o telefone com DDD.",
-      ),
-    })
-    .nullable(),
-);
+// A guardian section left empty in the form arrives as empty strings: it is treated as absent.
+// When any of name, CPF or phone is filled, name, relationship and phone are required.
+const guardianSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .nullish()
+      .transform((value) => value || null),
+    cpf: digits,
+    relationship: z.enum(GUARDIAN_RELATIONSHIPS).nullish(),
+    phone: digits,
+  })
+  .nullish()
+  .superRefine((guardian, ctx) => {
+    if (!guardian || (!guardian.name && !guardian.cpf && !guardian.phone)) return;
+    const name = guardian.name ?? "";
+    if (name.length < NAME_MIN || !hasTwoWords(name)) {
+      ctx.addIssue({ code: "custom", path: ["name"], message: "Informe nome e sobrenome do responsável." });
+    } else if (name.length > NAME_MAX) {
+      ctx.addIssue({ code: "custom", path: ["name"], message: "O nome deve ter no máximo 150 caracteres." });
+    }
+    if (!guardian.relationship) {
+      ctx.addIssue({ code: "custom", path: ["relationship"], message: "Selecione o parentesco." });
+    }
+    if (!guardian.phone || !/^\d{10,11}$/.test(guardian.phone)) {
+      ctx.addIssue({ code: "custom", path: ["phone"], message: "Informe o telefone com DDD." });
+    }
+  })
+  .transform((guardian) =>
+    !guardian || (!guardian.name && !guardian.cpf && !guardian.phone)
+      ? null
+      : {
+          name: guardian.name ?? "",
+          cpf: guardian.cpf,
+          relationship: guardian.relationship ?? "OTHER",
+          phone: guardian.phone ?? "",
+        },
+  );
 
 const patientShape = {
   fullName: nameField,

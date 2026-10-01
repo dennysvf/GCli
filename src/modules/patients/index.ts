@@ -76,3 +76,18 @@ export {
   PATIENTS_POSSIBLE_DUPLICATE,
   PATIENTS_TERMS_PUBLISHED,
 } from "./messages";
+export { CONSENT_STATUS_LABELS, type ConsentStatus } from "./domain/consent";
+export { ConsentSection } from "./ui/consent-section";
+export { GlobalPatientSearch } from "./ui/global-patient-search";
+export { ListsPanel } from "./ui/lists-panel";
+export { PatientActiveControl } from "./ui/patient-active-control";
+export {
+  PatientForm,
+  QuickPatientForm,
+  type SavePatientInput,
+  type SavePatientResult,
+} from "./ui/patient-form";
+export { IncompleteRecordAlert, PatientHeaderMeta } from "./ui/patient-header";
+export { PatientSearchField } from "./ui/patient-search-field";
+export { PatientsTable } from "./ui/patients-table";
+export { TermsPanel } from "./ui/terms-panel";
