@@ -70,3 +70,20 @@ export function maskCep(value: string | null | undefined): string {
   const digits = (value ?? "").replace(/\D/g, "");
   return digits.length === 8 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : (value ?? "");
 }
+
+// "Avenida Paulista, 1000 - Sala 12 - Bela Vista, São Paulo/SP - CEP 01310-100"
+export function formatAddress(address: {
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+  district: string | null;
+  city: string | null;
+  state: string | null;
+  cep: string | null;
+}): string {
+  const streetLine = [address.street, address.number].filter(Boolean).join(", ");
+  const cityLine = [address.city, address.state].filter(Boolean).join("/");
+  const districtCity = [address.district, cityLine].filter(Boolean).join(", ");
+  const cep = address.cep ? `CEP ${address.cep.slice(0, 5)}-${address.cep.slice(5)}` : "";
+  return [streetLine, address.complement, districtCity, cep].filter(Boolean).join(" - ");
+}

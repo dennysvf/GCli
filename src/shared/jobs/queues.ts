@@ -3,6 +3,7 @@ export const QUEUES = {
   emailSend: "email-send",
   auditEnsurePartitions: "audit-ensure-partitions",
   identityCleanup: "identity-cleanup",
+  patientsCleanup: "patients-cleanup",
 } as const;
 
 export type EmailJobData = { outboxId: string; type: string; payload: Record<string, unknown> };
