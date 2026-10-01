@@ -413,6 +413,11 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 - *Decision:* The interface follows the design system in [design-system.en.md](design-system.en.md): warm paper surfaces, ink-blue primary color, terracotta reserved for "now" and "late", written status stamps, tables with fine rules instead of card grids, Source Serif 4 for headings and Source Sans 3 for the interface (self-hosted), radii of at most 8 px, a single floating shadow, and WCAG 2.2 AA. Its tokens keep the shadcn/ui variable names, so components pick them up from `src/app/globals.css` without changes. Screens use semantic tokens, never hard-coded colors (the F03 service palette is the only exception).
 - *Why:* The users work under time pressure on dense screens (agenda, cash register, records). A documented, measurable visual language keeps new screens consistent, readable and accessible, and defining it before the agenda (F06) avoids reworking the heaviest screens later.
 
+**ADR-021 — Comparing working hours across unit time zones (refines ADR-019)**
+- *Decision:* Working-hour intervals are stored in the unit's local time (minutes from midnight), as business hours are. To check that a professional's intervals in different units do not overlap on the same weekday (F04), each interval is converted to minutes of the week in UTC with the unit's UTC offset on the schedule's start date, then compared. Brazil has had no daylight saving time since 2019, so these offsets are constant; the conversion lives in one helper (`professionals/domain/time-zone-offsets.ts`).
+- *Why:* A professional who works in São Paulo in the morning and in Manaus in the afternoon must be checked against real time, not against two local clocks. A database exclusion constraint on local minutes would reject valid schedules, so the rule is a pure domain function, and concurrent edits are serialized by the professional's row version.
+- *Trade-off:* If daylight saving time returns, offsets will depend on the date and the helper must compare per date instead of per schedule.
+
 ## 13. Evolution to SaaS
 
 The V1 design keeps these steps additive, with no rewrites:

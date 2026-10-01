@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MoreHorizontal, UserPlus } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -238,7 +239,20 @@ export function UsersTable({
                 <TableCell className="font-medium">{item.name}</TableCell>
                 <TableCell>{item.email}</TableCell>
                 <TableCell>{ROLE_LABELS[item.role]}</TableCell>
-                <TableCell>{item.kind === "user" ? "—" : ""}</TableCell>
+                <TableCell>
+                  {item.kind === "user" && item.linkedProfessional ? (
+                    <Link
+                      className="text-primary hover:underline"
+                      href={`/settings/professionals/${item.linkedProfessional.id}`}
+                    >
+                      {item.linkedProfessional.name}
+                    </Link>
+                  ) : item.kind === "user" ? (
+                    "—"
+                  ) : (
+                    ""
+                  )}
+                </TableCell>
                 <TableCell>
                   <Stamp variant={STATUS[item.status]?.variant ?? "neutral"}>
                     {STATUS[item.status]?.label}

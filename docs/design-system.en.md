@@ -107,6 +107,8 @@ The 16-color service palette (F03) stays as it is: stable keys (`blue`, `emerald
 - In lists, the color appears as a 12 px dot before the service name.
 - Never use a service color as a solid background with text on top.
 
+**Professional colors (F04).** Each professional has an agenda color from the same 16 keys. It appears only as a 12 px dot before the professional's name (lists, agenda column headers, selects), never as an avatar or column background. The avatar itself is a circle with the initials in `ink-1` on `paper-2`.
+
 ### 2.5 Allowed combinations and contrast
 
 Computed contrast ratios (WCAG 2.2). Minimums: 4.5:1 for text, 3:1 for large text (≥ 18.66 px bold or ≥ 24 px) and for component borders.
@@ -364,6 +366,15 @@ Everywhere else, information goes into a list or table. Never put a card inside 
 | **Empty state** | List with no items | Text explaining why + the action that solves it (section 7.4). No illustration |
 
 ---
+
+### 5.9 Weekly hours grid
+
+Used for unit business hours (F02) and professional working hours (F04).
+- One row per weekday, Monday first, with the day name in `body-strong` on the left. Below 768 px each day becomes a block with the intervals stacked.
+- Each interval is a pair of time selects in 5-minute steps ("08:00 até 12:00") with a ghost "Remover" icon button. "Adicionar intervalo" is a link-style ghost button, hidden when the day reaches its limit.
+- Reference hours (the unit's business hours in the professional grid) are written in `meta` under the day name: "Funcionamento: 08:00–18:00" or "Unidade fechada".
+- An interval that breaks a rule before saving gets the field error look (danger border) and the reason written below it, for example "Fora do funcionamento da unidade (08:00–18:00)". Color never carries the rule alone.
+- "Copiar para os dias úteis" is a ghost button per row; the save button is the screen's single primary action.
 
 ## 6. Visual details
 

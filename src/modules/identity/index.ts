@@ -18,7 +18,7 @@ import {
   uploadOrganizationLogo,
 } from "./application/organization";
 import { requestPasswordReset, resetPassword } from "./application/password-reset";
-import type { IdentityDeps, RequestMeta } from "./application/ports";
+import type { IdentityDeps, ProfessionalLinks, RequestMeta } from "./application/ports";
 import { resolveRequestContext, signOut } from "./application/session";
 import { signIn } from "./application/sign-in";
 import {
@@ -32,8 +32,10 @@ import {
 import { postgresRateLimiter, s3LogoStore, sharpLogoProcessor } from "./infrastructure/adapters";
 import { betterAuthGateway } from "./infrastructure/auth";
 import { countOrganizations, prismaDirectory } from "./infrastructure/directory";
+import { noProfessionalLinks } from "./infrastructure/no-professional-links";
 
 let cachedDeps: IdentityDeps | undefined;
+let professionalLinks: ProfessionalLinks = noProfessionalLinks;
 
 function deps(): IdentityDeps {
   cachedDeps ??= {
@@ -43,6 +45,7 @@ function deps(): IdentityDeps {
     logos: s3LogoStore,
     logoProcessor: sharpLogoProcessor,
     appUrl: getEnv().APP_URL,
+    professionalLinks: () => professionalLinks,
     clock: () => new Date(),
   };
   return cachedDeps;
@@ -74,6 +77,10 @@ export const identity = {
   removeOrganizationLogo: (ctx: RequestContext) => removeOrganizationLogo(deps(), ctx),
   getOrganizationLogo: (ctx: RequestContext) => getOrganizationLogo(deps(), ctx),
   setupFirstAdministrator: (input: unknown) => setupFirstAdministrator(deps(), input, countOrganizations),
+  // Extension point for professionals (F04); null restores the default (nobody linked).
+  registerProfessionalLinks: (implementation: ProfessionalLinks | null) => {
+    professionalLinks = implementation ?? noProfessionalLinks;
+  },
 };
 
 // Provided to other features (PRD F01 Provides): F08 and F13 read the organization profile,
@@ -88,7 +95,8 @@ export { homeFor } from "./application/sign-in";
 export { BRAZIL_TIME_ZONES, SLOT_GRANULARITIES } from "./domain/policies";
 export { formatCnpj } from "@/shared/kernel/cnpj";
 export { identityMessages, PASSWORD_RESET_REQUESTED_MESSAGE } from "./messages";
-export type { RequestMeta } from "./application/ports";
+export type { ProfessionalLinks, RequestMeta } from "./application/ports";
+export { isLinkableRole, LINKABLE_ROLES } from "./domain/policies";
 export { SESSION_COOKIE_NAMES } from "@/shared/security/session-cookie";
 export { ForgotPasswordForm, NewPasswordForm, SignInForm } from "./ui/auth-forms";
 export { InviteUserDialog, UsersTable } from "./ui/users";

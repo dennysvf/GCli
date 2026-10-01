@@ -105,6 +105,8 @@ A paleta de 16 cores dos serviços (F03) continua como está: chaves estáveis (
 - Em listas, a cor aparece como um círculo de 12 px antes do nome do serviço.
 - Nunca usar a cor do serviço como fundo cheio com texto por cima.
 
+**Cores dos profissionais (F04).** Cada profissional tem uma cor de agenda escolhida entre as mesmas 16 chaves. Ela aparece apenas como um círculo de 12 px antes do nome do profissional (listas, cabeçalhos de coluna da agenda, seletores), nunca como fundo de avatar ou de coluna. O avatar é um círculo com as iniciais em `ink-1` sobre `paper-2`.
+
 ### 2.5 Combinações permitidas e contraste
 
 Razões de contraste calculadas (WCAG 2.2). Mínimos: 4,5:1 para texto, 3:1 para texto grande (≥ 18,66 px em negrito ou ≥ 24 px) e para bordas de componentes.
@@ -362,6 +364,15 @@ Fora disso, a informação vai em lista ou tabela. Nunca colocar um card dentro 
 | **Estado vazio** | Lista sem itens | Texto explicando o motivo + a ação que resolve (seção 7.4). Sem ilustração |
 
 ---
+
+### 5.9 Grade semanal de horários
+
+Usada no horário de funcionamento das unidades (F02) e nos horários de atendimento dos profissionais (F04).
+- Uma linha por dia da semana, começando na segunda, com o nome do dia em `body-strong` à esquerda. Abaixo de 768 px cada dia vira um bloco com os intervalos empilhados.
+- Cada intervalo é um par de seletores de horário em passos de 5 minutos ("08:00 até 12:00") com um botão de ícone fantasma "Remover". "Adicionar intervalo" é um botão fantasma com aparência de link, oculto quando o dia atinge o limite.
+- Horários de referência (o funcionamento da unidade na grade do profissional) aparecem em `meta` abaixo do nome do dia: "Funcionamento: 08:00–18:00" ou "Unidade fechada".
+- Um intervalo que quebra uma regra antes de salvar recebe a aparência de erro de campo (borda de perigo) e o motivo escrito abaixo, por exemplo "Fora do funcionamento da unidade (08:00–18:00)". A cor nunca carrega a regra sozinha.
+- "Copiar para os dias úteis" é um botão fantasma por linha; o botão de salvar é a única ação primária da tela.
 
 ## 6. Detalhes visuais
 

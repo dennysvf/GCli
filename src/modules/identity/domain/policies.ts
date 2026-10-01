@@ -50,6 +50,14 @@ export const PASSWORD_RESET_TTL_MINUTES = 60;
 // PRD F01: up to 100 active users per organization (pending invitations count, spec assumptions).
 export const MAX_USERS = 100;
 
+// PRD F01: Administrator or Manager users may be linked to a professional profile (F04), as may
+// Professional users. Other roles never gain linked-professional permissions.
+export const LINKABLE_ROLES = ["PROFESSIONAL", "ADMINISTRATOR", "MANAGER"] as const;
+
+export function isLinkableRole(role: string): boolean {
+  return (LINKABLE_ROLES as readonly string[]).includes(role);
+}
+
 // PRD F01: agenda slot granularity options and organization time zones (Brazilian IANA zones).
 export const SLOT_GRANULARITIES = [5, 10, 15, 30] as const;
 export { BRAZIL_TIME_ZONES } from "@/shared/kernel/time-zones";

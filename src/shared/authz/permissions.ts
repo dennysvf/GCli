@@ -17,6 +17,8 @@ export const PERMISSIONS = {
   "setup:manage": ["ADMINISTRATOR", "MANAGER"],
   // F04 professionals and working hours (professionals manage only their own time-offs)
   "professional:read": ["ADMINISTRATOR", "MANAGER", "FRONT_DESK", "PROFESSIONAL"],
+  // Every profile; Professional-role users read only their own (spec F04 section 3).
+  "professional:read-all": ["ADMINISTRATOR", "MANAGER", "FRONT_DESK"],
   "professional:manage": ["ADMINISTRATOR", "MANAGER"],
   "professional:manage-own-time-off": ["PROFESSIONAL"],
   // F05 patients (professionals only see patients with an appointment with them)

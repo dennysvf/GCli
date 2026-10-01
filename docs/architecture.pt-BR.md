@@ -413,6 +413,11 @@ Cada ADR vale até ser substituído por um novo ADR. Para mudar uma decisão, ad
 - *Decisão:* A interface segue o design system descrito em [design-system.pt-BR.md](design-system.pt-BR.md): superfícies em papel quente, azul-tinta como cor primária, terracota reservada para "agora" e "atrasado", carimbos de estado escritos, tabelas com linhas finas no lugar de grades de cards, Source Serif 4 nos títulos e Source Sans 3 na interface (servidas pelo próprio sistema), raios de no máximo 8 px, uma única sombra para camadas flutuantes e WCAG 2.2 AA. Os tokens mantêm os nomes de variável do shadcn/ui, então os componentes os recebem pelo `src/app/globals.css` sem mudanças. As telas usam tokens semânticos, nunca cores fixas (a paleta de serviços da F03 é a única exceção).
 - *Por quê:* Os usuários trabalham sob pressão de tempo em telas densas (agenda, caixa, prontuário). Uma linguagem visual documentada e mensurável mantém as telas novas consistentes, legíveis e acessíveis, e defini-la antes da agenda (F06) evita retrabalho nas telas mais pesadas.
 
+**ADR-021 — Comparação de horários de atendimento entre fusos das unidades (refina o ADR-019)**
+- *Decisão:* Os intervalos de atendimento são guardados no horário local da unidade (minutos desde a meia-noite), como o horário de funcionamento. Para verificar que os intervalos de um profissional em unidades diferentes não se sobrepõem no mesmo dia da semana (F04), cada intervalo é convertido em minutos da semana em UTC com o deslocamento UTC da unidade na data de início da vigência e só então comparado. O Brasil não tem horário de verão desde 2019, então esses deslocamentos são constantes; a conversão fica em um único auxiliar (`professionals/domain/time-zone-offsets.ts`).
+- *Por quê:* Um profissional que atende em São Paulo de manhã e em Manaus à tarde precisa ser verificado pelo horário real, não por dois relógios locais. Uma restrição de exclusão no banco sobre minutos locais rejeitaria horários válidos, por isso a regra é uma função pura de domínio, e edições concorrentes são serializadas pela versão da linha do profissional.
+- *Trade-off:* Se o horário de verão voltar, os deslocamentos passam a depender da data e o auxiliar precisa comparar por data, e não por vigência.
+
 ## 13. Evolução para SaaS
 
 O desenho da V1 mantém estes passos como acréscimos, sem reescrita:
