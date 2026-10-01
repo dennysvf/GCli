@@ -376,6 +376,14 @@ Used for unit business hours (F02) and professional working hours (F04).
 - An interval that breaks a rule before saving gets the field error look (danger border) and the reason written below it, for example "Fora do funcionamento da unidade (08:00–18:00)". Color never carries the rule alone.
 - "Copiar para os dias úteis" is a ghost button per row; the save button is the screen's single primary action.
 
+### 5.10 Global search
+
+The patient search in the header (F05), available on every screen.
+- A field of at most 360 px with the search icon and the placeholder "Buscar paciente (/)". On phones it collapses to an icon button that opens the field full width.
+- The `/` key focuses it, except while typing in another field. `Esc` clears and leaves it.
+- Results open below as a floating list (the only shadow), at most 8 rows of 40 px: the name in `body-strong` and, in `meta`, the age, the masked CPF or the last 4 phone digits. Arrow keys move, `Enter` opens.
+- Below 3 characters the list says "Digite pelo menos 3 caracteres."; with no result, "Nenhum paciente encontrado para "{busca}"." and, for those who may register, a "Cadastrar paciente" link. The last row is always "Ver todos os resultados".
+
 ## 6. Visual details
 
 ### 6.1 Borders and radii

@@ -423,6 +423,11 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 - *Why:* Next.js loads a module more than once in the same process (the instrumentation bundle and each route bundle get their own copy). A registration made by the composition root in one copy was invisible to the others, so the web server kept the inert defaults. The event bus already lived on `globalThis` for the same reason.
 - *Trade-off:* Registrations are process-global state; tests that replace a port must restore it (`register(null)` restores the default).
 
+**ADR-023 — Small uploads go through the application server (refines ADR-009)**
+- *Decision:* Files of up to 10 MB that the staff attach to a record (the signed privacy term in F05) are sent to a Route Handler, which checks the session, the permission, the size and the type by its magic bytes, and writes the object to the private bucket under `org/{orgId}/{module}/{uuid}`. The handler returns an upload token that the use case consumes in the same request flow; unused uploads are deleted by a daily job after 24 hours. Downloads keep the 5-minute presigned GET URLs of ADR-009.
+- *Why:* The strict CSP only allows `connect-src 'self'`, and the bucket has no CORS configuration, so a presigned PUT from the browser would need both changed. For small files the extra hop through the server is cheap, and the server sees the real bytes before storing them.
+- *Trade-off:* Large files (clinical attachments in F07, documents in F08) would load the web process. Those features may adopt presigned direct uploads by adding the storage origin to `connect-src` and a CORS rule to the bucket, recorded in a new ADR.
+
 ## 13. Evolution to SaaS
 
 The V1 design keeps these steps additive, with no rewrites:

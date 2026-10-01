@@ -374,6 +374,14 @@ Usada no horário de funcionamento das unidades (F02) e nos horários de atendim
 - Um intervalo que quebra uma regra antes de salvar recebe a aparência de erro de campo (borda de perigo) e o motivo escrito abaixo, por exemplo "Fora do funcionamento da unidade (08:00–18:00)". A cor nunca carrega a regra sozinha.
 - "Copiar para os dias úteis" é um botão fantasma por linha; o botão de salvar é a única ação primária da tela.
 
+### 5.10 Busca global
+
+A busca de pacientes no cabeçalho (F05), disponível em todas as telas.
+- Um campo de no máximo 360 px com o ícone de busca e o texto de exemplo "Buscar paciente (/)". No celular, vira um botão de ícone que abre o campo em toda a largura.
+- A tecla `/` coloca o foco no campo, exceto quando a pessoa está digitando em outro campo. `Esc` limpa e sai.
+- Os resultados abrem abaixo como uma lista flutuante (a única sombra), com no máximo 8 linhas de 40 px: o nome em `body-strong` e, em `meta`, a idade, o CPF mascarado ou os 4 últimos dígitos do telefone. As setas navegam, `Enter` abre.
+- Com menos de 3 caracteres a lista diz "Digite pelo menos 3 caracteres."; sem resultado, "Nenhum paciente encontrado para "{busca}"." e, para quem pode cadastrar, um link "Cadastrar paciente". A última linha é sempre "Ver todos os resultados".
+
 ## 6. Detalhes visuais
 
 ### 6.1 Bordas e raios

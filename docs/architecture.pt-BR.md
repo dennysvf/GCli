@@ -423,6 +423,11 @@ Cada ADR vale até ser substituído por um novo ADR. Para mudar uma decisão, ad
 - *Por quê:* O Next.js carrega um módulo mais de uma vez no mesmo processo (o bundle de instrumentação e cada bundle de rota têm sua própria cópia). Um registro feito pela raiz de composição em uma cópia ficava invisível para as outras, e o servidor web continuava com os padrões inertes. O barramento de eventos já ficava em `globalThis` pelo mesmo motivo.
 - *Trade-off:* Os registros são estado global do processo; testes que substituem uma porta precisam restaurá-la (`register(null)` volta ao padrão).
 
+**ADR-023 — Uploads pequenos passam pelo servidor da aplicação (refina o ADR-009)**
+- *Decisão:* Arquivos de até 10 MB que a equipe anexa a um cadastro (o termo de privacidade assinado da F05) são enviados a um Route Handler, que verifica a sessão, a permissão, o tamanho e o tipo pelos bytes iniciais, e grava o objeto no bucket privado em `org/{orgId}/{module}/{uuid}`. O handler devolve um token de upload que o caso de uso consome no mesmo fluxo; uploads não usados são apagados por uma tarefa diária depois de 24 horas. Os downloads continuam com as URLs assinadas de 5 minutos do ADR-009.
+- *Por quê:* A CSP estrita só permite `connect-src 'self'`, e o bucket não tem configuração de CORS, então um PUT assinado direto do navegador exigiria mudar as duas coisas. Para arquivos pequenos, a passagem pelo servidor custa pouco, e o servidor vê os bytes reais antes de gravá-los.
+- *Trade-off:* Arquivos grandes (anexos clínicos da F07, documentos da F08) pesariam no processo web. Essas features podem adotar uploads diretos com URL assinada, incluindo a origem do armazenamento em `connect-src` e uma regra de CORS no bucket, registrados em um novo ADR.
+
 ## 13. Evolução para SaaS
 
 O desenho da V1 mantém estes passos como acréscimos, sem reescrita:

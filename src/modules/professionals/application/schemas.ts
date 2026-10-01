@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BRAZIL_STATES } from "@/shared/kernel/address";
 import { PALETTE_COLORS } from "@/shared/kernel/palette";
 import { COUNCIL_TYPES, requiresOtherName, requiresRegistration, type CouncilType } from "../domain/council";
 import { isValidDate } from "../domain/dates";
@@ -19,35 +20,7 @@ import { TIME_OFF_TYPES } from "../domain/time-offs";
 export const PROFESSIONAL_STATUSES = ["active", "inactive", "all"] as const;
 export type ProfessionalStatusFilter = (typeof PROFESSIONAL_STATUSES)[number];
 
-export const BRAZIL_STATES = [
-  "AC",
-  "AL",
-  "AP",
-  "AM",
-  "BA",
-  "CE",
-  "DF",
-  "ES",
-  "GO",
-  "MA",
-  "MT",
-  "MS",
-  "MG",
-  "PA",
-  "PB",
-  "PR",
-  "PE",
-  "PI",
-  "RJ",
-  "RN",
-  "RS",
-  "RO",
-  "RR",
-  "SC",
-  "SP",
-  "SE",
-  "TO",
-] as const;
+export { BRAZIL_STATES } from "@/shared/kernel/address";
 
 const optionalText = (max: number, message: string) =>
   z

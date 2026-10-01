@@ -2,11 +2,11 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { toast } from "sonner";
 import type { z } from "zod";
 import type { ActionResult } from "@/shared/kernel/action-result";
+import { maskCep } from "@/shared/kernel/address";
 import { formatCnpj } from "@/shared/kernel/cnpj";
 import { BRAZIL_TIME_ZONES, timeZoneLabel } from "@/shared/kernel/time-zones";
 import { Button } from "@/shared/ui/components/button";
@@ -14,18 +14,14 @@ import { Input } from "@/shared/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
+import { AddressFields } from "@/shared/ui/forms/address-fields";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import { useFormDraft } from "@/shared/ui/forms/use-form-draft";
-import { BRAZIL_STATES, createUnitSchema } from "../application/schemas";
+import { createUnitSchema } from "../application/schemas";
 import type { UnitDetails } from "../application/units";
 
 type Values = z.input<typeof createUnitSchema>;
 type Parsed = z.output<typeof createUnitSchema>;
-
-function maskCep(value: string | null | undefined): string {
-  const digits = (value ?? "").replace(/\D/g, "");
-  return digits.length === 8 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : (value ?? "");
-}
 
 function maskPhone(value: string | null | undefined): string {
   const digits = (value ?? "").replace(/\D/g, "");
@@ -49,7 +45,6 @@ export function UnitForm({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [lookingUp, setLookingUp] = useState(false);
   const defaults: Values = {
     name: unit?.name ?? "",
     cnpj: unit?.cnpj ? formatCnpj(unit.cnpj) : "",
@@ -73,37 +68,6 @@ export function UnitForm({
   const draft = useFormDraft(`unit-${unit?.id ?? "new"}`, form);
   const { errors } = form.formState;
   const version = unit?.version;
-
-  // Fills street, district, city and state from the CEP (spec F02: editable afterwards).
-  async function lookupCep(value: string) {
-    const digits = value.replace(/\D/g, "");
-    if (digits.length !== 8) return;
-    setLookingUp(true);
-    try {
-      const response = await fetch(`/api/address/cep/${digits}`);
-      if (response.status === 404) {
-        toast.warning("CEP não encontrado. Preencha o endereço manualmente.");
-        return;
-      }
-      if (!response.ok) {
-        toast.warning("Não foi possível consultar o CEP agora. Preencha o endereço manualmente.");
-        return;
-      }
-      const address = (await response.json()) as {
-        street: string;
-        district: string;
-        city: string;
-        state: string;
-      };
-      form.setValue("address.cep", maskCep(digits), { shouldDirty: true });
-      form.setValue("address.street", address.street, { shouldDirty: true });
-      form.setValue("address.district", address.district, { shouldDirty: true });
-      form.setValue("address.city", address.city, { shouldDirty: true });
-      form.setValue("address.state", address.state, { shouldDirty: true });
-    } finally {
-      setLookingUp(false);
-    }
-  }
 
   const onSubmit = form.handleSubmit((values) =>
     startTransition(async () => {
@@ -175,65 +139,7 @@ export function UnitForm({
             {text("email", "unit-email", { type: "email" })}
           </Field>
         </div>
-        <fieldset className="grid gap-4 rounded-lg border p-4">
-          <legend className="px-1 text-sm font-medium">Endereço</legend>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field
-              id="unit-cep"
-              label="CEP"
-              error={errors.address?.cep?.message}
-              hint={lookingUp ? "Consultando CEP..." : "O endereço é preenchido a partir do CEP."}
-            >
-              <Input
-                id="unit-cep"
-                placeholder="00000-000"
-                inputMode="numeric"
-                readOnly={readOnly}
-                defaultValue={initial("address.cep")}
-                {...form.register("address.cep", { onBlur: (event) => lookupCep(event.target.value) })}
-              />
-            </Field>
-            <div className="sm:col-span-2">
-              <Field id="unit-street" label="Logradouro" error={errors.address?.street?.message}>
-                {text("address.street", "unit-street")}
-              </Field>
-            </div>
-            <Field id="unit-number" label="Número" error={errors.address?.number?.message}>
-              {text("address.number", "unit-number")}
-            </Field>
-            <div className="sm:col-span-2">
-              <Field id="unit-complement" label="Complemento" error={errors.address?.complement?.message}>
-                {text("address.complement", "unit-complement")}
-              </Field>
-            </div>
-            <Field id="unit-district" label="Bairro" error={errors.address?.district?.message}>
-              {text("address.district", "unit-district")}
-            </Field>
-            <Field id="unit-city" label="Cidade" error={errors.address?.city?.message}>
-              {text("address.city", "unit-city")}
-            </Field>
-            <Field id="unit-state" label="UF" error={errors.address?.state?.message}>
-              <Controller
-                control={form.control}
-                name="address.state"
-                render={({ field }) => (
-                  <Select value={field.value ?? ""} onValueChange={field.onChange} disabled={readOnly}>
-                    <SelectTrigger id="unit-state" className="w-full">
-                      <SelectValue placeholder="UF" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BRAZIL_STATES.map((state) => (
-                        <SelectItem key={state} value={state}>
-                          {state}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </Field>
-          </div>
-        </fieldset>
+        <AddressFields form={form} idPrefix="unit" defaults={defaults.address} readOnly={readOnly} />
         {readOnly ? null : (
           <div>
             <Button type="submit" disabled={pending}>
