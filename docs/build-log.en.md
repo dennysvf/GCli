@@ -1,10 +1,10 @@
 # Build log — how GCli was built
 
-This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01, F02 and F03). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
+This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F04). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
 
 The work was done as a pair: a product owner and an AI coding assistant. The product owner answered questions, made the business decisions and approved each stage; the assistant ran the interviews, wrote documents and code, ran the tests and recorded what it found along the way.
 
-> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system.
+> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04.
 
 Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 
@@ -22,9 +22,10 @@ Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 8. [Second feature: F02 — Units and Rooms](#8-second-feature-f02--units-and-rooms)
 9. [Third feature: F03 — Service Catalog](#9-third-feature-f03--service-catalog)
 10. [Design system before the heaviest screens](#10-design-system-before-the-heaviest-screens)
-11. [Problems found and how they were solved](#11-problems-found-and-how-they-were-solved)
-12. [Reproducing the environment from scratch](#12-reproducing-the-environment-from-scratch)
-13. [Lessons learned](#13-lessons-learned)
+11. [Fourth feature: F04 — Professionals and Working Hours](#11-fourth-feature-f04--professionals-and-working-hours)
+12. [Problems found and how they were solved](#12-problems-found-and-how-they-were-solved)
+13. [Reproducing the environment from scratch](#13-reproducing-the-environment-from-scratch)
+14. [Lessons learned](#14-lessons-learned)
 
 ---
 
@@ -118,7 +119,7 @@ Steps taken:
 4. **First commit** on `main`, reviewing with `git status` what would be included (no secrets, no local folders).
 5. **Public repository created and pushed**: `gh repo create GCli --public --source=. --remote=origin --push`.
 
-**Problem:** the push failed with `SSL certificate problem: unable to get local issuer certificate`. **Cause:** Git for Windows uses OpenSSL's certificate store, which did not recognize the certificate presented by the network. **Fix:** `git config --global http.sslbackend schannel`, which makes Git use the Windows certificate store. The root cause showed up later (see [section 11](#11-problems-found-and-how-they-were-solved)).
+**Problem:** the push failed with `SSL certificate problem: unable to get local issuer certificate`. **Cause:** Git for Windows uses OpenSSL's certificate store, which did not recognize the certificate presented by the network. **Fix:** `git config --global http.sslbackend schannel`, which makes Git use the Windows certificate store. The root cause showed up later (see [section 12](#12-problems-found-and-how-they-were-solved)).
 
 **Protecting `main`.** Once CI was running reliably, `main` was protected with a GitHub ruleset:
 - force pushes and branch deletion are blocked;
@@ -398,7 +399,57 @@ The tokens keep the shadcn/ui variable names, so applying the design system mean
 
 ---
 
-## 11. Problems found and how they were solved
+## 11. Fourth feature: F04 — Professionals and Working Hours
+
+F04 registers the clinic's professionals: identification, council registration ("CRM 123456/SP"), agenda color, an optional link to a user account, the services each one performs, weekly working hours per unit and time-offs. Scheduling (F06) will use this data to decide who can be booked, where and when; documents (F08) will print the name and registration. The workflow was the same: branch `feat/F04-professionals-and-working-hours`, spec and plan first (commit `17ed233`), one commit per stage and a PR at the end.
+
+One thing changed: the spec was written **in autonomous mode**, without a live interview. The assistant applied its own recommendation to each open question and wrote every one of them down as an explicit assumption in the spec, so the product owner can review and override them.
+
+### 11.1 Decisions made in the spec
+
+| Decision | Outcome |
+|---|---|
+| How does "a future change of working hours" work? | A **schedule** covers all units and has a start date and an optional end date. Saving a schedule that starts in the future **closes the current one on the day before**. A database exclusion constraint (`btree_gist`) guarantees a professional never has two overlapping schedules, even with simultaneous saves |
+| Units in different time zones | Intervals in different units are compared **in real time**, converting each unit's local time with its UTC offset. Recorded as **ADR-021** |
+| Linking a user to a professional | The identity module declares a port and the professionals module implements it, so the request context knows the linked professional without a dependency cycle. A link only grants permissions while the user's role allows it and the professional is active |
+| What a Professional-role user sees | **Only their own profile**, read-only, plus their own time-offs. A new permission, `professional:read-all`, covers the other roles |
+| Agenda color | The **same 16-color palette** as services, shown as a dot before the name, never as a background. The design system gained this rule and the weekly-hours grid pattern |
+| CPF | A shared `Cpf` value object and a masked CPF input, which patients (F05) will reuse |
+
+The spec and plan are in [F04-professionals-and-working-hours/](F04-professionals-and-working-hours/).
+
+### 11.2 Implementation in 4 stages
+
+| Stage | Commit | What went in |
+|---|---|---|
+| 1 — Foundations | `389b9f8` | ADR-021 and the design-system additions in both languages; `Cpf` and the CPF input; the `professional:read-all` permission; the port that fills the linked professional in the request context and the "Profissional vinculado" column on the Users screen |
+| 2 — Database and domain | `bed323d` | Migration `0005_professionals` with five tables, the schedule exclusion constraint, council CHECKs and partial unique indexes for CPF and council registration; pure rules for intervals, business hours, cross-unit conflicts, validity and time-offs; the appointments port for F06 |
+| 3 — Use cases | `ccdc521` | Profiles, enabled services, schedules and time-offs, with authorization, auditing and optimistic locking; the public API for F06 and F08; 31 integration tests, including concurrent saves |
+| 4 — Screens | `8bd6aa2` | The list, the new-professional page and the professional page with the Dados, Serviços, Horários and Ausências tabs; the weekly grid marks intervals outside business hours before saving; two E2E journeys; the port registry (ADR-022) |
+
+Final check: lint and types clean, 62 unit tests, 131 integration tests and 9 E2E journeys passing.
+
+### 11.3 Problems found in F04
+
+| Problem | Cause | Fix |
+|---|---|---|
+| **The web server never saw the linked professional** (found by the E2E test) | Next.js loads separate copies of a module in one process. The composition root registered the port in one copy, and the routes used another that still had the default | Cross-module ports moved to a registry kept in `globalThis` (`definePort`, **ADR-022**). This also fixed the professionals count on the services list, which had the same flaw since F03 but had never been exercised by a web request |
+| The color picker lived inside the services module | A screen from another module that imported the services module's entry point would pull server code into the browser bundle | The palette moved to the shared kernel and the picker to the shared interface components |
+| The view and time-off rules could not go in `domain/` | The lint rule keeps `domain/` free of anything outside the shared kernel, including the permission matrix | The policies live in `application/`, with their own unit tests |
+| An E2E check looked for "ATIVO" and failed | The stamp is written "Ativo" and CSS turns it into capitals; tests read the text, not the rendering | The test checks the real text |
+| Tests failed for reasons unrelated to the code | The machine was overloaded: the test database container did not answer in time, and the production build passed the E2E 10-minute limit | Rerun once the load dropped, with the build run separately first. The failures never reached a test, so they said nothing about the code |
+
+### 11.4 What F04 left in place
+
+- **The public API for the agenda (F06):** bookable professionals per service and unit, the enabled-service check and a working calendar per date, with validity applied and time-offs included.
+- **Name and registration for documents (F08).**
+- **The linked professional in the request context**, which the clinical-record permissions (F07) depend on.
+- **The port registry**, where F06 will register its appointment ports.
+- **`Cpf` and the CPF input** for the patient registry (F05).
+
+---
+
+## 12. Problems found and how they were solved
 
 This may be the most useful section for anyone reproducing the project. All of these problems showed up because **each stage was actually executed**, not just written.
 
@@ -421,7 +472,7 @@ This may be the most useful section for anyone reproducing the project. All of t
 
 ---
 
-## 12. Reproducing the environment from scratch
+## 13. Reproducing the environment from scratch
 
 ### Prerequisites
 
@@ -482,7 +533,7 @@ EXTRA_CA_CERTS=/path/to/root-certificate.pem docker compose --profile app build
 
 ---
 
-## 13. Lessons learned
+## 14. Lessons learned
 
 1. **Interview before document.** One question at a time, always with a recommendation, settles more than a long document written in the dark.
 2. **End-to-end IDs** (F01 → story → criterion → test → commit) make the project traceable at no extra cost.
@@ -494,3 +545,5 @@ EXTRA_CA_CERTS=/path/to/root-certificate.pem docker compose --profile app build
 8. **Ports with a zero default unlock the build order.** F02 already has the rules that depend on appointments, with tests, before the agenda exists; when F06 arrives, only the port's implementation changes.
 9. **Check in the code what the spec assumes.** The F03 spec relied on a function that did not exist; the gap showed up during implementation, was fixed and was recorded.
 10. **Define the look before the dense screens.** With few screens built, a design system costs one document and a token swap; after the agenda and clinical records, it would mean redoing the most complex screens.
+11. **Fix the whole class of problem, not only the case found.** F03 moved the event bus to `globalThis` because Next.js loads modules more than once, but left the ports in module variables. The same cause came back in F04.
+12. **Decisions taken without the user must be written down.** When the spec was written without a live interview, every recommendation applied became an explicit assumption, so the product owner can review and override it later.
