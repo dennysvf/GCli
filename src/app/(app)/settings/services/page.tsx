@@ -1,3 +1,4 @@
+import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -81,31 +82,33 @@ export default async function ServicesPage({ searchParams }: PageProps<"/setting
 
   return (
     <div className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Serviços</h1>
-        {canManage ? (
-          <div className="flex gap-2">
-            <CategoriesDialog
-              categories={categories.value}
-              actions={{
-                create: createCategoryAction,
-                rename: renameCategoryAction,
-                move: moveCategoryAction,
-                remove: deleteCategoryAction,
-              }}
-            />
-            <Button asChild>
-              <Link
-                href={`?${new URLSearchParams([...new URLSearchParams(query), ["service", "new"]])}`}
-                scroll={false}
-              >
-                <Plus />
-                Novo serviço
-              </Link>
-            </Button>
-          </div>
-        ) : null}
-      </div>
+      <PageHeader
+        title="Serviços"
+        actions={
+          canManage ? (
+            <>
+              <CategoriesDialog
+                categories={categories.value}
+                actions={{
+                  create: createCategoryAction,
+                  rename: renameCategoryAction,
+                  move: moveCategoryAction,
+                  remove: deleteCategoryAction,
+                }}
+              />
+              <Button asChild>
+                <Link
+                  href={`?${new URLSearchParams([...new URLSearchParams(query), ["service", "new"]])}`}
+                  scroll={false}
+                >
+                  <Plus />
+                  Novo serviço
+                </Link>
+              </Button>
+            </>
+          ) : null
+        }
+      />
       <ServicesFilters
         categories={categoryOptions}
         search={list.value.filters.search}

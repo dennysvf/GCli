@@ -122,11 +122,9 @@ export function ClosuresPanel({
       )}
 
       {closures.length === 0 ? (
-        <p className="text-muted-foreground rounded-lg border p-6 text-center">
-          Nenhum fechamento programado.
-        </p>
+        <p className="text-muted-foreground">Nenhum fechamento programado.</p>
       ) : (
-        <div className="rounded-lg border">
+        <div className="border-y">
           <Table>
             <TableHeader>
               <TableRow>

@@ -122,7 +122,7 @@ src/
     storage/                  Object storage adapter, presigned URL helpers
     config/                   Environment variables validated with Zod at startup
     logging/                  Structured logger with request ID
-    ui/                       Design system components (shadcn/ui based)
+    ui/                       Design system components (shadcn/ui based; rules in docs/design-system.en.md)
   worker/                     Worker entry point: registers job handlers
 prisma/
   schema.prisma
@@ -323,7 +323,7 @@ Patterns that are **deliberately not used**: generic repository over Prisma, abs
 - **Branches**: `main` is always deployable; use short-lived branches `feat/F06-recurrence`, `fix/...`, `docs/...`.
 - **Commits**: Conventional Commits (`feat(scheduling): block room conflicts [F06]`).
 - **Pull requests**: CI must pass lint, typecheck, unit, integration, and E2E tests, plus `prisma migrate diff` to detect schema drift. The PR description links the feature ID and lists the acceptance criteria covered.
-- **Definition of done** for a feature: its acceptance criteria are covered by tests, audit events are emitted for its mutations, authorization is checked for each action, pt-BR messages come from the PRD, and the architecture document is updated if a decision changed.
+- **Definition of done** for a feature: its acceptance criteria are covered by tests, audit events are emitted for its mutations, authorization is checked for each action, pt-BR messages come from the PRD, its screens pass the design system checklist (`docs/design-system.en.md`, section 11), and the architecture document is updated if a decision changed.
 
 ## 12. Architecture Decision Records
 
@@ -408,6 +408,10 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 **ADR-019 — Time zone per unit (refines ADR-010)**
 - *Decision:* Each unit has its own IANA time zone, defaulting to the organization's time zone when the unit is created. Calendar logic (business hours, closures, working hours, the agenda, "today" for the daily cash register) uses the unit's time zone; the organization's time zone is only the default.
 - *Why:* A clinic with units in different states (for example São Paulo and Manaus) has different local clocks; one organization-wide zone would shift opening hours and daily closings in one of them.
+
+**ADR-020 — Design system "Ink and Paper" (complements ADR-011)**
+- *Decision:* The interface follows the design system in [design-system.en.md](design-system.en.md): warm paper surfaces, ink-blue primary color, terracotta reserved for "now" and "late", written status stamps, tables with fine rules instead of card grids, Source Serif 4 for headings and Source Sans 3 for the interface (self-hosted), radii of at most 8 px, a single floating shadow, and WCAG 2.2 AA. Its tokens keep the shadcn/ui variable names, so components pick them up from `src/app/globals.css` without changes. Screens use semantic tokens, never hard-coded colors (the F03 service palette is the only exception).
+- *Why:* The users work under time pressure on dense screens (agenda, cash register, records). A documented, measurable visual language keeps new screens consistent, readable and accessible, and defining it before the agenda (F06) avoids reworking the heaviest screens later.
 
 ## 13. Evolution to SaaS
 

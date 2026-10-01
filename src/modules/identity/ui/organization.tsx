@@ -148,7 +148,10 @@ export function LogoUploader({
 
   const upload = (file: File) => {
     if (file.size > LOGO_MAX_BYTES) {
-      toast.error("Envie um logotipo PNG, JPG ou SVG de até 2 MB.");
+      toast.error("Envie um logotipo PNG, JPG ou SVG de até 2 MB.", {
+        duration: Infinity,
+        closeButton: true,
+      });
       return;
     }
     const data = new FormData();

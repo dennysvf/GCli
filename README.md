@@ -15,8 +15,9 @@ Clínicas de pequeno e médio porte costumam operar com planilhas, agendas de pa
 
 - **Levantamento de requisitos de ponta a ponta:** PRD completo com 15 funcionalidades, personas, objetivos com métricas de sucesso mensuráveis, histórias de usuário, critérios de aceitação e grafo de dependências com ondas de execução (o que pode ser construído em paralelo).
 - **Modelagem de um domínio real e complexo:** agenda multi-recurso (profissional × sala × unidade) com regras de conflito, pacotes de sessões com saldo, prontuário com trava temporal e adendos, fluxo de LGPD (exportação e anonimização de dados).
-- **Arquitetura pensada antes do código:** monólito modular com fronteiras verificadas por lint, isolamento por organização pronto para SaaS, autorização centralizada, auditoria transacional, restrições no banco contra agendamento duplo e 19 decisões registradas como ADRs.
+- **Arquitetura pensada antes do código:** monólito modular com fronteiras verificadas por lint, isolamento por organização pronto para SaaS, autorização centralizada, auditoria transacional, restrições no banco contra agendamento duplo e 20 decisões registradas como ADRs.
 - **Documentação como artefato de trabalho:** PRD e briefing mantidos em português e inglês, com rastreabilidade entre problema → funcionalidade → história de usuário → critério de aceitação.
+- **Design system próprio:** identidade "Tinta e Papel" inspirada na ficha, no livro de agenda e no livro-caixa da clínica, com tokens prontos para implementação, contraste medido (WCAG 2.2 AA) e regras de conteúdo em pt-BR.
 
 ## Funcionalidades principais
 
@@ -38,21 +39,22 @@ Detalhamento completo de cada uma no PRD (seção 6).
 - **Dados:** PostgreSQL + Prisma
 - **Tarefas em segundo plano:** pg-boss (fila no próprio PostgreSQL)
 - **Autenticação:** Better Auth com sessões no banco e Argon2id
-- **Interface:** React Server Components, Tailwind CSS, shadcn/ui
+- **Interface:** React Server Components, Tailwind CSS, shadcn/ui, design system "Tinta e Papel"
 - **Arquivos:** armazenamento compatível com S3 (Cloudflare R2 / MinIO)
 - **Testes:** Vitest, Testcontainers, Playwright
 - **Idioma da interface:** pt-BR · **Moeda:** BRL
 
 ## Documentação
 
-| Documento                                       | Português                                                | English                                            |
-| ----------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------- |
-| PRD (requisitos completos)                      | [docs/prd.pt-BR.md](docs/prd.pt-BR.md)                   | [docs/prd.en.md](docs/prd.en.md)                   |
-| Arquitetura e diretrizes de engenharia          | [docs/architecture.pt-BR.md](docs/architecture.pt-BR.md) | [docs/architecture.en.md](docs/architecture.en.md) |
-| Briefing do produto                             | [docs/briefing.pt-BR.md](docs/briefing.pt-BR.md)         | [docs/briefing.en.md](docs/briefing.en.md)         |
-| Diário de bordo (como o projeto foi construído) | [docs/build-log.pt-BR.md](docs/build-log.pt-BR.md)       | [docs/build-log.en.md](docs/build-log.en.md)       |
+| Documento                                       | Português                                                  | English                                              |
+| ----------------------------------------------- | ---------------------------------------------------------- | ---------------------------------------------------- |
+| PRD (requisitos completos)                      | [docs/prd.pt-BR.md](docs/prd.pt-BR.md)                     | [docs/prd.en.md](docs/prd.en.md)                     |
+| Arquitetura e diretrizes de engenharia          | [docs/architecture.pt-BR.md](docs/architecture.pt-BR.md)   | [docs/architecture.en.md](docs/architecture.en.md)   |
+| Briefing do produto                             | [docs/briefing.pt-BR.md](docs/briefing.pt-BR.md)           | [docs/briefing.en.md](docs/briefing.en.md)           |
+| Design system (identidade visual e interface)   | [docs/design-system.pt-BR.md](docs/design-system.pt-BR.md) | [docs/design-system.en.md](docs/design-system.en.md) |
+| Diário de bordo (como o projeto foi construído) | [docs/build-log.pt-BR.md](docs/build-log.pt-BR.md)         | [docs/build-log.en.md](docs/build-log.en.md)         |
 
-O PRD é a fonte de verdade sobre **o que** construir: escopo, funcionalidades (F01–F15), dependências entre elas e critérios de aceitação. O documento de arquitetura define **como** construir: monólito modular, camadas, segurança, performance, estratégia de testes, padrões de código e as decisões registradas como ADRs.
+O PRD é a fonte de verdade sobre **o que** construir: escopo, funcionalidades (F01–F15), dependências entre elas e critérios de aceitação. O documento de arquitetura define **como** construir: monólito modular, camadas, segurança, performance, estratégia de testes, padrões de código e as decisões registradas como ADRs. O design system define **como a interface se parece e se comporta**: cores, tipografia, componentes, textos e acessibilidade.
 
 ## Estrutura do repositório
 
@@ -63,7 +65,7 @@ src/shared/       Núcleo compartilhado: banco, autorização, auditoria, evento
 src/worker/       Processo worker (outbox, e-mails, manutenção)
 prisma/           Schema e migrações
 tests/            Integração (Testcontainers) e E2E (Playwright)
-docs/             PRD, arquitetura, specs, briefing e diário de bordo (pt-BR e en)
+docs/             PRD, arquitetura, design system, specs, briefing e diário de bordo (pt-BR e en)
 CLAUDE.md         Regras de engenharia resumidas para desenvolvimento assistido por IA
 ```
 
@@ -72,7 +74,10 @@ CLAUDE.md         Regras de engenharia resumidas para desenvolvimento assistido 
 - [x] Briefing e PRD completo
 - [x] Arquitetura, diretrizes de engenharia e ADRs
 - [x] F01 — Fundação, autenticação e controle de acesso (spec, plano e implementação)
-- [ ] F02 em diante, seguindo as ondas de execução do PRD
+- [x] F02 — Unidades e salas
+- [x] F03 — Catálogo de serviços
+- [x] Design system "Tinta e Papel" (documento e aplicação nas telas)
+- [ ] F04 em diante, seguindo as ondas de execução do PRD
 - [ ] Deploy de uma versão de demonstração
 
 ## Como rodar localmente
@@ -89,4 +94,4 @@ npm run dev                   # http://localhost:3001
 npm run dev:worker            # em outro terminal: envia os e-mails
 ```
 
-O convite do administrador chega no Mailpit (http://localhost:8025). Testes: `npm test`, `npm run test:integration` e `npm run test:e2e`. Para rodar tudo em contêineres: `docker compose --profile app up -d --build` (http://localhost:3000). O passo a passo completo está no [diário de bordo](docs/build-log.pt-BR.md#11-como-reproduzir-o-ambiente-do-zero).
+O convite do administrador chega no Mailpit (http://localhost:8025). Testes: `npm test`, `npm run test:integration` e `npm run test:e2e`. Para rodar tudo em contêineres: `docker compose --profile app up -d --build` (http://localhost:3000). O passo a passo completo está no [diário de bordo](docs/build-log.pt-BR.md#12-como-reproduzir-o-ambiente-do-zero).

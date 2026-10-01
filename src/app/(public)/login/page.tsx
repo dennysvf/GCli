@@ -17,7 +17,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <>
       <div className="grid gap-1">
-        <h1 className="text-xl font-semibold">Entrar</h1>
+        <h1 className="section-title">Entrar</h1>
         <p className="text-muted-foreground text-sm">Acesse com seu e-mail e senha.</p>
       </div>
       {params.reason === "expired" ? (

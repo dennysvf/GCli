@@ -15,7 +15,7 @@ export default async function InvitePage({ searchParams }: PageProps<"/invite">)
   if (!invitation?.ok || typeof token !== "string") {
     return (
       <>
-        <h1 className="text-xl font-semibold">Convite</h1>
+        <h1 className="section-title">Convite</h1>
         <Alert variant="destructive">
           <AlertDescription>{identityMessages.AUTH_LINK_INVALID}</AlertDescription>
         </Alert>
@@ -33,7 +33,7 @@ export default async function InvitePage({ searchParams }: PageProps<"/invite">)
   return (
     <>
       <div className="grid gap-1">
-        <h1 className="text-xl font-semibold">Bem-vindo ao GCli</h1>
+        <h1 className="section-title">Bem-vindo ao GCli</h1>
         <p className="text-muted-foreground text-sm">
           Defina sua senha para acessar o sistema da {organizationName}.
         </p>

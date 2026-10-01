@@ -2,14 +2,25 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Design system "Ink and Paper" (docs/design-system.en.md, ADR-020). */
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: var(--typeface-body);
+  --font-heading: var(--typeface-heading);
+  --font-mono: var(--typeface-code);
+
+  /* 15 px base on desktop; 13 px for labels and metadata (design system 3.2). */
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.375rem;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
+  /* Weights 400 and 600 only: the 500 used by shadcn/ui renders as 600. */
+  --font-weight-medium: 600;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,96 +50,305 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --color-paper-0: var(--paper-0);
+  --color-paper-1: var(--paper-1);
+  --color-paper-2: var(--paper-2);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-ink-0: var(--ink-0);
+  --color-ink-1: var(--ink-1);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-blue: var(--ink-blue);
+  --color-ink-blue-hover: var(--ink-blue-hover);
+  --color-ink-blue-soft: var(--ink-blue-soft);
+  --color-ink-blue-border: var(--ink-blue-border);
+  --color-terracotta: var(--terracotta);
+  --color-terracotta-text: var(--terracotta-text);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-border: var(--success-border);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-border: var(--danger-border);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-info-border: var(--info-border);
+  --color-backdrop: var(--backdrop);
+
+  /* Radii (design system 6.1): stamps 2 px, controls 4 px, layers 8 px; nothing larger.
+     shadcn/ui uses rounded-lg on controls and rounded-xl on layers. */
+  --radius-xs: var(--radius-stamp);
+  --radius-sm: var(--radius-stamp);
+  --radius-md: var(--radius-control);
+  --radius-lg: var(--radius-control);
+  --radius-xl: var(--radius-layer);
+  --radius-2xl: var(--radius-layer);
+  --radius-3xl: var(--radius-layer);
+  --radius-4xl: var(--radius-layer);
+
+  /* One shadow, only for floating layers (design system 6.2). */
+  --shadow-2xs: 0 0 #0000;
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: var(--elevation-floating);
+  --shadow-lg: var(--elevation-floating);
+  --shadow-xl: var(--elevation-floating);
+  --shadow-2xl: var(--elevation-floating);
+  --shadow-floating: var(--elevation-floating);
+
+  --ease-standard: var(--motion-curve);
+  --default-transition-duration: var(--motion-fast);
+  --default-transition-timing-function: var(--motion-curve);
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* shadcn/ui */
+  --background: #f4f2ec; /* paper-1: app background */
+  --foreground: #2b2925; /* ink-1 */
+  --card: #fbfaf7; /* paper-0 */
+  --card-foreground: #2b2925;
+  --popover: #fbfaf7;
+  --popover-foreground: #2b2925;
+  --primary: #22406e; /* ink-blue */
+  --primary-foreground: #ffffff;
+  --secondary: #fbfaf7;
+  --secondary-foreground: #2b2925;
+  --muted: #ece9e1; /* paper-2 */
+  --muted-foreground: #5f5b53; /* ink-2 */
+  --accent: #ece9e1;
+  --accent-foreground: #1a1916;
+  --destructive: #a8231c;
+  --border: #dcd8ce; /* rule */
+  --input: #8f897c; /* rule-strong */
+  --ring: #22406e;
+  --radius: 0.25rem;
+  --sidebar: #f4f2ec;
+  --sidebar-foreground: #2b2925;
+  --sidebar-primary: #22406e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #fbfaf7;
+  --sidebar-accent-foreground: #1a1916;
+  --sidebar-border: #dcd8ce;
+  --sidebar-ring: #22406e;
+  --chart-1: #22406e;
+  --chart-2: #4f7cae;
+  --chart-3: #b4532a;
+  --chart-4: #1e6b3f;
+  --chart-5: #8f897c;
+
+  /* GCli: paper and ink */
+  --paper-0: #fbfaf7;
+  --paper-1: #f4f2ec;
+  --paper-2: #ece9e1;
+  --rule: #dcd8ce;
+  --rule-strong: #8f897c;
+  --ink-0: #1a1916;
+  --ink-1: #2b2925;
+  --ink-2: #5f5b53;
+  --ink-3: #8a857a;
+
+  /* GCli: brand */
+  --ink-blue: #22406e;
+  --ink-blue-hover: #1a3358;
+  --ink-blue-soft: #e6ecf5;
+  --ink-blue-border: #a9bbd8;
+  --terracotta: #b4532a;
+  --terracotta-text: #9c4423;
+
+  /* GCli: semantic (text / background / border) */
+  --success: #1e6b3f;
+  --success-bg: #e5f2ea;
+  --success-border: #9ccbae;
+  --warning: #7a4e00;
+  --warning-bg: #fbf0d5;
+  --warning-border: #e2c47a;
+  --danger: #a8231c;
+  --danger-bg: #fbe7e4;
+  --danger-border: #e8a9a2;
+  --info: #22406e;
+  --info-bg: #e6ecf5;
+  --info-border: #a9bbd8;
+
+  /* GCli: typography */
+  --typeface-heading: "Source Serif 4 Variable", Georgia, serif;
+  --typeface-body: "Source Sans 3 Variable", system-ui, sans-serif;
+  --typeface-code: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* GCli: radius, elevation, motion, layout */
+  --radius-stamp: 2px;
+  --radius-control: 4px;
+  --radius-layer: 8px;
+  --elevation-floating: 0 1px 2px rgb(26 25 22 / 0.06), 0 8px 24px -8px rgb(26 25 22 / 0.18);
+  --motion-fast: 120ms;
+  --motion-default: 200ms;
+  --motion-panel: 240ms;
+  --motion-curve: cubic-bezier(0.2, 0, 0, 1);
+  --sidebar-width: 248px;
+  --content-max-width: 1280px;
+  --sheet-width: 560px;
+  --backdrop: rgb(26 25 22 / 0.4);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #161513;
+  --foreground: #ece8df;
+  --card: #1c1a17;
+  --card-foreground: #ece8df;
+  --popover: #1c1a17;
+  --popover-foreground: #ece8df;
+  --primary: #9db7e3;
+  --primary-foreground: #161513;
+  --secondary: #1c1a17;
+  --secondary-foreground: #ece8df;
+  --muted: #2a2824;
+  --muted-foreground: #a8a296;
+  --accent: #2a2824;
+  --accent-foreground: #f5f2ea;
+  --destructive: #f2a097;
+  --border: #34312c;
+  --input: #6e685d;
+  --ring: #9db7e3;
+  --sidebar: #161513;
+  --sidebar-foreground: #ece8df;
+  --sidebar-primary: #9db7e3;
+  --sidebar-primary-foreground: #161513;
+  --sidebar-accent: #1c1a17;
+  --sidebar-accent-foreground: #f5f2ea;
+  --sidebar-border: #34312c;
+  --sidebar-ring: #9db7e3;
+
+  --paper-0: #1c1a17;
+  --paper-1: #161513;
+  --paper-2: #2a2824;
+  --rule: #34312c;
+  --rule-strong: #6e685d;
+  --ink-0: #f5f2ea;
+  --ink-1: #ece8df;
+  --ink-2: #a8a296;
+  --ink-blue: #9db7e3;
+  --ink-blue-hover: #b6c9ea;
+  --ink-blue-soft: #1d2a3f;
+  --terracotta: #e08a63;
+  --terracotta-text: #e08a63;
+  --success: #8fd1a8;
+  --success-bg: #132a1c;
+  --warning: #e9c46a;
+  --warning-bg: #2b2210;
+  --danger: #f2a097;
+  --danger-bg: #33150f;
+  --info: #9db7e3;
+  --info-bg: #1d2a3f;
+  --backdrop: rgb(0 0 0 / 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-default: 0ms;
+    --motion-panel: 0ms;
+  }
+}
+
+/* Type styles (design system 3.2). */
+@utility page-title {
+  font-family: var(--typeface-heading);
+  font-size: 1.75rem;
+  line-height: 2.125rem;
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
+@utility section-title {
+  font-family: var(--typeface-heading);
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
+@utility column-label {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* The double rule: page header and totals only (design system 4.2). */
+@utility double-rule {
+  border-bottom: 4px double var(--rule);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
+  }
+  html {
+    @apply font-sans;
   }
   body {
     @apply bg-background text-foreground;
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+    font-variant-numeric: tabular-nums;
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
-  html {
-    @apply font-sans;
+  @media (max-width: 767px) {
+    body {
+      font-size: 1rem;
+      line-height: 1.5rem;
+    }
+  }
+}
+
+/* Visible focus everywhere (design system 8). Unlayered on purpose, so component utilities that
+   reset outlines cannot remove it. */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0ms !important;
+    transition-duration: 0ms !important;
+  }
+}
+
+/* Totals: the double rule above the last row (design system 5.4). */
+@utility double-rule-top {
+  border-top: 4px double var(--rule);
+}
+
+/* Toasts (design system 5.8): paper surface with a 3 px stripe in the function color. Sonner
+   injects unlayered styles, so these selectors are more specific on purpose. */
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] {
+  border-left: 3px solid var(--success);
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="warning"] {
+  border-left: 3px solid var(--warning);
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] {
+  border-left: 3px solid var(--danger);
+}
+[data-sonner-toaster] [data-sonner-toast][data-type="info"] {
+  border-left: 3px solid var(--info);
+}
+
+/* Grid items may shrink below their content so wide tables scroll inside their own container
+   instead of widening the page (design system 4.4: no horizontal page scroll at 375 px). */
+@layer base {
+  #conteudo .grid > * {
+    min-width: 0;
   }
 }

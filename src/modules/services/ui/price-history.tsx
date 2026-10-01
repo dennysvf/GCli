@@ -9,9 +9,9 @@ export function PriceHistory({ changes, timeZone }: { changes: PriceChangeItem[]
   }
   const format = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone });
   return (
-    <ol className="grid gap-3" aria-label="Histórico de preços">
+    <ol className="grid border-t" aria-label="Histórico de preços">
       {changes.map((change) => (
-        <li key={change.id} className="grid gap-1 rounded-lg border p-3 text-sm">
+        <li key={change.id} className="grid gap-1 border-b py-3 text-sm">
           <div className="flex items-center gap-2 font-medium tabular-nums">
             {change.previousPriceCents === null ? (
               <span>Preço inicial: {formatCents(change.priceCents)}</span>

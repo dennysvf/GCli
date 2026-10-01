@@ -9,7 +9,7 @@ export default function ForgotPasswordPage() {
   return (
     <>
       <div className="grid gap-1">
-        <h1 className="text-xl font-semibold">Esqueci minha senha</h1>
+        <h1 className="section-title">Esqueci minha senha</h1>
         <p className="text-muted-foreground text-sm">
           Informe seu e-mail para receber um link de redefinição.
         </p>

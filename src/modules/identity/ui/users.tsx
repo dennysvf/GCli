@@ -8,7 +8,7 @@ import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
 import type { ActionResult } from "@/shared/kernel/action-result";
 import type { Role } from "@/shared/kernel/roles";
-import { Badge } from "@/shared/ui/components/badge";
+import { Stamp, type StampVariant } from "@/shared/ui/components/stamp";
 import { Button } from "@/shared/ui/components/button";
 import {
   Dialog,
@@ -41,14 +41,11 @@ export const ROLE_LABELS: Record<Role, string> = {
   PROFESSIONAL: "Profissional",
 };
 
-const STATUS: Record<
-  string,
-  { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
-> = {
-  ACTIVE: { label: "Ativo", variant: "default" },
-  INACTIVE: { label: "Inativo", variant: "secondary" },
-  PENDING: { label: "Convite pendente", variant: "outline" },
-  EXPIRED: { label: "Convite expirado", variant: "destructive" },
+const STATUS: Record<string, { label: string; variant: StampVariant }> = {
+  ACTIVE: { label: "Ativo", variant: "success" },
+  INACTIVE: { label: "Inativo", variant: "neutral" },
+  PENDING: { label: "Convite pendente", variant: "warning" },
+  EXPIRED: { label: "Convite expirado", variant: "danger" },
 };
 
 const dateTime = (iso: string | null) =>
@@ -217,14 +214,12 @@ export function UsersTable({
     });
 
   if (items.length === 0) {
-    return (
-      <p className="text-muted-foreground rounded-lg border p-8 text-center">Nenhum usuário encontrado.</p>
-    );
+    return <p className="text-muted-foreground">Nenhum usuário encontrado.</p>;
   }
 
   return (
     <>
-      <div className="rounded-lg border">
+      <div className="border-y">
         <Table>
           <TableHeader>
             <TableRow>
@@ -245,9 +240,9 @@ export function UsersTable({
                 <TableCell>{ROLE_LABELS[item.role]}</TableCell>
                 <TableCell>{item.kind === "user" ? "—" : ""}</TableCell>
                 <TableCell>
-                  <Badge variant={STATUS[item.status]?.variant ?? "outline"}>
+                  <Stamp variant={STATUS[item.status]?.variant ?? "neutral"}>
                     {STATUS[item.status]?.label}
-                  </Badge>
+                  </Stamp>
                 </TableCell>
                 <TableCell>
                   {item.kind === "user" ? dateTime(item.lastLoginAt) : `Expira ${dateTime(item.expiresAt)}`}

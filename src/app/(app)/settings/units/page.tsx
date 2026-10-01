@@ -1,10 +1,11 @@
+import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { units } from "@/modules/units";
 import { requirePermission } from "@/modules/identity/next";
 import { can } from "@/shared/authz/permissions";
-import { Badge } from "@/shared/ui/components/badge";
+import { Stamp } from "@/shared/ui/components/stamp";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 
@@ -18,35 +19,34 @@ export default async function UnitsPage() {
 
   return (
     <div className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Unidades</h1>
-        {canManage ? (
-          <Button asChild>
-            <Link href="/settings/units/new">
-              <Plus />
-              Nova unidade
-            </Link>
-          </Button>
-        ) : null}
-      </div>
+      <PageHeader
+        title="Unidades"
+        actions={
+          canManage ? (
+            <Button asChild>
+              <Link href="/settings/units/new">
+                <Plus />
+                Nova unidade
+              </Link>
+            </Button>
+          ) : null
+        }
+      />
       {list.length === 0 ? (
-        <p className="text-muted-foreground rounded-lg border border-dashed p-12 text-center">
-          Nenhuma unidade cadastrada.
+        <p className="text-muted-foreground">
+          Nenhuma unidade cadastrada ainda. As unidades definem onde a clínica atende, com horário de
+          funcionamento e salas.
         </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((unit) => (
-            <Link
-              key={unit.id}
-              href={`/settings/units/${unit.id}`}
-              className="rounded-xl focus-visible:outline-2"
-            >
-              <Card className="hover:bg-muted/40 h-full transition-colors">
+            <Link key={unit.id} href={`/settings/units/${unit.id}`} className="rounded-xl">
+              <Card className="hover:bg-muted h-full transition-colors">
                 <CardHeader className="flex flex-row items-start justify-between gap-2">
                   <CardTitle>{unit.name}</CardTitle>
-                  <Badge variant={unit.active ? "default" : "secondary"}>
+                  <Stamp variant={unit.active ? "success" : "neutral"}>
                     {unit.active ? "Ativa" : "Inativa"}
-                  </Badge>
+                  </Stamp>
                 </CardHeader>
                 <CardContent className="text-muted-foreground grid gap-1 text-sm">
                   <span>{unit.city ?? "Cidade não informada"}</span>
