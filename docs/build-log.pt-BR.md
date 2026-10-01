@@ -4,7 +4,7 @@ Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura
 
 O trabalho foi feito em dupla: uma pessoa responsável pelo produto e um assistente de programação com IA. A pessoa respondeu perguntas, tomou as decisões de negócio e aprovou cada etapa; o assistente conduziu entrevistas, escreveu documentos e código, rodou os testes e registrou o que encontrou pelo caminho.
 
-> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03.
+> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system.
 
 English version: [build-log.en.md](build-log.en.md).
 
@@ -21,9 +21,10 @@ English version: [build-log.en.md](build-log.en.md).
 7. [Implementação da F01, etapa por etapa](#7-implementação-da-f01-etapa-por-etapa)
 8. [Segunda funcionalidade: F02 — Unidades e Salas](#8-segunda-funcionalidade-f02--unidades-e-salas)
 9. [Terceira funcionalidade: F03 — Catálogo de Serviços](#9-terceira-funcionalidade-f03--catálogo-de-serviços)
-10. [Problemas encontrados e como foram resolvidos](#10-problemas-encontrados-e-como-foram-resolvidos)
-11. [Como reproduzir o ambiente do zero](#11-como-reproduzir-o-ambiente-do-zero)
-12. [Lições aprendidas](#12-lições-aprendidas)
+10. [Design system antes das telas mais pesadas](#10-design-system-antes-das-telas-mais-pesadas)
+11. [Problemas encontrados e como foram resolvidos](#11-problemas-encontrados-e-como-foram-resolvidos)
+12. [Como reproduzir o ambiente do zero](#12-como-reproduzir-o-ambiente-do-zero)
+13. [Lições aprendidas](#13-lições-aprendidas)
 
 ---
 
@@ -117,7 +118,7 @@ Passos executados:
 4. **Primeiro commit** na branch `main`, revisando com `git status` o que entraria (nenhum segredo, nenhuma pasta local).
 5. **Criação do repositório público e push**: `gh repo create GCli --public --source=. --remote=origin --push`.
 
-**Problema:** o push falhou com `SSL certificate problem: unable to get local issuer certificate`. **Causa:** o Git para Windows usa o repositório de certificados do OpenSSL, que não reconhecia o certificado apresentado pela rede. **Solução:** `git config --global http.sslbackend schannel`, que faz o Git usar o repositório de certificados do Windows. Mais adiante descobrimos a causa raiz (ver [seção 10](#10-problemas-encontrados-e-como-foram-resolvidos)).
+**Problema:** o push falhou com `SSL certificate problem: unable to get local issuer certificate`. **Causa:** o Git para Windows usa o repositório de certificados do OpenSSL, que não reconhecia o certificado apresentado pela rede. **Solução:** `git config --global http.sslbackend schannel`, que faz o Git usar o repositório de certificados do Windows. Mais adiante descobrimos a causa raiz (ver [seção 11](#11-problemas-encontrados-e-como-foram-resolvidos)).
 
 **Proteção da `main`.** Depois que o CI passou a rodar estável, a branch `main` foi protegida com um *ruleset* do GitHub:
 - bloqueio de force push e de exclusão da branch;
@@ -359,7 +360,36 @@ Verificação final: lint e tipos sem erros, 43 testes unitários, 100 testes de
 
 ---
 
-## 10. Problemas encontrados e como foram resolvidos
+## 10. Design system antes das telas mais pesadas
+
+Depois da F03, e antes da agenda (F06), a identidade visual foi definida. As telas existentes ainda eram poucas e usavam o visual padrão do shadcn/ui; as próximas (agenda, prontuário, caixa, painel) são as mais densas do sistema. Mudar a estrutura visual depois delas custaria muito mais.
+
+### 10.1 Como foi feito
+
+1. **Pedido com papel e critérios claros:** "atue como um designer de produto sênior", com a lista do que o documento precisa ter (cores, tipografia, layout, componentes, conteúdo, acessibilidade, tokens, exemplos) e o que evitar: gradientes sem propósito, excesso de cards, efeito de vidro, sombras e cantos exagerados, ícones decorativos.
+2. **Contexto tirado do PRD**, não inventado: público sob pressão de tempo, letramento digital moderado, recepção no desktop e profissionais no tablet ou celular, convenções brasileiras.
+3. **Contraste calculado, não estimado:** cada par de cores citado no documento teve a razão de contraste calculada pela fórmula da WCAG 2.2 antes de entrar. Todos passam no nível AA.
+4. **Revisão contra as regras do projeto:** a primeira versão tinha tokens com nomes em português (`--papel-0`, `--azul-tinta`). Como a regra do projeto é código em inglês, os tokens viraram `--paper-0`, `--ink-blue` etc.; os nomes em português ficaram só no texto.
+5. **Documento bilíngue** ([design-system.pt-BR.md](design-system.pt-BR.md) e [design-system.en.md](design-system.en.md)), registrado como **ADR-020** e citado no README, na arquitetura (estrutura de código e definição de pronto) e no `CLAUDE.md`.
+
+### 10.2 A identidade: "Tinta e Papel"
+
+A ideia vem dos objetos que as clínicas usavam antes dos sistemas: a ficha do paciente, o livro de agenda e o livro-caixa.
+
+| Elemento | Regra |
+|---|---|
+| Papel e tinta | Fundos em papel levemente quente (`#FBFAF7`), texto em tinta escura, azul-tinta (`#22406E`) como cor primária |
+| Lápis vermelho | Terracota só para o "agora" na agenda e para "atrasado" |
+| Carimbos | Estados sempre escritos (CONFIRMADO, FALTOU, PAGO), nunca só uma cor |
+| Livro-caixa | Tabelas com linhas finas no lugar de grades de cards; dupla linha só no cabeçalho de página e nos totais |
+| Tipografia | Source Serif 4 nos títulos, Source Sans 3 na interface, servidas pelo próprio sistema |
+| Contenção | Raios de no máximo 8 px, uma única sombra (só no que flutua), sem gradientes |
+
+Os tokens mantêm os nomes de variável do shadcn/ui, então aplicar o design system é trocar valores no `globals.css` e ajustar as variantes dos componentes, sem reescrever as telas. Cada tela nova passa por um checklist de 6 perguntas (seção 11 do documento), que também entrou na definição de pronto.
+
+---
+
+## 11. Problemas encontrados e como foram resolvidos
 
 Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos esses problemas apareceram porque **cada etapa foi executada de verdade**, e não só escrita.
 
@@ -382,7 +412,7 @@ Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos es
 
 ---
 
-## 11. Como reproduzir o ambiente do zero
+## 12. Como reproduzir o ambiente do zero
 
 ### Pré-requisitos
 
@@ -443,7 +473,7 @@ EXTRA_CA_CERTS=/caminho/para/certificado-raiz.pem docker compose --profile app b
 
 ---
 
-## 12. Lições aprendidas
+## 13. Lições aprendidas
 
 1. **Entrevista antes de documento.** Uma pergunta por vez, sempre com uma recomendação, resolve mais do que um documento longo escrito no escuro.
 2. **IDs de ponta a ponta** (F01 → história → critério → teste → commit) tornam o projeto rastreável sem esforço extra.
@@ -454,3 +484,4 @@ EXTRA_CA_CERTS=/caminho/para/certificado-raiz.pem docker compose --profile app b
 7. **Registrar as mudanças de rumo como ADRs novos.** O histórico de decisões conta a história do projeto melhor do que qualquer resumo.
 8. **Portas com padrão zero destravam a ordem de construção.** A F02 já tem as regras que dependem de agendamentos, com testes, antes de a agenda existir; quando a F06 chegar, só a implementação da porta muda.
 9. **Conferir no código o que a spec supõe.** A spec da F03 contava com uma função que não existia; a diferença apareceu na implementação, foi resolvida e ficou registrada.
+10. **Definir o visual antes das telas densas.** Com poucas telas prontas, o design system custa um documento e uma troca de tokens; depois da agenda e do prontuário, custaria refazer as telas mais complexas.

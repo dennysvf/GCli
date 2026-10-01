@@ -8,7 +8,8 @@ GCli is a clinic management platform: a modular monolith built with Next.js (App
 
 - **What to build:** `docs/prd.en.md` (features F01–F15, acceptance criteria in Section 9). The pt-BR version must stay in sync.
 - **How to build it:** `docs/architecture.en.md` (modules, layering, ADRs, engineering guidelines). The pt-BR version must stay in sync.
-- If a task conflicts with either document, stop and ask instead of improvising. Record new architectural decisions as a new ADR in both language versions.
+- **How it looks:** `docs/design-system.en.md` ("Ink and Paper": colors, typography, layout, components, copy, accessibility, tokens; ADR-020). The pt-BR version must stay in sync.
+- If a task conflicts with any of these documents, stop and ask instead of improvising. Record new architectural decisions as a new ADR in both language versions.
 
 ## Non-negotiable rules
 
@@ -20,6 +21,7 @@ GCli is a clinic management platform: a modular monolith built with Next.js (App
 - **Errors:** expected failures return `Result<T, DomainError>` with a stable `code`. User-facing messages are pt-BR, taken from the PRD, and stored in the module's `messages.ts`.
 - **Money:** use integer cents through `Money`, never floats. Store timestamps as UTC `timestamptz`; calendar logic uses the unit time zone (ADR-019; the organization zone is only the default for new units).
 - **Data:** no hard deletes of referenced records. Invariants that matter under concurrency (double booking, idempotent payments, one cash register per day) are also enforced by database constraints in raw SQL migrations.
+- **Interface:** follow the design system for every screen. Use tokens and semantic classes (`bg-primary`, `text-muted-foreground`, `bg-paper-1`), never hard-coded colors (the F03 service palette is the only exception). One primary button per screen, states written as text, tables instead of card grids, WCAG 2.2 AA. Extend the design system document before introducing a new visual pattern.
 - **Secrets and personal data:** never commit secrets. Never log personal data (CPF, name, email, phone, clinical content); log IDs.
 
 ## Conventions
@@ -42,4 +44,4 @@ GCli is a clinic management platform: a modular monolith built with Next.js (App
 
 ## Definition of done
 
-A feature is done when its acceptance criteria are covered by tests, mutations emit audit events, every action checks authorization, UI messages match the PRD, lint, typecheck, and all tests pass, and the architecture docs are updated if a decision changed.
+A feature is done when its acceptance criteria are covered by tests, mutations emit audit events, every action checks authorization, UI messages match the PRD, its screens pass the design system checklist (`docs/design-system.en.md`, section 11), lint, typecheck, and all tests pass, and the architecture docs are updated if a decision changed.

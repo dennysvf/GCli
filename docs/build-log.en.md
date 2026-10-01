@@ -4,7 +4,7 @@ This log records, in order, everything done on the project from reading the brie
 
 The work was done as a pair: a product owner and an AI coding assistant. The product owner answered questions, made the business decisions and approved each stage; the assistant ran the interviews, wrote documents and code, ran the tests and recorded what it found along the way.
 
-> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03.
+> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system.
 
 Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 
@@ -21,9 +21,10 @@ Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 7. [Implementing F01, stage by stage](#7-implementing-f01-stage-by-stage)
 8. [Second feature: F02 — Units and Rooms](#8-second-feature-f02--units-and-rooms)
 9. [Third feature: F03 — Service Catalog](#9-third-feature-f03--service-catalog)
-10. [Problems found and how they were solved](#10-problems-found-and-how-they-were-solved)
-11. [Reproducing the environment from scratch](#11-reproducing-the-environment-from-scratch)
-12. [Lessons learned](#12-lessons-learned)
+10. [Design system before the heaviest screens](#10-design-system-before-the-heaviest-screens)
+11. [Problems found and how they were solved](#11-problems-found-and-how-they-were-solved)
+12. [Reproducing the environment from scratch](#12-reproducing-the-environment-from-scratch)
+13. [Lessons learned](#13-lessons-learned)
 
 ---
 
@@ -117,7 +118,7 @@ Steps taken:
 4. **First commit** on `main`, reviewing with `git status` what would be included (no secrets, no local folders).
 5. **Public repository created and pushed**: `gh repo create GCli --public --source=. --remote=origin --push`.
 
-**Problem:** the push failed with `SSL certificate problem: unable to get local issuer certificate`. **Cause:** Git for Windows uses OpenSSL's certificate store, which did not recognize the certificate presented by the network. **Fix:** `git config --global http.sslbackend schannel`, which makes Git use the Windows certificate store. The root cause showed up later (see [section 10](#10-problems-found-and-how-they-were-solved)).
+**Problem:** the push failed with `SSL certificate problem: unable to get local issuer certificate`. **Cause:** Git for Windows uses OpenSSL's certificate store, which did not recognize the certificate presented by the network. **Fix:** `git config --global http.sslbackend schannel`, which makes Git use the Windows certificate store. The root cause showed up later (see [section 11](#11-problems-found-and-how-they-were-solved)).
 
 **Protecting `main`.** Once CI was running reliably, `main` was protected with a GitHub ruleset:
 - force pushes and branch deletion are blocked;
@@ -359,7 +360,36 @@ Final check: lint and types clean, 43 unit tests, 100 integration tests and 7 E2
 
 ---
 
-## 10. Problems found and how they were solved
+## 10. Design system before the heaviest screens
+
+After F03, and before the agenda (F06), the visual identity was defined. The existing screens were still few and used the default shadcn/ui look; the next ones (agenda, clinical records, cash register, dashboard) are the densest in the system. Changing the visual structure after them would cost far more.
+
+### 10.1 How it was done
+
+1. **A request with a clear role and criteria:** "act as a senior product designer", with the list of what the document must contain (color, typography, layout, components, content, accessibility, tokens, examples) and what to avoid: purposeless gradients, too many cards, glass effects, heavy shadows and rounded corners, decorative icons.
+2. **Context taken from the PRD**, not invented: users under time pressure, moderate digital literacy, the front desk on desktops and professionals on tablets or phones, Brazilian conventions.
+3. **Contrast computed, not estimated:** every color pair in the document had its contrast ratio computed with the WCAG 2.2 formula before it went in. All of them pass level AA.
+4. **Review against the project rules:** the first version had token names in Portuguese (`--papel-0`, `--azul-tinta`). Since the project rule is code in English, the tokens became `--paper-0`, `--ink-blue` and so on; the Portuguese names stayed in the prose only.
+5. **Bilingual document** ([design-system.en.md](design-system.en.md) and [design-system.pt-BR.md](design-system.pt-BR.md)), recorded as **ADR-020** and referenced in the README, the architecture (code structure and definition of done) and `CLAUDE.md`.
+
+### 10.2 The identity: "Ink and Paper"
+
+The idea comes from the objects clinics used before software: the patient record card, the appointment book and the cash ledger.
+
+| Element | Rule |
+|---|---|
+| Paper and ink | Slightly warm paper backgrounds (`#FBFAF7`), dark ink text, ink blue (`#22406E`) as the primary color |
+| Red pencil | Terracotta only for "now" on the agenda and for "late" |
+| Stamps | States always written (CONFIRMADO, FALTOU, PAGO), never just a color |
+| Ledger | Tables with fine rules instead of card grids; a double rule only in page headers and above totals |
+| Typography | Source Serif 4 for headings, Source Sans 3 for the interface, self-hosted |
+| Restraint | Radii of at most 8 px, a single shadow (only on what floats), no gradients |
+
+The tokens keep the shadcn/ui variable names, so applying the design system means swapping values in `globals.css` and adjusting component variants, without rewriting screens. Every new screen goes through a 6-question checklist (section 11 of the document), which was also added to the definition of done.
+
+---
+
+## 11. Problems found and how they were solved
 
 This may be the most useful section for anyone reproducing the project. All of these problems showed up because **each stage was actually executed**, not just written.
 
@@ -382,7 +412,7 @@ This may be the most useful section for anyone reproducing the project. All of t
 
 ---
 
-## 11. Reproducing the environment from scratch
+## 12. Reproducing the environment from scratch
 
 ### Prerequisites
 
@@ -443,7 +473,7 @@ EXTRA_CA_CERTS=/path/to/root-certificate.pem docker compose --profile app build
 
 ---
 
-## 12. Lessons learned
+## 13. Lessons learned
 
 1. **Interview before document.** One question at a time, always with a recommendation, settles more than a long document written in the dark.
 2. **End-to-end IDs** (F01 → story → criterion → test → commit) make the project traceable at no extra cost.
@@ -454,3 +484,4 @@ EXTRA_CA_CERTS=/path/to/root-certificate.pem docker compose --profile app build
 7. **Record changes of direction as new ADRs.** The history of decisions tells the project's story better than any summary.
 8. **Ports with a zero default unlock the build order.** F02 already has the rules that depend on appointments, with tests, before the agenda exists; when F06 arrives, only the port's implementation changes.
 9. **Check in the code what the spec assumes.** The F03 spec relied on a function that did not exist; the gap showed up during implementation, was fixed and was recorded.
+10. **Define the look before the dense screens.** With few screens built, a design system costs one document and a token swap; after the agenda and clinical records, it would mean redoing the most complex screens.

@@ -122,7 +122,7 @@ src/
     storage/                  Adaptador de armazenamento de objetos, helpers de URL pré-assinada
     config/                   Variáveis de ambiente validadas com Zod na inicialização
     logging/                  Logger estruturado com ID de requisição
-    ui/                       Componentes do design system (baseados em shadcn/ui)
+    ui/                       Componentes do design system (baseados em shadcn/ui; regras em docs/design-system.pt-BR.md)
   worker/                     Ponto de entrada do worker: registra os handlers de tarefas
 prisma/
   schema.prisma
@@ -323,7 +323,7 @@ Padrões **deliberadamente não usados**: repositório genérico sobre o Prisma,
 - **Branches**: `main` está sempre pronta para deploy; use branches curtas `feat/F06-recurrence`, `fix/...`, `docs/...`.
 - **Commits**: Conventional Commits (`feat(scheduling): block room conflicts [F06]`).
 - **Pull requests**: o CI precisa passar em lint, typecheck, testes unitários, de integração e ponta a ponta, além de `prisma migrate diff` para detectar divergência de schema. A descrição do PR cita o ID da funcionalidade e lista os critérios de aceitação cobertos.
-- **Definição de pronto** de uma funcionalidade: seus critérios de aceitação estão cobertos por testes, suas alterações geram eventos de auditoria, a autorização é verificada em cada ação, as mensagens em pt-BR vêm do PRD, e este documento é atualizado se alguma decisão mudou.
+- **Definição de pronto** de uma funcionalidade: seus critérios de aceitação estão cobertos por testes, suas alterações geram eventos de auditoria, a autorização é verificada em cada ação, as mensagens em pt-BR vêm do PRD, suas telas passam no checklist do design system (`docs/design-system.pt-BR.md`, seção 11), e este documento é atualizado se alguma decisão mudou.
 
 ## 12. Registros de Decisão de Arquitetura (ADRs)
 
@@ -408,6 +408,10 @@ Cada ADR vale até ser substituído por um novo ADR. Para mudar uma decisão, ad
 **ADR-019 — Fuso horário por unidade (refina o ADR-010)**
 - *Decisão:* Cada unidade tem o próprio fuso horário IANA, que por padrão é o fuso da organização no momento da criação. A lógica de calendário (horário de funcionamento, fechamentos, horários de trabalho, agenda, o "hoje" do caixa diário) usa o fuso da unidade; o fuso da organização é só o padrão.
 - *Por quê:* Uma clínica com unidades em estados diferentes (por exemplo São Paulo e Manaus) tem relógios locais diferentes; um único fuso para a organização deslocaria o horário de funcionamento e o fechamento diário de uma delas.
+
+**ADR-020 — Design system "Tinta e Papel" (complementa o ADR-011)**
+- *Decisão:* A interface segue o design system descrito em [design-system.pt-BR.md](design-system.pt-BR.md): superfícies em papel quente, azul-tinta como cor primária, terracota reservada para "agora" e "atrasado", carimbos de estado escritos, tabelas com linhas finas no lugar de grades de cards, Source Serif 4 nos títulos e Source Sans 3 na interface (servidas pelo próprio sistema), raios de no máximo 8 px, uma única sombra para camadas flutuantes e WCAG 2.2 AA. Os tokens mantêm os nomes de variável do shadcn/ui, então os componentes os recebem pelo `src/app/globals.css` sem mudanças. As telas usam tokens semânticos, nunca cores fixas (a paleta de serviços da F03 é a única exceção).
+- *Por quê:* Os usuários trabalham sob pressão de tempo em telas densas (agenda, caixa, prontuário). Uma linguagem visual documentada e mensurável mantém as telas novas consistentes, legíveis e acessíveis, e defini-la antes da agenda (F06) evita retrabalho nas telas mais pesadas.
 
 ## 13. Evolução para SaaS
 
