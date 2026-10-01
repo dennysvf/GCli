@@ -2,6 +2,7 @@
 // infrastructure adapters; callers never import files inside the module.
 import { getEnv } from "@/shared/config/env";
 import type { RequestContext } from "@/shared/context/types";
+import { definePort } from "@/shared/ports/registry";
 import {
   acceptInvitation,
   getInvitation,
@@ -35,7 +36,7 @@ import { countOrganizations, prismaDirectory } from "./infrastructure/directory"
 import { noProfessionalLinks } from "./infrastructure/no-professional-links";
 
 let cachedDeps: IdentityDeps | undefined;
-let professionalLinks: ProfessionalLinks = noProfessionalLinks;
+const professionalLinks = definePort<ProfessionalLinks>("identity.ProfessionalLinks", noProfessionalLinks);
 
 function deps(): IdentityDeps {
   cachedDeps ??= {
@@ -45,7 +46,7 @@ function deps(): IdentityDeps {
     logos: s3LogoStore,
     logoProcessor: sharpLogoProcessor,
     appUrl: getEnv().APP_URL,
-    professionalLinks: () => professionalLinks,
+    professionalLinks: () => professionalLinks.get(),
     clock: () => new Date(),
   };
   return cachedDeps;
@@ -79,7 +80,7 @@ export const identity = {
   setupFirstAdministrator: (input: unknown) => setupFirstAdministrator(deps(), input, countOrganizations),
   // Extension point for professionals (F04); null restores the default (nobody linked).
   registerProfessionalLinks: (implementation: ProfessionalLinks | null) => {
-    professionalLinks = implementation ?? noProfessionalLinks;
+    professionalLinks.register(implementation);
   },
 };
 

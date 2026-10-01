@@ -3,6 +3,7 @@ import { getOrganizationProfile, getUserNames, identity, listLinkableUsers } fro
 import { services } from "@/modules/services";
 import { units } from "@/modules/units";
 import type { RequestContext } from "@/shared/context/types";
+import { definePort } from "@/shared/ports/registry";
 import { getEnabledServices, replaceEnabledServices } from "./application/enabled-services";
 import { professionalLinks, serviceProfessionals } from "./application/links";
 import type { ProfessionalAppointments, ProfessionalsDeps, UnitInfo } from "./application/ports";
@@ -25,12 +26,15 @@ import { deleteSchedule, listSchedules, saveSchedule } from "./application/sched
 import { createTimeOff, deleteTimeOff, listTimeOffs } from "./application/time-offs";
 import { noProfessionalAppointments } from "./infrastructure/no-appointments";
 
-let professionalAppointments: ProfessionalAppointments = noProfessionalAppointments;
+const professionalAppointments = definePort<ProfessionalAppointments>(
+  "professionals.ProfessionalAppointments",
+  noProfessionalAppointments,
+);
 
 const DEFAULT_TIME_ZONE = "America/Sao_Paulo";
 
 const deps: ProfessionalsDeps = {
-  appointments: () => professionalAppointments,
+  appointments: () => professionalAppointments.get(),
   units: {
     async listUnits(ctx, { activeOnly }) {
       const listed = await units.listUnits(ctx, { activeOnly });
@@ -105,7 +109,7 @@ export const professionals = {
     getProfessionalCredentials(ctx, professionalId),
   // Extension point for scheduling (F06); null restores the inert default.
   registerProfessionalAppointments: (implementation: ProfessionalAppointments | null) => {
-    professionalAppointments = implementation ?? noProfessionalAppointments;
+    professionalAppointments.register(implementation);
   },
 };
 
@@ -135,3 +139,12 @@ export {
   PROFESSIONALS_SERVICES_REMOVED_WITH_APPOINTMENTS,
   PROFESSIONALS_TIME_OFF_AFFECTED_APPOINTMENTS,
 } from "./messages";
+export { PROFESSIONALS_DEACTIVATE_CONFIRMATION } from "./messages";
+export { COUNCIL_TYPE_LABELS } from "./domain/council";
+export { ProfessionalActiveToggle } from "./ui/professional-active-toggle";
+export { ProfessionalForm, type LinkableUserOption } from "./ui/professional-form";
+export { ProfessionalsFilters } from "./ui/professionals-filters";
+export { ProfessionalsTable } from "./ui/professionals-table";
+export { ScheduleEditor } from "./ui/schedule-editor";
+export { ServicesChecklist, type ServiceOption } from "./ui/services-checklist";
+export { TimeOffsPanel } from "./ui/time-offs-panel";

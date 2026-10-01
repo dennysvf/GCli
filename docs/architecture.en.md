@@ -418,6 +418,11 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 - *Why:* A professional who works in São Paulo in the morning and in Manaus in the afternoon must be checked against real time, not against two local clocks. A database exclusion constraint on local minutes would reject valid schedules, so the rule is a pure domain function, and concurrent edits are serialized by the professional's row version.
 - *Trade-off:* If daylight saving time returns, offsets will depend on the date and the helper must compare per date instead of per schedule.
 
+**ADR-022 — Process-wide registry for cross-module ports (refines ADR-007)**
+- *Decision:* Port implementations that one module registers into another (for example `ProfessionalLinks` into identity, `ServiceProfessionals` into services, and the appointment ports that F06 will register) are stored through `definePort()` in `src/shared/ports/registry.ts`, which keeps them on `globalThis`. Modules no longer keep them in module-level variables.
+- *Why:* Next.js loads a module more than once in the same process (the instrumentation bundle and each route bundle get their own copy). A registration made by the composition root in one copy was invisible to the others, so the web server kept the inert defaults. The event bus already lived on `globalThis` for the same reason.
+- *Trade-off:* Registrations are process-global state; tests that replace a port must restore it (`register(null)` restores the default).
+
 ## 13. Evolution to SaaS
 
 The V1 design keeps these steps additive, with no rewrites:

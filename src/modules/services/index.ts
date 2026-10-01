@@ -2,6 +2,7 @@
 import { getUserNames } from "@/modules/identity";
 import { units } from "@/modules/units";
 import type { RequestContext } from "@/shared/context/types";
+import { definePort } from "@/shared/ports/registry";
 import {
   createCategory,
   deleteCategory,
@@ -22,8 +23,14 @@ import {
 } from "./application/services";
 import { noServiceAppointments, noServiceProfessionals } from "./infrastructure/no-usage";
 
-let scheduledAppointments: ScheduledServiceAppointments = noServiceAppointments;
-let serviceProfessionals: ServiceProfessionals = noServiceProfessionals;
+const scheduledAppointments = definePort<ScheduledServiceAppointments>(
+  "services.ScheduledServiceAppointments",
+  noServiceAppointments,
+);
+const serviceProfessionals = definePort<ServiceProfessionals>(
+  "services.ServiceProfessionals",
+  noServiceProfessionals,
+);
 
 const deps: ServicesDeps = {
   rooms: {
@@ -33,8 +40,8 @@ const deps: ServicesDeps = {
     },
   },
   users: { namesOf: (ctx, userIds) => getUserNames(ctx, userIds) },
-  appointments: () => scheduledAppointments,
-  professionals: () => serviceProfessionals,
+  appointments: () => scheduledAppointments.get(),
+  professionals: () => serviceProfessionals.get(),
   clock: () => new Date(),
 };
 
@@ -59,10 +66,10 @@ export const services = {
     getAllowedRooms(deps, ctx, serviceId, unitId),
   // Extension points for scheduling (F06) and professionals (F04); null restores the default.
   registerScheduledServiceAppointments: (implementation: ScheduledServiceAppointments | null) => {
-    scheduledAppointments = implementation ?? noServiceAppointments;
+    scheduledAppointments.register(implementation);
   },
   registerServiceProfessionals: (implementation: ServiceProfessionals | null) => {
-    serviceProfessionals = implementation ?? noServiceProfessionals;
+    serviceProfessionals.register(implementation);
   },
 };
 

@@ -418,6 +418,11 @@ Cada ADR vale até ser substituído por um novo ADR. Para mudar uma decisão, ad
 - *Por quê:* Um profissional que atende em São Paulo de manhã e em Manaus à tarde precisa ser verificado pelo horário real, não por dois relógios locais. Uma restrição de exclusão no banco sobre minutos locais rejeitaria horários válidos, por isso a regra é uma função pura de domínio, e edições concorrentes são serializadas pela versão da linha do profissional.
 - *Trade-off:* Se o horário de verão voltar, os deslocamentos passam a depender da data e o auxiliar precisa comparar por data, e não por vigência.
 
+**ADR-022 — Registro de portas entre módulos por processo (refina o ADR-007)**
+- *Decisão:* As implementações de portas que um módulo registra em outro (por exemplo `ProfessionalLinks` no identity, `ServiceProfessionals` no services e as portas de agendamentos que a F06 vai registrar) são guardadas por `definePort()` em `src/shared/ports/registry.ts`, que as mantém em `globalThis`. Os módulos deixam de guardá-las em variáveis de módulo.
+- *Por quê:* O Next.js carrega um módulo mais de uma vez no mesmo processo (o bundle de instrumentação e cada bundle de rota têm sua própria cópia). Um registro feito pela raiz de composição em uma cópia ficava invisível para as outras, e o servidor web continuava com os padrões inertes. O barramento de eventos já ficava em `globalThis` pelo mesmo motivo.
+- *Trade-off:* Os registros são estado global do processo; testes que substituem uma porta precisam restaurá-la (`register(null)` volta ao padrão).
+
 ## 13. Evolução para SaaS
 
 O desenho da V1 mantém estes passos como acréscimos, sem reescrita:
