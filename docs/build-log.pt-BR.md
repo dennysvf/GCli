@@ -1,10 +1,10 @@
 # Diário de bordo — como o GCli foi construído
 
-Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F05). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
+Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F06). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
 
 O trabalho foi feito em dupla: uma pessoa responsável pelo produto e um assistente de programação com IA. A pessoa respondeu perguntas, tomou as decisões de negócio e aprovou cada etapa; o assistente conduziu entrevistas, escreveu documentos e código, rodou os testes e registrou o que encontrou pelo caminho.
 
-> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05.
+> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06.
 
 English version: [build-log.en.md](build-log.en.md).
 
@@ -24,9 +24,10 @@ English version: [build-log.en.md](build-log.en.md).
 10. [Design system antes das telas mais pesadas](#10-design-system-antes-das-telas-mais-pesadas)
 11. [Quarta funcionalidade: F04 — Profissionais e Horários de Atendimento](#11-quarta-funcionalidade-f04--profissionais-e-horários-de-atendimento)
 12. [Quinta funcionalidade: F05 — Cadastro de Pacientes](#12-quinta-funcionalidade-f05--cadastro-de-pacientes)
-13. [Problemas encontrados e como foram resolvidos](#13-problemas-encontrados-e-como-foram-resolvidos)
-14. [Como reproduzir o ambiente do zero](#14-como-reproduzir-o-ambiente-do-zero)
-15. [Lições aprendidas](#15-lições-aprendidas)
+13. [Sexta funcionalidade: F06 — Agenda e Agendamentos](#13-sexta-funcionalidade-f06--agenda-e-agendamentos)
+14. [Problemas encontrados e como foram resolvidos](#14-problemas-encontrados-e-como-foram-resolvidos)
+15. [Como reproduzir o ambiente do zero](#15-como-reproduzir-o-ambiente-do-zero)
+16. [Lições aprendidas](#16-lições-aprendidas)
 
 ---
 
@@ -498,7 +499,64 @@ Verificação final: lint e tipos limpos, 71 testes unitários, 149 testes de in
 
 ---
 
-## 13. Problemas encontrados e como foram resolvidos
+## 13. Sexta funcionalidade: F06 — Agenda e Agendamentos
+
+A F06 é o centro do produto: a recepção agenda, confirma, registra a chegada, reagenda e cancela; os profissionais veem a própria agenda e marcam o atendimento como iniciado e concluído. O prontuário (F07), as cobranças (F09), os pacotes (F10), o painel (F12), os relatórios (F13) e a linha do tempo do paciente (F14) partem de um agendamento. O fluxo foi o mesmo: branch `feat/F06-scheduling-and-agenda` criada antes de tudo, especificação e plano primeiro (commit `694e1b5`), um commit por etapa e um PR no fim. Desta vez a especificação saiu de uma entrevista ao vivo, uma pergunta por vez, sempre com uma recomendação.
+
+### 13.1 Decisões tomadas na entrevista
+
+| Decisão | Resultado |
+|---|---|
+| Escopo | Core e Full Scope juntos: além de agendamento, ciclo de status, reagendamento e as três visões, também séries recorrentes, arrastar e soltar, visão por sala e agenda imprimível |
+| Quais status ocupam o horário | Todos, menos Cancelado e Faltou: depois de uma falta, o horário pode ser usado por outro paciente sem encaixe |
+| Reverter Concluído | O PRD não permitia, mas a F10 pressupõe ("reverter Concluído devolve a sessão"). Decisão: o profissional pode desfazer em até 30 minutos; Gerente e Administrador a qualquer momento, com justificativa. O PRD foi atualizado nos dois idiomas |
+| Editar depois de agendar | Serviço, duração, sala e observações mudam até a chegada; trocar o serviço tira um novo snapshot do preço |
+| Editar uma série | "Este e os seguintes" divide a série: a antiga termina e uma nova recebe as sessões alteradas, cada uma verificada de novo |
+| Motivos de cancelamento | Uma lista configurável no módulo de agenda, com quatro motivos padrão |
+| Bibliotecas novas | TanStack Query para a atualização a cada 30 segundos (já prevista no ADR-011), dnd-kit para arrastar e soltar e `@react-pdf/renderer` para a agenda impressa, que vira a base de PDF compartilhada da F08, F09 e F13 |
+
+A especificação e o plano estão em [F06-scheduling-and-agenda/](F06-scheduling-and-agenda/). As decisões viraram o **ADR-024** (PDF compartilhado), o **ADR-025** (atualização da agenda e arrastar e soltar) e o **ADR-026** (modelo de conflitos e ciclo de vida).
+
+### 13.2 Como o agendamento duplo é impedido
+
+O PRD exige que dois salvamentos simultâneos para o mesmo horário gerem exatamente um agendamento. A aplicação verifica todas as regras antes, para que a pessoa receba uma mensagem precisa ("Dra. Ana já possui atendimento das 14:00 às 14:50. Deseja registrar como encaixe?"). A garantia, porém, vem do PostgreSQL: duas **exclusion constraints** recusam qualquer sobreposição de horários do mesmo profissional ou da mesma sala, exceto agendamentos cancelados ou com falta e, só para o profissional, o encaixe. Uma violação vira "Este horário acabou de ser ocupado por outro agendamento". O teste de integração dispara seis agendamentos ao mesmo tempo e espera que exatamente um dê certo.
+
+Cada regra de conflito (profissional, sala, horário de atendimento, ausência, funcionamento da unidade, fechamento, horário passado, paciente) é uma função pequena e pura que diz se bloqueia, se aceita encaixe, se aceita exceção justificada ou se só avisa. As mesmas regras servem para salvar, para a prévia no painel, para as séries e para a busca "Próximo horário livre".
+
+### 13.3 Implementação em 5 etapas
+
+| Etapa | Commit | O que entrou |
+|---|---|---|
+| 1 — Documentação e base compartilhada | `f911906` | Atualização do PRD, ADR-024 a ADR-026 e os padrões de agenda do design system nos dois idiomas; `DateTimeRange` e os helpers de fuso no kernel compartilhado; detalhes de erro no retorno das ações; a base de PDF compartilhada e o provider do TanStack Query |
+| 2 — Banco e domínio | `70139dd` | Migration `0007_scheduling` com cinco tabelas, as duas exclusion constraints, CHECKs e histórico só de inclusão; o agendamento como entidade de domínio com sua máquina de estados, as regras de conflito, a recorrência e a busca de horários livres, com testes unitários |
+| 3 — Casos de uso | `4eeb3b3` | Agendar, editar, reagendar, mudar status, cancelar (também por série), séries, leituras da agenda com o feed de atualização, exportação do PDF; as implementações reais das portas de agendamentos da F02 à F05; 34 testes de integração |
+| 4 — Telas | `5e88091` | A agenda com as visões Dia, Semana e Lista, o painel de agendamento (com cadastro rápido de paciente), o painel do agendamento, arrastar e soltar e movimento pelo teclado, "Próximo horário livre"; quatro jornadas E2E |
+| 5 — Integrações | `4a63754` | A agenda imprimível, a aba Agendamentos na página do paciente e as configurações de motivos de cancelamento |
+
+Verificação final: lint e tipos sem erros, 103 testes unitários, 184 testes de integração e 15 jornadas E2E passando.
+
+### 13.4 Problemas encontrados na F06
+
+| Problema | Causa | Solução |
+|---|---|---|
+| O build de produção falhou depois do painel de agendamento | Um Client Component importava o ponto de entrada público do módulo de pacientes, que também monta o banco e o Argon2, e o código de servidor foi parar no bundle do navegador | Cada módulo pode expor um ponto de entrada de cliente só com UI segura (`@/modules/patients/client`), liberado pela regra de lint. Registrado no **ADR-027** |
+| O worker e o script de configuração pararam de iniciar | O `tsx` não resolvia os exports do pacote `@react-pdf` por import estático | O documento PDF é carregado sob demanda, só quando um PDF é gerado |
+| Todas as jornadas E2E falharam depois da primeira | A primeira jornada espera 30 s pelo e-mail de convite, e o worker (iniciado pelo setup do E2E) levava cerca de 27 s para subir nesta máquina | O setup do E2E espera o job de inicialização do worker antes de começar as jornadas |
+| Arrastar pelo teclado não fazia nada | O sensor de teclado do dnd-kit rola a página em vez de mover o bloco quando a página pode rolar | A própria grade da agenda trata o teclado: Espaço pega, setas movem, Espaço solta, Esc cancela, e cada passo é anunciado (ADR-025 atualizado) |
+| Duas jornadas E2E "falharam" com o comportamento correto | O teste supunha que a profissional atendia até 18:00; a jornada da F04 tinha definido 08:00–12:00, e uma sessão caía nas férias dela | As jornadas agendam dentro do horário dela e pulam a sessão em conflito, o que também cobre o critério das séries |
+| O Turbopack travou no segundo build | Cache deixado por um build interrompido | Apagar `.next` e compilar de novo |
+
+### 13.5 O que a F06 deixou pronto
+
+- **Agendamentos com histórico de status, histórico de reagendamentos e snapshot de preço**, lidos pela F07, F09, F10, F12, F13 e F14.
+- **Eventos de domínio publicados dentro da transação**: chegada (para a cobrança da F09), conclusão e sua reversão (para o débito de pacote da F10), cancelamento e os demais.
+- **As portas reais de agendamentos** para unidades, serviços, profissionais e pacientes: fechamentos, inativações e ausências agora contam agendamentos reais, e os profissionais veem os pacientes que atendem.
+- **A base de PDF compartilhada** para documentos (F08), recibos (F09) e relatórios (F13).
+- **Pontos de entrada de cliente** para módulos cuja UI é reaproveitada por outros módulos.
+
+---
+
+## 14. Problemas encontrados e como foram resolvidos
 
 Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos esses problemas apareceram porque **cada etapa foi executada de verdade**, e não só escrita.
 
@@ -521,7 +579,7 @@ Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos es
 
 ---
 
-## 14. Como reproduzir o ambiente do zero
+## 15. Como reproduzir o ambiente do zero
 
 ### Pré-requisitos
 
@@ -582,7 +640,7 @@ EXTRA_CA_CERTS=/caminho/para/certificado-raiz.pem docker compose --profile app b
 
 ---
 
-## 15. Lições aprendidas
+## 16. Lições aprendidas
 
 1. **Entrevista antes de documento.** Uma pergunta por vez, sempre com uma recomendação, resolve mais do que um documento longo escrito no escuro.
 2. **IDs de ponta a ponta** (F01 → história → critério → teste → commit) tornam o projeto rastreável sem esforço extra.
@@ -597,3 +655,5 @@ EXTRA_CA_CERTS=/caminho/para/certificado-raiz.pem docker compose --profile app b
 11. **Corrigir a classe inteira do problema, não só o caso encontrado.** A F03 levou o barramento de eventos para `globalThis` porque o Next.js carrega módulos mais de uma vez, mas deixou as portas em variáveis de módulo. A mesma causa voltou na F04.
 12. **Decisões tomadas sem a pessoa usuária precisam ficar escritas.** Quando a especificação foi escrita sem entrevista ao vivo, cada recomendação aplicada virou uma premissa explícita, para que a pessoa responsável pelo produto possa revisá-la e alterá-la depois.
 13. **Medir a meta de desempenho, não supor.** O teste de busca da F05 insere 100 mil pacientes e confere o p95, e o `EXPLAIN ANALYZE` mostra qual índice cada consulta usa. Um índice faltando teria sido pego pelo teste, não em produção.
+14. **Teste unitário verde não é tela funcionando.** Três problemas reais da F06 (build de produção quebrado, worker que não subia mais, arrastar pelo teclado que não fazia nada) só apareceram no build de produção e nas jornadas no navegador.
+15. **Quando um teste falha, confira primeiro se o produto está certo.** Duas falhas de E2E eram a agenda recusando corretamente um agendamento fora do horário da profissional e durante as férias dela; a correção estava nas premissas do teste, não no código.

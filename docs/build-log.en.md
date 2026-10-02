@@ -1,10 +1,10 @@
 # Build log — how GCli was built
 
-This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F05). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
+This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F06). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
 
 The work was done as a pair: a product owner and an AI coding assistant. The product owner answered questions, made the business decisions and approved each stage; the assistant ran the interviews, wrote documents and code, ran the tests and recorded what it found along the way.
 
-> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05.
+> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06.
 
 Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 
@@ -24,9 +24,10 @@ Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 10. [Design system before the heaviest screens](#10-design-system-before-the-heaviest-screens)
 11. [Fourth feature: F04 — Professionals and Working Hours](#11-fourth-feature-f04--professionals-and-working-hours)
 12. [Fifth feature: F05 — Patient Registry](#12-fifth-feature-f05--patient-registry)
-13. [Problems found and how they were solved](#13-problems-found-and-how-they-were-solved)
-14. [Reproducing the environment from scratch](#14-reproducing-the-environment-from-scratch)
-15. [Lessons learned](#15-lessons-learned)
+13. [Sixth feature: F06 — Scheduling and Agenda](#13-sixth-feature-f06--scheduling-and-agenda)
+14. [Problems found and how they were solved](#14-problems-found-and-how-they-were-solved)
+15. [Reproducing the environment from scratch](#15-reproducing-the-environment-from-scratch)
+16. [Lessons learned](#16-lessons-learned)
 
 ---
 
@@ -498,7 +499,64 @@ Final check: lint and types clean, 71 unit tests, 149 integration tests and 11 E
 
 ---
 
-## 13. Problems found and how they were solved
+## 13. Sixth feature: F06 — Scheduling and Agenda
+
+F06 is the center of the product: the front desk books, confirms, checks in, reschedules and cancels appointments; professionals see their own agenda and mark the encounter as started and completed. Clinical notes (F07), charges (F09), packages (F10), the dashboard (F12), reports (F13) and the patient timeline (F14) all start from an appointment. The workflow was the same: branch `feat/F06-scheduling-and-agenda` created before anything else, spec and plan first (commit `694e1b5`), one commit per stage and a PR at the end. This time the spec came from a live interview, with one question at a time and a recommendation for each.
+
+### 13.1 Decisions made in the interview
+
+| Decision | Outcome |
+|---|---|
+| Scope | Core and Full Scope together: besides booking, lifecycle, rescheduling and the three views, also recurring series, drag-and-drop, the room view and a printable agenda |
+| Which statuses occupy the slot | Every status except Cancelado and Faltou: after a no-show the slot can be used by another patient without an Encaixe |
+| Reverting Concluído | The PRD did not allow it, but F10 assumes it ("reverting Concluído restores the session"). Decision: the professional may undo within 30 minutes; Manager and Administrator at any time with a justification. The PRD was updated in both languages |
+| Editing after booking | Service, duration, room and notes change until check-in; a new service takes a new price snapshot |
+| Editing a series | "Este e os seguintes" splits the series: the old one ends, a new one carries the changed sessions, each checked again |
+| Cancellation reasons | A configurable list in the scheduling module, with four defaults |
+| New libraries | TanStack Query for the 30-second polling (already planned in ADR-011), dnd-kit for drag-and-drop and `@react-pdf/renderer` for the printed agenda, which becomes the shared PDF base for F08, F09 and F13 |
+
+The spec and plan are in [F06-scheduling-and-agenda/](F06-scheduling-and-agenda/). The decisions became **ADR-024** (shared PDF), **ADR-025** (agenda polling and drag-and-drop) and **ADR-026** (conflict model and lifecycle).
+
+### 13.2 How double booking is prevented
+
+The PRD requires that two simultaneous saves for the same slot produce exactly one appointment. The application checks every rule first, so the user gets a precise message ("Dra. Ana já possui atendimento das 14:00 às 14:50. Deseja registrar como encaixe?"). The guarantee, however, comes from PostgreSQL: two **exclusion constraints** reject any overlap of a professional's or a room's time ranges, except for cancelled and no-show appointments and, for the professional only, an Encaixe. A violated constraint becomes "Este horário acabou de ser ocupado por outro agendamento". The integration test fires six bookings at the same time and expects exactly one to succeed.
+
+Each conflict rule (professional, room, working hours, time-off, unit hours, closure, past start, patient) is a small pure function that says whether it blocks, accepts an Encaixe, accepts a justified exception or only warns. The same rules serve saving, the preview in the panel, recurring series and the "Próximo horário livre" search.
+
+### 13.3 Implementation in 5 stages
+
+| Stage | Commit | What went in |
+|---|---|---|
+| 1 — Documentation and shared base | `f911906` | PRD update, ADR-024 to ADR-026 and the design system's agenda patterns in both languages; `DateTimeRange` and the time zone helpers in the shared kernel; error details in the action envelope; the shared PDF base and the TanStack Query provider |
+| 2 — Database and domain | `70139dd` | Migration `0007_scheduling` with five tables, the two exclusion constraints, CHECKs and append-only history; the appointment as a domain entity with its state machine, the conflict rules, recurrence and availability search, with unit tests |
+| 3 — Use cases | `4eeb3b3` | Booking, editing, rescheduling, status changes, cancellation (also by series), series, agenda reads with the polling feed, PDF export; the real implementations of the appointment ports of F02 to F05; 34 integration tests |
+| 4 — Screens | `5e88091` | The agenda with Day, Week and List views, the booking panel (with quick patient registration), the appointment panel, drag-and-drop and keyboard moves, "Próximo horário livre"; four E2E journeys |
+| 5 — Integrations | `4a63754` | The printable agenda, the Agendamentos tab on the patient page and the cancellation reasons settings |
+
+Final check: lint and types clean, 103 unit tests, 184 integration tests and 15 E2E journeys passing.
+
+### 13.4 Problems found in F06
+
+| Problem | Cause | Fix |
+|---|---|---|
+| The production build failed after the booking panel was added | A Client Component imported the patients module's public entry point, which also wires the database and Argon2, so server code went to the browser bundle | Each module may expose a client entry point with only client-safe UI (`@/modules/patients/client`), allowed by the lint rule. Recorded as **ADR-027** |
+| The worker and the setup script stopped starting | `tsx` could not resolve `@react-pdf`'s package exports through a static import | The PDF document is loaded on demand, only when a PDF is rendered |
+| Every E2E journey failed after the first one | The first journey waits 30 s for the invitation email, and the worker (started by the E2E setup) took about 27 s to boot on this machine | The E2E setup waits for the worker's startup job before the journeys begin |
+| Keyboard dragging did nothing | The dnd-kit keyboard sensor scrolls the page instead of moving the block when the page can scroll | The agenda grid handles the keyboard itself: Space picks up, arrows move, Space drops, Esc cancels, each step announced (ADR-025 updated) |
+| Two E2E journeys "failed" on correct behavior | The test assumed the professional worked until 18:00; the F04 journey had set 08:00–12:00, and one session fell on her vacation | The journeys book inside her hours and skip the conflicting session, which also covers the series criterion |
+| Turbopack crashed on the second build | A cache left by an interrupted build | Delete `.next` and build again |
+
+### 13.5 What F06 left in place
+
+- **Appointments with status history, reschedule history and price snapshot**, read by F07, F09, F10, F12, F13 and F14.
+- **Domain events published inside the transaction**: check-in (for the F09 charge), completion and its reversal (for the F10 package debit), cancellation and the others.
+- **The real appointment ports** for units, services, professionals and patients: closures, deactivations and time-offs now count real appointments, and professionals see the patients they attend.
+- **The shared PDF base** for documents (F08), receipts (F09) and reports (F13).
+- **Client entry points** for modules whose UI is reused by other modules.
+
+---
+
+## 14. Problems found and how they were solved
 
 This may be the most useful section for anyone reproducing the project. All of these problems showed up because **each stage was actually executed**, not just written.
 
@@ -521,7 +579,7 @@ This may be the most useful section for anyone reproducing the project. All of t
 
 ---
 
-## 14. Reproducing the environment from scratch
+## 15. Reproducing the environment from scratch
 
 ### Prerequisites
 
@@ -582,7 +640,7 @@ EXTRA_CA_CERTS=/path/to/root-certificate.pem docker compose --profile app build
 
 ---
 
-## 15. Lessons learned
+## 16. Lessons learned
 
 1. **Interview before document.** One question at a time, always with a recommendation, settles more than a long document written in the dark.
 2. **End-to-end IDs** (F01 → story → criterion → test → commit) make the project traceable at no extra cost.
@@ -597,3 +655,5 @@ EXTRA_CA_CERTS=/path/to/root-certificate.pem docker compose --profile app build
 11. **Fix the whole class of problem, not only the case found.** F03 moved the event bus to `globalThis` because Next.js loads modules more than once, but left the ports in module variables. The same cause came back in F04.
 12. **Decisions taken without the user must be written down.** When the spec was written without a live interview, every recommendation applied became an explicit assumption, so the product owner can review and override it later.
 13. **Measure the performance target, do not assume it.** The F05 search test inserts 100,000 patients and checks the p95, and `EXPLAIN ANALYZE` shows which index each query uses. A missing index would have been caught by the test, not in production.
+14. **A green unit test is not a working screen.** Three real problems in F06 (a broken production build, a worker that no longer started, keyboard dragging that did nothing) only appeared in the production build and the browser journeys.
+15. **When a test fails, check whether the product is right first.** Two E2E failures were the agenda correctly refusing a booking outside the professional's hours and during her vacation; the fix was in the test's assumptions, not in the code.
