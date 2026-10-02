@@ -25,13 +25,16 @@ model Organization {
   updatedAt              DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   updatedById            String?  @map("updated_by_id") @db.Uuid
 
-  users             User[]
-  invitations       Invitation[]
-  units             Unit[]
-  serviceCategories ServiceCategory[]
-  services          Service[]
-  professionals     Professional[]
-  patients          Patient[]
+  users               User[]
+  invitations         Invitation[]
+  units               Unit[]
+  serviceCategories   ServiceCategory[]
+  services            Service[]
+  professionals       Professional[]
+  patients            Patient[]
+  appointments        Appointment[]
+  appointmentSeries   AppointmentSeries[]
+  cancellationReasons CancellationReason[]
 
   @@map("organization")
 }
@@ -219,6 +222,7 @@ model Unit {
   rooms            Room[]
   selections       UnitSelection[]
   workingIntervals ProfessionalWorkingInterval[]
+  appointments     Appointment[]
 
   @@index([organizationId, active], map: "ix_unit_org_active")
   @@map("unit")
@@ -270,6 +274,7 @@ model Room {
 
   unit            Unit                 @relation(fields: [unitId], references: [id], map: "fk_room_unit")
   allowedServices ServiceAllowedRoom[]
+  appointments    Appointment[]
 
   @@index([unitId, active], map: "ix_room_unit_active")
   @@map("room")
@@ -330,6 +335,7 @@ model Service {
   allowedRooms  ServiceAllowedRoom[]
   priceChanges  ServicePriceChange[]
   professionals ProfessionalService[]
+  appointments  Appointment[]
 
   @@index([organizationId, active], map: "ix_service_org_active")
   @@index([categoryId], map: "ix_service_category")
@@ -398,6 +404,7 @@ model Professional {
   services     ProfessionalService[]
   schedules    ProfessionalSchedule[]
   timeOffs     ProfessionalTimeOff[]
+  appointments Appointment[]
 
   @@index([organizationId, active], map: "ix_professional_org_active")
   @@map("professional")
@@ -522,6 +529,7 @@ model Patient {
   referralSource ReferralSource? @relation(fields: [referralSourceId], references: [id], onDelete: Restrict, map: "fk_patient_referral_source")
   tags           PatientTag[]
   consents       ConsentRecord[]
+  appointments   Appointment[]
 
   @@index([organizationId, normalizedName, birthDate], map: "ix_patient_org_identity")
   @@index([organizationId, active, normalizedName], map: "ix_patient_org_active_name")
@@ -623,4 +631,142 @@ model ConsentUpload {
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@map("consent_upload")
+}
+
+// ---------------------------------------------------------------------------------------------
+// F06 Scheduling and agenda. Exclusion constraints, CHECKs and append-only grants are written in
+// raw SQL in the migration (spec F06 section 6, ADR-026).
+
+model Appointment {
+  id                     String    @id @db.Uuid
+  organizationId         String    @map("organization_id") @db.Uuid
+  unitId                 String    @map("unit_id") @db.Uuid
+  professionalId         String    @map("professional_id") @db.Uuid
+  serviceId              String    @map("service_id") @db.Uuid
+  patientId              String    @map("patient_id") @db.Uuid
+  roomId                 String?   @map("room_id") @db.Uuid
+  startsAt               DateTime  @map("starts_at") @db.Timestamptz(6)
+  endsAt                 DateTime  @map("ends_at") @db.Timestamptz(6)
+  durationMinutes        Int       @map("duration_minutes") @db.SmallInt
+  priceCents             Int       @map("price_cents")
+  status                 String    @default("SCHEDULED") @db.VarChar(12)
+  statusChangedAt        DateTime  @default(now()) @map("status_changed_at") @db.Timestamptz(6)
+  isOverbooking          Boolean   @default(false) @map("is_overbooking")
+  exceptionJustification String?   @map("exception_justification") @db.VarChar(500)
+  exceptionCodes         String[]  @map("exception_codes") @db.VarChar(40)
+  notes                  String?   @db.VarChar(500)
+  seriesId               String?   @map("series_id") @db.Uuid
+  seriesIndex            Int?      @map("series_index") @db.SmallInt
+  cancellationOrigin     String?   @map("cancellation_origin") @db.VarChar(12)
+  cancellationReasonId   String?   @map("cancellation_reason_id") @db.Uuid
+  cancellationNote       String?   @map("cancellation_note") @db.VarChar(500)
+  cancelledAt            DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  version                Int       @default(1)
+  createdById            String?   @map("created_by_id") @db.Uuid
+  updatedById            String?   @map("updated_by_id") @db.Uuid
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization       Organization              @relation(fields: [organizationId], references: [id], map: "fk_appointment_org")
+  unit               Unit                      @relation(fields: [unitId], references: [id], onDelete: Restrict, map: "fk_appointment_unit")
+  professional       Professional              @relation(fields: [professionalId], references: [id], onDelete: Restrict, map: "fk_appointment_professional")
+  service            Service                   @relation(fields: [serviceId], references: [id], onDelete: Restrict, map: "fk_appointment_service")
+  patient            Patient                   @relation(fields: [patientId], references: [id], onDelete: Restrict, map: "fk_appointment_patient")
+  room               Room?                     @relation(fields: [roomId], references: [id], onDelete: Restrict, map: "fk_appointment_room")
+  series             AppointmentSeries?        @relation(fields: [seriesId], references: [id], onDelete: Restrict, map: "fk_appointment_series")
+  cancellationReason CancellationReason?       @relation(fields: [cancellationReasonId], references: [id], onDelete: Restrict, map: "fk_appointment_cancellation_reason")
+  statusChanges      AppointmentStatusChange[]
+  reschedules        AppointmentReschedule[]
+
+  @@index([organizationId, unitId, startsAt], map: "ix_appointment_org_unit_start")
+  @@index([organizationId, professionalId, startsAt], map: "ix_appointment_org_professional_start")
+  @@index([organizationId, patientId, startsAt(sort: Desc)], map: "ix_appointment_org_patient_start")
+  @@index([organizationId, serviceId, startsAt], map: "ix_appointment_org_service_start")
+  @@index([organizationId, updatedAt], map: "ix_appointment_org_updated")
+  @@index([organizationId, roomId, startsAt], map: "ix_appointment_org_room_start")
+  @@map("appointment")
+}
+
+model AppointmentStatusChange {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  appointmentId  String   @map("appointment_id") @db.Uuid
+  fromStatus     String?  @map("from_status") @db.VarChar(12)
+  toStatus       String   @map("to_status") @db.VarChar(12)
+  changedAt      DateTime @default(now()) @map("changed_at") @db.Timestamptz(6)
+  changedById    String   @map("changed_by_id") @db.Uuid
+  justification  String?  @db.VarChar(500)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict, map: "fk_status_change_appointment")
+
+  @@index([appointmentId, changedAt], map: "ix_status_change_appointment")
+  @@map("appointment_status_change")
+}
+
+model AppointmentReschedule {
+  id                     String   @id @db.Uuid
+  organizationId         String   @map("organization_id") @db.Uuid
+  appointmentId          String   @map("appointment_id") @db.Uuid
+  previousStartsAt       DateTime @map("previous_starts_at") @db.Timestamptz(6)
+  previousEndsAt         DateTime @map("previous_ends_at") @db.Timestamptz(6)
+  previousProfessionalId String   @map("previous_professional_id") @db.Uuid
+  previousRoomId         String?  @map("previous_room_id") @db.Uuid
+  previousStatus         String   @map("previous_status") @db.VarChar(12)
+  source                 String   @db.VarChar(10)
+  rescheduledAt          DateTime @default(now()) @map("rescheduled_at") @db.Timestamptz(6)
+  rescheduledById        String   @map("rescheduled_by_id") @db.Uuid
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict, map: "fk_reschedule_appointment")
+
+  @@index([appointmentId, rescheduledAt], map: "ix_reschedule_appointment")
+  @@map("appointment_reschedule")
+}
+
+model AppointmentSeries {
+  id               String    @id @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  unitId           String    @map("unit_id") @db.Uuid
+  professionalId   String    @map("professional_id") @db.Uuid
+  serviceId        String    @map("service_id") @db.Uuid
+  patientId        String    @map("patient_id") @db.Uuid
+  roomId           String?   @map("room_id") @db.Uuid
+  frequency        String    @db.VarChar(10)
+  weekdays         Int[]     @db.SmallInt
+  startMinute      Int       @map("start_minute") @db.SmallInt
+  durationMinutes  Int       @map("duration_minutes") @db.SmallInt
+  firstDate        DateTime  @map("first_date") @db.Date
+  endsOn           DateTime? @map("ends_on") @db.Date
+  occurrenceCount  Int?      @map("occurrence_count") @db.SmallInt
+  endsAfterIndex   Int?      @map("ends_after_index") @db.SmallInt
+  previousSeriesId String?   @map("previous_series_id") @db.Uuid
+  version          Int       @default(1)
+  createdById      String?   @map("created_by_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization   Organization        @relation(fields: [organizationId], references: [id], map: "fk_series_org")
+  previousSeries AppointmentSeries?  @relation("SeriesSplit", fields: [previousSeriesId], references: [id], onDelete: Restrict, map: "fk_series_previous")
+  nextSeries     AppointmentSeries[] @relation("SeriesSplit")
+  appointments   Appointment[]
+
+  @@index([organizationId, patientId], map: "ix_series_org_patient")
+  @@map("appointment_series")
+}
+
+model CancellationReason {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String   @db.VarChar(60)
+  active         Boolean  @default(true)
+  sortOrder      Int      @map("sort_order") @db.SmallInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], map: "fk_cancellation_reason_org")
+  appointments Appointment[]
+
+  @@index([organizationId, active, sortOrder], map: "ix_cancellation_reason_org_active")
+  @@map("cancellation_reason")
 }

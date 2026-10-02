@@ -22,7 +22,9 @@ export async function resetDatabase(): Promise<void> {
     service_category, service, service_allowed_room, service_price_change,
     professional, professional_service, professional_schedule, professional_working_interval,
     professional_time_off, patient, referral_source, tag, patient_tag, privacy_terms_version,
-    consent_record, consent_upload CASCADE`);
+    consent_record, consent_upload,
+    appointment, appointment_status_change, appointment_reschedule, appointment_series,
+    cancellation_reason CASCADE`);
 }
 
 export async function closeHelpers(): Promise<void> {

@@ -31,6 +31,12 @@ const TENANT_MODELS = new Set<string>([
   "PrivacyTermsVersion",
   "ConsentRecord",
   "ConsentUpload",
+  // F06
+  "Appointment",
+  "AppointmentStatusChange",
+  "AppointmentReschedule",
+  "AppointmentSeries",
+  "CancellationReason",
 ]);
 // The organization row itself is scoped by its id.
 const ORGANIZATION_MODEL = "Organization";
