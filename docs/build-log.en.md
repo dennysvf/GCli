@@ -1,10 +1,10 @@
 # Build log — how GCli was built
 
-This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F04). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
+This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F05). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
 
 The work was done as a pair: a product owner and an AI coding assistant. The product owner answered questions, made the business decisions and approved each stage; the assistant ran the interviews, wrote documents and code, ran the tests and recorded what it found along the way.
 
-> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04.
+> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05.
 
 Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 
@@ -23,9 +23,10 @@ Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 9. [Third feature: F03 — Service Catalog](#9-third-feature-f03--service-catalog)
 10. [Design system before the heaviest screens](#10-design-system-before-the-heaviest-screens)
 11. [Fourth feature: F04 — Professionals and Working Hours](#11-fourth-feature-f04--professionals-and-working-hours)
-12. [Problems found and how they were solved](#12-problems-found-and-how-they-were-solved)
-13. [Reproducing the environment from scratch](#13-reproducing-the-environment-from-scratch)
-14. [Lessons learned](#14-lessons-learned)
+12. [Fifth feature: F05 — Patient Registry](#12-fifth-feature-f05--patient-registry)
+13. [Problems found and how they were solved](#13-problems-found-and-how-they-were-solved)
+14. [Reproducing the environment from scratch](#14-reproducing-the-environment-from-scratch)
+15. [Lessons learned](#15-lessons-learned)
 
 ---
 
@@ -119,7 +120,7 @@ Steps taken:
 4. **First commit** on `main`, reviewing with `git status` what would be included (no secrets, no local folders).
 5. **Public repository created and pushed**: `gh repo create GCli --public --source=. --remote=origin --push`.
 
-**Problem:** the push failed with `SSL certificate problem: unable to get local issuer certificate`. **Cause:** Git for Windows uses OpenSSL's certificate store, which did not recognize the certificate presented by the network. **Fix:** `git config --global http.sslbackend schannel`, which makes Git use the Windows certificate store. The root cause showed up later (see [section 12](#12-problems-found-and-how-they-were-solved)).
+**Problem:** the push failed with `SSL certificate problem: unable to get local issuer certificate`. **Cause:** Git for Windows uses OpenSSL's certificate store, which did not recognize the certificate presented by the network. **Fix:** `git config --global http.sslbackend schannel`, which makes Git use the Windows certificate store. The root cause showed up later (see [section 13](#13-problems-found-and-how-they-were-solved)).
 
 **Protecting `main`.** Once CI was running reliably, `main` was protected with a GitHub ruleset:
 - force pushes and branch deletion are blocked;
@@ -449,7 +450,55 @@ Final check: lint and types clean, 62 unit tests, 131 integration tests and 9 E2
 
 ---
 
-## 12. Problems found and how they were solved
+## 12. Fifth feature: F05 — Patient Registry
+
+F05 registers the clinic's patients: identity, contact, address, a guardian for minors, referral source, tags and administrative observations, plus the LGPD consent to the clinic's privacy terms. Scheduling (F06), documents (F08), packages (F10), the dashboard (F12) and the patient timeline (F14) will read this data. The workflow was the same: branch `feat/F05-patient-registry` created before anything else, spec and plan first (commit `b7aad48`), one commit per stage and a PR at the end. As with F04, the spec was written in autonomous mode, with each decision recorded as an explicit assumption.
+
+### 12.1 Decisions made in the spec
+
+| Decision | Outcome |
+|---|---|
+| Search over 100,000 patients | The application stores the name without accents and in lower case, and both phones as digits. Trigram GIN indexes (`pg_trgm`) answer "contains" searches. The search is raw SQL, so it filters by organization explicitly; one query per kind of term (name, CPF or phone) keeps each one on its own index |
+| Duplicates | The same CPF blocks the save, and the message shows an abbreviated name ("Maria S. Oliveira") with a link. The same name and birth date returns the candidates without saving; the user confirms with "Criar mesmo assim" |
+| Concurrent edits | The second save gets "Este cadastro foi alterado por João às 14:32", and the form lists the fields that changed |
+| Consent | Versioned privacy terms published by the Administrator and consent records per patient. Both are append-only: the database role of the application cannot change or delete them, because they are legal evidence |
+| Signed term upload | Through the application server, up to 10 MB, with the type checked by the file's first bytes. The strict CSP does not allow the browser to send files straight to storage. Recorded as **ADR-023** |
+| What a Professional sees | Only patients with an appointment with them. Until F06 exists, the list is empty |
+| Shared pieces | A `PhoneNumber` value object, and the F02 address schema, address fields and address formatting moved to shared code |
+
+The spec and plan are in [F05-patient-registry/](F05-patient-registry/).
+
+### 12.2 Implementation in 4 stages
+
+| Stage | Commit | What went in |
+|---|---|---|
+| 1 — Foundations | `2e9e525` | ADR-023 and the design system's global search pattern in both languages; `PhoneNumber` and a phone input; the address schema and fields moved to shared code (F02 and F04 now use them); `head()` in object storage |
+| 2 — Database and domain | `0793c85` | Migration `0006_patients` with seven tables, trigram indexes for name and phone, a partial unique CPF index, value CHECKs and append-only grants on terms and consent; pure rules for names, ages, search terms, consent status and CPF masking; the appointments port for F06 |
+| 3 — Use cases | `06f3121` | Registration (full and quick), guardian for minors, duplicates, concurrent edits, deactivation, search, lists, terms, consent with upload and audited 5-minute download links, a daily cleanup of unused uploads; the public API; 18 integration tests, including 100,000 patients |
+| 4 — Screens | `f14ee37` | The patients page with search and pagination; the global search in the header with the "/" shortcut; the full and quick forms; the patient page with the consent section; the lists and privacy terms settings; two E2E journeys |
+
+Final check: lint and types clean, 71 unit tests, 149 integration tests and 11 E2E journeys passing. With 100,000 patients, `EXPLAIN ANALYZE` showed every search on its index, between 2 and 14 ms.
+
+### 12.3 Problems found in F05
+
+| Problem | Cause | Fix |
+|---|---|---|
+| Prisma reported the search indexes as schema drift | GIN indexes created only in raw SQL are invisible to the Prisma schema, and CI checks for drift | The indexes are declared in the schema with `type: Gin` and `ops: raw("gin_trgm_ops")` |
+| The guardian fields lost their types in the form | A `z.preprocess` that turned an empty guardian section into `null` made the schema's input type `unknown` | The guardian is a normal object, validated with `superRefine` and turned into `null` with `transform` when it is empty |
+| The lint rejected the global search component | It called `setState` directly inside an effect to show "Digite pelo menos 3 caracteres" | The empty and too-short states are derived from the text during render; the effect only runs real searches |
+| A refactor removed more than intended | Cutting the address schema out of the units module also took a helper still in use | Typecheck caught it before the commit; the helper was restored |
+
+### 12.4 What F05 left in place
+
+- **Patient identity and the complete record** for F06, F08, F10, F12 and F14, with the social name taking precedence.
+- **The quick registration form**, ready to embed in the booking modal (F06).
+- **LGPD consent with versioned terms**, which the timeline and data export (F14) will read.
+- **The appointments port**, which F06 will register to block deactivation, show the last appointment and limit what professionals see.
+- **Shared address and phone pieces** for any later form.
+
+---
+
+## 13. Problems found and how they were solved
 
 This may be the most useful section for anyone reproducing the project. All of these problems showed up because **each stage was actually executed**, not just written.
 
@@ -472,7 +521,7 @@ This may be the most useful section for anyone reproducing the project. All of t
 
 ---
 
-## 13. Reproducing the environment from scratch
+## 14. Reproducing the environment from scratch
 
 ### Prerequisites
 
@@ -533,7 +582,7 @@ EXTRA_CA_CERTS=/path/to/root-certificate.pem docker compose --profile app build
 
 ---
 
-## 14. Lessons learned
+## 15. Lessons learned
 
 1. **Interview before document.** One question at a time, always with a recommendation, settles more than a long document written in the dark.
 2. **End-to-end IDs** (F01 → story → criterion → test → commit) make the project traceable at no extra cost.
@@ -547,3 +596,4 @@ EXTRA_CA_CERTS=/path/to/root-certificate.pem docker compose --profile app build
 10. **Define the look before the dense screens.** With few screens built, a design system costs one document and a token swap; after the agenda and clinical records, it would mean redoing the most complex screens.
 11. **Fix the whole class of problem, not only the case found.** F03 moved the event bus to `globalThis` because Next.js loads modules more than once, but left the ports in module variables. The same cause came back in F04.
 12. **Decisions taken without the user must be written down.** When the spec was written without a live interview, every recommendation applied became an explicit assumption, so the product owner can review and override it later.
+13. **Measure the performance target, do not assume it.** The F05 search test inserts 100,000 patients and checks the p95, and `EXPLAIN ANALYZE` shows which index each query uses. A missing index would have been caught by the test, not in production.
