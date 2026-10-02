@@ -10,6 +10,7 @@ import type {
   StatusHistoryRow,
 } from "../application/ports";
 import { Appointment, type AppointmentProps, type CancellationOrigin } from "../domain/appointment";
+import { DURATION_MAX } from "../domain/limits";
 import type { AppointmentStatus } from "../domain/status";
 
 type Row = Prisma.AppointmentGetPayload<object>;
@@ -104,6 +105,13 @@ export function isExclusionViolation(error: unknown): boolean {
   return visit(error);
 }
 
+// An appointment lasts at most 480 minutes (PRD F06), so one that overlaps a window starts less
+// than that before it. The lower bound keeps range queries on the start-time indexes instead of
+// reading every past appointment (EXPLAIN ANALYZE on 200,000 rows: 100 ms without it).
+function earliestOverlappingStart(from: Date): Date {
+  return new Date(from.getTime() - DURATION_MAX * 60_000);
+}
+
 function filterWhere(filter: AppointmentFilter): Prisma.AppointmentWhereInput {
   return {
     ...(filter.unitId ? { unitId: filter.unitId } : {}),
@@ -112,8 +120,15 @@ function filterWhere(filter: AppointmentFilter): Prisma.AppointmentWhereInput {
     ...(filter.serviceIds ? { serviceId: { in: filter.serviceIds } } : {}),
     ...(filter.patientId ? { patientId: filter.patientId } : {}),
     ...(filter.statuses ? { status: { in: filter.statuses } } : {}),
+    ...(filter.from || filter.to
+      ? {
+          startsAt: {
+            ...(filter.from ? { gt: earliestOverlappingStart(filter.from) } : {}),
+            ...(filter.to ? { lt: filter.to } : {}),
+          },
+        }
+      : {}),
     ...(filter.from ? { endsAt: { gt: filter.from } } : {}),
-    ...(filter.to ? { startsAt: { lt: filter.to } } : {}),
     ...(filter.updatedSince ? { updatedAt: { gt: filter.updatedSince } } : {}),
   };
 }
@@ -190,7 +205,11 @@ export const prismaAppointmentRepository: AppointmentRepository = {
     if (query.patientIds?.length) or.push({ patientId: { in: query.patientIds } });
     if (or.length === 0) return [];
     const rows = await uow.tx.appointment.findMany({
-      where: { startsAt: { lt: query.to }, endsAt: { gt: query.from }, OR: or },
+      where: {
+        startsAt: { lt: query.to, gt: earliestOverlappingStart(query.from) },
+        endsAt: { gt: query.from },
+        OR: or,
+      },
       select: {
         id: true,
         professionalId: true,
