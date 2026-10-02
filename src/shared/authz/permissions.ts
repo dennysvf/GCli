@@ -29,6 +29,9 @@ export const PERMISSIONS = {
   "schedule:read-own": ["PROFESSIONAL"],
   "schedule:manage": ["ADMINISTRATOR", "MANAGER", "FRONT_DESK"],
   "schedule:update-own-status": ["PROFESSIONAL"],
+  // Booking outside working or business hours, and reverting a completion at any time (PRD F06).
+  "schedule:override-availability": ["ADMINISTRATOR", "MANAGER"],
+  "schedule:revert-completion": ["ADMINISTRATOR", "MANAGER"],
   // F07 clinical records: professionals, plus administrators/managers linked to a professional
   "clinical:read": ["PROFESSIONAL"],
   "clinical:write": ["PROFESSIONAL"],

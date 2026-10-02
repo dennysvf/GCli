@@ -8,6 +8,8 @@ export type DomainError = {
   fields?: Record<string, string>;
   // Values for {placeholders} in the pt-BR message, e.g. { count: 12 }.
   params?: Record<string, string | number>;
+  // Structured data the UI needs to act on the error, e.g. conflict findings (spec F06 section 5).
+  details?: Record<string, unknown>;
 };
 
 export function domainError(

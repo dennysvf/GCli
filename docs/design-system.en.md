@@ -384,6 +384,19 @@ The patient search in the header (F05), available on every screen.
 - Results open below as a floating list (the only shadow), at most 8 rows of 40 px: the name in `body-strong` and, in `meta`, the age, the masked CPF or the last 4 phone digits. Arrow keys move, `Enter` opens.
 - Below 3 characters the list says "Digite pelo menos 3 caracteres."; with no result, "Nenhum paciente encontrado para "{busca}"." and, for those who may register, a "Cadastrar paciente" link. The last row is always "Ver todos os resultados".
 
+### 5.11 Agenda
+
+The agenda (F06) builds on section 10.1. These rules cover the parts that section does not show.
+- **Week view:** seven day columns (Monday first) for one professional or one room, with the same time ruler, rules, now line and blocks as the day view. The column header is the weekday and date in `column-label`; today's header is in `ink-1` with a 2 px `ink-blue` underline.
+- **Room view:** the day view with one column per active room of the unit. Column headers carry no color dot; blocks still carry the service stripe.
+- **Encaixe:** an overbooked block keeps its status stamp and adds a second stamp "ENCAIXE" in the warning tone. Two blocks that overlap in the same column share its width side by side.
+- **Drag and resize:** a draggable block shows the `grab` cursor; while dragging, a dashed `ink-blue` outline marks the target slot and the original block stays in place at 40% opacity until the move is confirmed. The resize handle is the bottom 6 px of the block (a 2 px `rule-strong` line appears on hover and focus). Keyboard: `Space` picks up, arrows move one slot (up and down) or one column (left and right), `Space` drops, `Esc` cancels; each step is announced. Dropping always opens a confirmation dialog ("Reagendar para qui, 14:30 com Dra. Ana?").
+- **Conflicts in the booking panel:** findings appear above the panel footer, in the order blocking, overridable, warning. Blocking uses the danger page alert; overridable uses the warning alert with the action inside it ("Confirmar encaixe" as a secondary button, or the "Justificar exceção" field); the patient warning uses the info alert. The primary button only reads "Agendar" again after every overridable finding has been accepted.
+- **Series conflicts:** a summary line in `body-strong` ("4 de 20 sessões possuem conflito.") above a compact table: Sessão, Data, Horário, Conflito, Ação. The action column holds the ghost buttons "Pular" and "Escolher outro horário"; choosing another time opens an inline time select with up to 3 suggested times. Resolved rows show the decision as text ("Pulada", "Novo horário 11:00").
+- **Próximo horário livre:** a regular dialog with Serviço (required) and Profissional (optional), and the results as a table of up to 10 rows (Data, Horário, Profissional, Sala) with a ghost "Agendar" button per row.
+- **Lateness and history:** lateness follows section 10.1. The appointment panel lists the status history as a compact table (Status as a stamp, Data e hora, Por), newest first.
+- **Printed agenda (PDF):** A4 portrait on white, clinic name and logo at the top left, the professional, unit and date as the title in the serif face, the double rule below it, then a table with fine horizontal rules (Horário, Paciente, Telefone, Serviço, Sala, Status, Observações). Footer: "Gerado em {data hora} por {usuário}" on the left and the page number on the right, in `meta` size. No color besides ink.
+
 ## 6. Visual details
 
 ### 6.1 Borders and radii

@@ -403,7 +403,7 @@ The differentiator is configurability without complexity: the same product serve
 
 **Capabilities:**
 - Appointment fields: patient (required), service (required), professional (required, must have the service enabled), unit (required), room (required if the service requires a room; restricted to allowed rooms), date and start time (granularity from F01 settings), duration (default from service, editable 5–480 min in multiples of 5), price snapshot (from service at booking), notes for the front desk (max 500 chars).
-- Status lifecycle: Agendado → Confirmado → Chegou (checked in) → Em atendimento → Concluído; terminal alternatives: Faltou (no-show) and Cancelado. Allowed backward transitions: Confirmado → Agendado, Chegou → Confirmado (undo within 30 minutes). Every transition records user and timestamp.
+- Status lifecycle: Agendado → Confirmado → Chegou (checked in) → Em atendimento → Concluído; terminal alternatives: Faltou (no-show) and Cancelado. Allowed backward transitions: Confirmado → Agendado, Chegou → Confirmado (undo within 30 minutes), Concluído → Em atendimento (by the appointment's professional within 30 minutes, or by a Manager/Administrator at any time with a justification). Every transition records user and timestamp.
 - Cancellation requires origin (patient, clinic, professional) and reason from a configurable list plus optional text. No-show can be set only after the appointment's start time.
 - Conflict rules, validated server-side at save:
   - Professional double booking: blocked; can be overridden as "Encaixe" by Front Desk, Manager, or Administrator with explicit confirmation; overbooked appointments display an "Encaixe" badge.
