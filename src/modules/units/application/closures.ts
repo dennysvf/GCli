@@ -75,7 +75,7 @@ export async function createClosure(
 
   const overlapping = await deps
     .appointments()
-    .countInDateRange(ctx.organizationId, unitId, startsOn, endsOn);
+    .countInDateRange(ctx.organizationId, unitId, startsOn, endsOn, unit.value.timeZone);
   if (overlapping > 0 && !confirmOverlap) return fail(UnitsErrors.closureConfirmationRequired(overlapping));
 
   return withTransaction(ctx, async (uow) => {

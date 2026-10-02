@@ -6,7 +6,7 @@ import { getConsentFileUrl, listConsents, recordConsent, storeConsentFile } from
 import { createListItem, listItems, renameListItem, setListItemActive } from "./application/lists";
 import { createPatient, getPatient, setPatientActive, updatePatient } from "./application/patients";
 import type { PatientAppointments, PatientsDeps } from "./application/ports";
-import { getPatientIdentity, getPatientRecord } from "./application/provided";
+import { getPatientIdentity, getPatientRecord, getPatientSummaries } from "./application/provided";
 import type { ListKind } from "./application/schemas";
 import { searchPatients } from "./application/search";
 import { getCurrentTerms, listTermsVersions, publishTermsVersion } from "./application/terms";
@@ -56,6 +56,8 @@ export const patients = {
   // Provided to F06, F08, F10 (identity) and F12, F14 (complete record)
   getPatientIdentity: (ctx: RequestContext, patientId: string) => getPatientIdentity(deps, ctx, patientId),
   getPatientRecord: (ctx: RequestContext, patientId: string) => getPatientRecord(deps, ctx, patientId),
+  getPatientSummaries: (ctx: RequestContext, patientIds: string[]) =>
+    getPatientSummaries(deps, ctx, patientIds),
   // Extension point for scheduling (F06); null restores the inert default (ADR-022).
   registerPatientAppointments: (implementation: PatientAppointments | null) =>
     patientAppointments.register(implementation),
@@ -67,7 +69,7 @@ export type { PatientSearchItem, PatientSearchResult } from "./application/searc
 export type { ConsentItem } from "./application/consents";
 export type { ListItem } from "./application/lists";
 export type { TermsVersion } from "./application/terms";
-export type { PatientIdentity, PatientRecord } from "./application/provided";
+export type { PatientIdentity, PatientRecord, PatientSummary } from "./application/provided";
 export { LIST_KINDS, PATIENT_STATUSES, type ListKind, type PatientStatusFilter } from "./application/schemas";
 export {
   patientsMessages,

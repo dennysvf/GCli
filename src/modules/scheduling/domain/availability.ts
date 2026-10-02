@@ -15,6 +15,8 @@ export type AvailabilityCandidate = {
   context: ConflictContext;
   // Rooms to try in order; null when the service needs no room.
   rooms: { id: string; name: string }[] | null;
+  // The appointment being moved, which never conflicts with itself.
+  excludeAppointmentId?: string;
 };
 
 export type AvailabilityRequest = {
@@ -58,6 +60,7 @@ function slotsOfDay(
       for (const room of rooms) {
         const findings = checkConflicts(
           {
+            ...(candidate.excludeAppointmentId ? { appointmentId: candidate.excludeAppointmentId } : {}),
             unitId: request.unitId,
             professionalId: candidate.professionalId,
             roomId: room?.id ?? null,
@@ -105,4 +108,17 @@ export function findAvailableSlots(
     slots.push(...daySlots.slice(0, request.maxSlots - slots.length));
   }
   return { slots, searchedUntil: slots.length >= request.maxSlots ? addDays(date, -1) : lastDate };
+}
+
+// Up to `limit` free start times on one date for one candidate (series conflict suggestions).
+export function freeStartsOnDate(
+  date: string,
+  candidate: AvailabilityCandidate,
+  request: Omit<AvailabilityRequest, "maxDays" | "maxSlots">,
+  limit: number,
+): AvailableSlot[] {
+  const today = utcToZonedParts(request.now, request.timeZone);
+  if (date < today.date) return [];
+  const earliest = date === today.date ? today.minute + 1 : 0;
+  return slotsOfDay(date, candidate, { ...request, maxDays: 1, maxSlots: limit }, earliest).slice(0, limit);
 }

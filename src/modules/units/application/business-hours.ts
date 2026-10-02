@@ -67,9 +67,13 @@ export async function replaceBusinessHours(
   if (problems) return fail(UnitsErrors.invalidHours(problems));
   const week = normalizeWeek(parsed.value.days);
 
+  const zone = await withTransaction(ctx, async (uow) =>
+    ok(await uow.tx.unit.findFirst({ where: { id: unitId }, select: { timeZone: true } })),
+  );
+  if (!zone.ok || !zone.value) return fail(UnitsErrors.notFound());
   const affectedAppointments = await deps
     .appointments()
-    .countFutureOutsideHours(ctx.organizationId, unitId, week, deps.clock());
+    .countFutureOutsideHours(ctx.organizationId, unitId, week, deps.clock(), zone.value.timeZone);
 
   return withTransaction(ctx, async (uow) => {
     const unit = await uow.tx.unit.findFirst({ where: { id: unitId }, select: { id: true } });
