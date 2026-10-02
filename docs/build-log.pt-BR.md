@@ -1,10 +1,10 @@
 # Diário de bordo — como o GCli foi construído
 
-Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F04). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
+Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F05). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
 
 O trabalho foi feito em dupla: uma pessoa responsável pelo produto e um assistente de programação com IA. A pessoa respondeu perguntas, tomou as decisões de negócio e aprovou cada etapa; o assistente conduziu entrevistas, escreveu documentos e código, rodou os testes e registrou o que encontrou pelo caminho.
 
-> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04.
+> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05.
 
 English version: [build-log.en.md](build-log.en.md).
 
@@ -23,9 +23,10 @@ English version: [build-log.en.md](build-log.en.md).
 9. [Terceira funcionalidade: F03 — Catálogo de Serviços](#9-terceira-funcionalidade-f03--catálogo-de-serviços)
 10. [Design system antes das telas mais pesadas](#10-design-system-antes-das-telas-mais-pesadas)
 11. [Quarta funcionalidade: F04 — Profissionais e Horários de Atendimento](#11-quarta-funcionalidade-f04--profissionais-e-horários-de-atendimento)
-12. [Problemas encontrados e como foram resolvidos](#12-problemas-encontrados-e-como-foram-resolvidos)
-13. [Como reproduzir o ambiente do zero](#13-como-reproduzir-o-ambiente-do-zero)
-14. [Lições aprendidas](#14-lições-aprendidas)
+12. [Quinta funcionalidade: F05 — Cadastro de Pacientes](#12-quinta-funcionalidade-f05--cadastro-de-pacientes)
+13. [Problemas encontrados e como foram resolvidos](#13-problemas-encontrados-e-como-foram-resolvidos)
+14. [Como reproduzir o ambiente do zero](#14-como-reproduzir-o-ambiente-do-zero)
+15. [Lições aprendidas](#15-lições-aprendidas)
 
 ---
 
@@ -119,7 +120,7 @@ Passos executados:
 4. **Primeiro commit** na branch `main`, revisando com `git status` o que entraria (nenhum segredo, nenhuma pasta local).
 5. **Criação do repositório público e push**: `gh repo create GCli --public --source=. --remote=origin --push`.
 
-**Problema:** o push falhou com `SSL certificate problem: unable to get local issuer certificate`. **Causa:** o Git para Windows usa o repositório de certificados do OpenSSL, que não reconhecia o certificado apresentado pela rede. **Solução:** `git config --global http.sslbackend schannel`, que faz o Git usar o repositório de certificados do Windows. Mais adiante descobrimos a causa raiz (ver [seção 12](#12-problemas-encontrados-e-como-foram-resolvidos)).
+**Problema:** o push falhou com `SSL certificate problem: unable to get local issuer certificate`. **Causa:** o Git para Windows usa o repositório de certificados do OpenSSL, que não reconhecia o certificado apresentado pela rede. **Solução:** `git config --global http.sslbackend schannel`, que faz o Git usar o repositório de certificados do Windows. Mais adiante descobrimos a causa raiz (ver [seção 13](#13-problemas-encontrados-e-como-foram-resolvidos)).
 
 **Proteção da `main`.** Depois que o CI passou a rodar estável, a branch `main` foi protegida com um *ruleset* do GitHub:
 - bloqueio de force push e de exclusão da branch;
@@ -449,7 +450,55 @@ Verificação final: lint e tipos limpos, 62 testes unitários, 131 testes de in
 
 ---
 
-## 12. Problemas encontrados e como foram resolvidos
+## 12. Quinta funcionalidade: F05 — Cadastro de Pacientes
+
+A F05 cadastra os pacientes da clínica: identificação, contato, endereço, responsável para menores, origem, etiquetas e observações administrativas, além do consentimento LGPD aos termos de privacidade da clínica. A agenda (F06), os documentos (F08), os pacotes (F10), o painel (F12) e a linha do tempo do paciente (F14) vão ler esses dados. O fluxo foi o mesmo: branch `feat/F05-patient-registry` criada antes de tudo, especificação e plano primeiro (commit `b7aad48`), um commit por etapa e um PR no fim. Como na F04, a especificação foi escrita em modo autônomo, com cada decisão registrada como premissa explícita.
+
+### 12.1 Decisões tomadas na especificação
+
+| Decisão | Resultado |
+|---|---|
+| Busca em 100 mil pacientes | A aplicação grava o nome sem acentos e em minúsculas, e os dois telefones só com dígitos. Índices GIN de trigramas (`pg_trgm`) respondem às buscas por trecho. A busca é SQL direto, então filtra a organização explicitamente; uma consulta por tipo de termo (nome, CPF ou telefone) mantém cada uma no seu índice |
+| Duplicidade | O CPF igual bloqueia o cadastro, e a mensagem mostra o nome abreviado ("Maria S. Oliveira") com um link. Nome e data de nascimento iguais devolvem os candidatos sem salvar; a pessoa confirma com "Criar mesmo assim" |
+| Edição simultânea | Quem salva por último recebe "Este cadastro foi alterado por João às 14:32", e o formulário lista os campos que mudaram |
+| Consentimento | Termos de privacidade versionados, publicados pelo Administrador, e registros de consentimento por paciente. Os dois são "só acrescentar": o usuário de banco da aplicação não consegue alterá-los nem apagá-los, porque são prova legal |
+| Envio do termo assinado | Pelo servidor da aplicação, até 10 MB, com o tipo conferido pelos bytes iniciais do arquivo. A CSP estrita não deixa o navegador enviar arquivos direto ao armazenamento. Registrado como **ADR-023** |
+| O que o Profissional vê | Só pacientes que têm agendamento com ele. Até a F06 existir, a lista fica vazia |
+| Peças compartilhadas | Um objeto de valor `PhoneNumber`, e a validação, os campos e a formatação de endereço da F02 movidos para o código compartilhado |
+
+A especificação e o plano estão em [F05-patient-registry/](F05-patient-registry/).
+
+### 12.2 Implementação em 4 etapas
+
+| Etapa | Commit | O que entrou |
+|---|---|---|
+| 1 — Fundamentos | `2e9e525` | ADR-023 e o padrão de busca global do design system nos dois idiomas; `PhoneNumber` e um campo de telefone; a validação e os campos de endereço movidos para o código compartilhado (F02 e F04 passaram a usá-los); `head()` no armazenamento de objetos |
+| 2 — Banco e domínio | `0793c85` | Migração `0006_patients` com sete tabelas, índices de trigramas para nome e telefone, índice único parcial de CPF, CHECKs de valores e permissões de "só acrescentar" em termos e consentimentos; regras puras de nomes, idades, termos de busca, situação do consentimento e máscara de CPF; a porta de agendamentos para a F06 |
+| 3 — Casos de uso | `06f3121` | Cadastro completo e rápido, responsável para menores, duplicidade, edição simultânea, inativação, busca, listas, termos, consentimento com envio de arquivo e links de download de 5 minutos auditados, limpeza diária de envios não usados; a API pública; 18 testes de integração, incluindo 100 mil pacientes |
+| 4 — Telas | `f14ee37` | A página de pacientes com busca e paginação; a busca global no cabeçalho com o atalho "/"; os formulários completo e rápido; a página do paciente com a seção de consentimento; as configurações de listas e termos de privacidade; duas jornadas E2E |
+
+Verificação final: lint e tipos limpos, 71 testes unitários, 149 testes de integração e 11 jornadas E2E passando. Com 100 mil pacientes, o `EXPLAIN ANALYZE` mostrou todas as buscas no seu índice, entre 2 e 14 ms.
+
+### 12.3 Problemas encontrados na F05
+
+| Problema | Causa | Solução |
+|---|---|---|
+| O Prisma apontava os índices de busca como divergência do schema | Índices GIN criados só em SQL ficam invisíveis para o schema do Prisma, e o CI confere divergências | Os índices passaram a ser declarados no schema com `type: Gin` e `ops: raw("gin_trgm_ops")` |
+| Os campos do responsável perdiam a tipagem no formulário | Um `z.preprocess` que transformava a seção vazia em `null` deixava o tipo de entrada do schema como `unknown` | O responsável virou um objeto comum, validado com `superRefine` e transformado em `null` com `transform` quando vem vazio |
+| O lint recusou o componente de busca global | Ele chamava `setState` direto dentro de um efeito para mostrar "Digite pelo menos 3 caracteres" | Os estados "vazio" e "curto demais" são derivados do texto durante a renderização; o efeito só faz as buscas de fato |
+| Uma refatoração removeu mais do que devia | Recortar a validação de endereço do módulo de unidades levou junto uma função ainda em uso | O typecheck pegou antes do commit, e a função foi restaurada |
+
+### 12.4 O que a F05 deixou pronto
+
+- **Identidade e cadastro completo do paciente** para F06, F08, F10, F12 e F14, com o nome social tendo precedência.
+- **O formulário de cadastro rápido**, pronto para entrar no modal de agendamento (F06).
+- **Consentimento LGPD com termos versionados**, que a linha do tempo e a exportação de dados (F14) vão ler.
+- **A porta de agendamentos**, que a F06 vai registrar para bloquear a inativação, mostrar o último agendamento e limitar o que os profissionais veem.
+- **Endereço e telefone compartilhados** para qualquer formulário futuro.
+
+---
+
+## 13. Problemas encontrados e como foram resolvidos
 
 Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos esses problemas apareceram porque **cada etapa foi executada de verdade**, e não só escrita.
 
@@ -472,7 +521,7 @@ Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos es
 
 ---
 
-## 13. Como reproduzir o ambiente do zero
+## 14. Como reproduzir o ambiente do zero
 
 ### Pré-requisitos
 
@@ -533,7 +582,7 @@ EXTRA_CA_CERTS=/caminho/para/certificado-raiz.pem docker compose --profile app b
 
 ---
 
-## 14. Lições aprendidas
+## 15. Lições aprendidas
 
 1. **Entrevista antes de documento.** Uma pergunta por vez, sempre com uma recomendação, resolve mais do que um documento longo escrito no escuro.
 2. **IDs de ponta a ponta** (F01 → história → critério → teste → commit) tornam o projeto rastreável sem esforço extra.
@@ -547,3 +596,4 @@ EXTRA_CA_CERTS=/caminho/para/certificado-raiz.pem docker compose --profile app b
 10. **Definir o visual antes das telas densas.** Com poucas telas prontas, o design system custa um documento e uma troca de tokens; depois da agenda e do prontuário, custaria refazer as telas mais complexas.
 11. **Corrigir a classe inteira do problema, não só o caso encontrado.** A F03 levou o barramento de eventos para `globalThis` porque o Next.js carrega módulos mais de uma vez, mas deixou as portas em variáveis de módulo. A mesma causa voltou na F04.
 12. **Decisões tomadas sem a pessoa usuária precisam ficar escritas.** Quando a especificação foi escrita sem entrevista ao vivo, cada recomendação aplicada virou uma premissa explícita, para que a pessoa responsável pelo produto possa revisá-la e alterá-la depois.
+13. **Medir a meta de desempenho, não supor.** O teste de busca da F05 insere 100 mil pacientes e confere o p95, e o `EXPLAIN ANALYZE` mostra qual índice cada consulta usa. Um índice faltando teria sido pego pelo teste, não em produção.

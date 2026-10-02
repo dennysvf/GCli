@@ -1,4 +1,5 @@
 import { identity } from "@/modules/identity";
+import { GlobalPatientSearch } from "@/modules/patients";
 import { units, UnitSelector } from "@/modules/units";
 import { requireRequestContext } from "@/modules/identity/next";
 import { can } from "@/shared/authz/permissions";
@@ -42,6 +43,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               canManage={can(ctx, "setup:manage")}
               action={selectUnitAction}
             />
+          }
+          search={
+            can(ctx, "patient:read") ? <GlobalPatientSearch canRegister={can(ctx, "patient:manage")} /> : null
           }
           userMenu={
             <UserMenu

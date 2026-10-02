@@ -31,6 +31,7 @@ model Organization {
   serviceCategories ServiceCategory[]
   services          Service[]
   professionals     Professional[]
+  patients          Patient[]
 
   @@map("organization")
 }
@@ -473,4 +474,153 @@ model ProfessionalTimeOff {
 
   @@index([professionalId, endsAt, startsAt], map: "ix_time_off_professional_period")
   @@map("professional_time_off")
+}
+
+// F05 Patient Registry (spec docs/F05-patient-registry/spec.md, section 6). Trigram search indexes,
+// the partial unique CPF index, CHECK constraints and the append-only grants on consent and terms
+// are hand-written in migration 0006.
+
+model Patient {
+  id                   String    @id @db.Uuid
+  organizationId       String    @map("organization_id") @db.Uuid
+  fullName             String    @map("full_name") @db.VarChar(150)
+  socialName           String?   @map("social_name") @db.VarChar(150)
+  normalizedName       String    @map("normalized_name") @db.VarChar(150)
+  birthDate            DateTime  @map("birth_date") @db.Date
+  sex                  String    @default("NOT_INFORMED") @db.VarChar(12)
+  cpf                  String?   @db.Char(11)
+  rg                   String?   @db.VarChar(20)
+  mobilePhone          String    @map("mobile_phone") @db.VarChar(11)
+  secondaryPhone       String?   @map("secondary_phone") @db.VarChar(11)
+  phoneDigits          String    @map("phone_digits") @db.VarChar(23)
+  email                String?   @db.VarChar(254)
+  cep                  String?   @db.Char(8)
+  street               String?   @db.VarChar(150)
+  number               String?   @db.VarChar(20)
+  complement           String?   @db.VarChar(80)
+  district             String?   @db.VarChar(80)
+  city                 String?   @db.VarChar(80)
+  state                String?   @db.Char(2)
+  occupation           String?   @db.VarChar(80)
+  referralSourceId     String?   @map("referral_source_id") @db.Uuid
+  observations         String?   @db.VarChar(2000)
+  guardianName         String?   @map("guardian_name") @db.VarChar(150)
+  guardianCpf          String?   @map("guardian_cpf") @db.Char(11)
+  guardianRelationship String?   @map("guardian_relationship") @db.VarChar(20)
+  guardianPhone        String?   @map("guardian_phone") @db.VarChar(11)
+  active               Boolean   @default(true)
+  inactiveReason       String?   @map("inactive_reason") @db.VarChar(12)
+  inactiveNote         String?   @map("inactive_note") @db.VarChar(200)
+  deactivatedAt        DateTime? @map("deactivated_at") @db.Timestamptz(6)
+  version              Int       @default(1)
+  createdById          String?   @map("created_by_id") @db.Uuid
+  updatedById          String?   @map("updated_by_id") @db.Uuid
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], map: "fk_patient_org")
+  referralSource ReferralSource? @relation(fields: [referralSourceId], references: [id], onDelete: Restrict, map: "fk_patient_referral_source")
+  tags           PatientTag[]
+  consents       ConsentRecord[]
+
+  @@index([organizationId, normalizedName, birthDate], map: "ix_patient_org_identity")
+  @@index([organizationId, active, normalizedName], map: "ix_patient_org_active_name")
+  @@index([normalizedName(ops: raw("gin_trgm_ops"))], type: Gin, map: "ix_patient_name_trgm")
+  @@index([phoneDigits(ops: raw("gin_trgm_ops"))], type: Gin, map: "ix_patient_phone_trgm")
+  @@map("patient")
+}
+
+model ReferralSource {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String   @db.VarChar(40)
+  active         Boolean  @default(true)
+  sortOrder      Int      @map("sort_order") @db.SmallInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  patients Patient[]
+
+  @@index([organizationId, sortOrder], map: "ix_referral_source_org_order")
+  @@map("referral_source")
+}
+
+model Tag {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String   @db.VarChar(40)
+  active         Boolean  @default(true)
+  sortOrder      Int      @map("sort_order") @db.SmallInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  patients PatientTag[]
+
+  @@index([organizationId, sortOrder], map: "ix_tag_org_order")
+  @@map("tag")
+}
+
+model PatientTag {
+  patientId      String @map("patient_id") @db.Uuid
+  tagId          String @map("tag_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Restrict, map: "fk_patient_tag_patient")
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Restrict, map: "fk_patient_tag_tag")
+
+  @@id([patientId, tagId], map: "pk_patient_tag")
+  @@index([tagId], map: "ix_patient_tag_tag")
+  @@map("patient_tag")
+}
+
+// Append-only: the runtime role may only insert and read (migration 0006).
+model PrivacyTermsVersion {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  version        Int
+  text           String
+  publishedAt    DateTime @default(now()) @map("published_at") @db.Timestamptz(6)
+  publishedById  String?  @map("published_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  consents ConsentRecord[]
+
+  @@unique([organizationId, version], map: "uq_terms_org_version")
+  @@map("privacy_terms_version")
+}
+
+// Append-only: legal evidence of LGPD consent (migration 0006).
+model ConsentRecord {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  patientId      String   @map("patient_id") @db.Uuid
+  termsVersionId String   @map("terms_version_id") @db.Uuid
+  consentedAt    DateTime @default(now()) @map("consented_at") @db.Timestamptz(6)
+  method         String   @db.VarChar(16)
+  recordedById   String   @map("recorded_by_id") @db.Uuid
+  fileObjectKey  String?  @map("file_object_key") @db.VarChar(255)
+  fileName       String?  @map("file_name") @db.VarChar(150)
+  fileSize       Int?     @map("file_size")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  patient      Patient             @relation(fields: [patientId], references: [id], onDelete: Restrict, map: "fk_consent_patient")
+  termsVersion PrivacyTermsVersion @relation(fields: [termsVersionId], references: [id], onDelete: Restrict, map: "fk_consent_terms")
+
+  @@index([patientId, consentedAt(sort: Desc)], map: "ix_consent_patient_time")
+  @@map("consent_record")
+}
+
+// Files uploaded for a consent before the consent consumes them (ADR-023).
+model ConsentUpload {
+  id             String    @id @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  objectKey      String    @map("object_key") @db.VarChar(255)
+  fileName       String    @map("file_name") @db.VarChar(150)
+  fileSize       Int       @map("file_size")
+  contentType    String    @map("content_type") @db.VarChar(40)
+  uploadedById   String    @map("uploaded_by_id") @db.Uuid
+  consumedAt     DateTime? @map("consumed_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("consent_upload")
 }

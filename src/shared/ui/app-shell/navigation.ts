@@ -4,7 +4,17 @@ import type { Action } from "@/shared/authz/permissions";
 // server before rendering. Later features add their entries here.
 export type NavItem = { href: string; label: string; icon: NavIcon; anyOf: Action[] };
 export type NavGroup = { label: string; items: NavItem[] };
-export type NavIcon = "calendar" | "dashboard" | "building" | "users" | "map-pin" | "stethoscope" | "contact";
+export type NavIcon =
+  | "calendar"
+  | "dashboard"
+  | "building"
+  | "users"
+  | "map-pin"
+  | "stethoscope"
+  | "contact"
+  | "patients"
+  | "list"
+  | "shield";
 
 export const NAVIGATION: NavGroup[] = [
   {
@@ -16,6 +26,7 @@ export const NAVIGATION: NavGroup[] = [
         icon: "calendar",
         anyOf: ["schedule:read-all", "schedule:read-own"],
       },
+      { href: "/patients", label: "Pacientes", icon: "patients", anyOf: ["patient:read"] },
       { href: "/dashboard", label: "Painel", icon: "dashboard", anyOf: ["dashboard:read"] },
     ],
   },
@@ -36,6 +47,13 @@ export const NAVIGATION: NavGroup[] = [
         label: "Profissionais",
         icon: "contact",
         anyOf: ["professional:read"],
+      },
+      { href: "/settings/patients", label: "Listas de pacientes", icon: "list", anyOf: ["setup:manage"] },
+      {
+        href: "/settings/privacy-terms",
+        label: "Termos de privacidade",
+        icon: "shield",
+        anyOf: ["lgpd:manage"],
       },
       { href: "/settings/users", label: "Usuários", icon: "users", anyOf: ["user:read"] },
     ],

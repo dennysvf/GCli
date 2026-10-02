@@ -2,6 +2,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -16,6 +17,8 @@ export interface ObjectStorage {
   put(key: string, body: Uint8Array, contentType: string): Promise<void>;
   get(key: string): Promise<StoredObject | null>;
   delete(key: string): Promise<void>;
+  // Metadata of a stored object, or null when it does not exist (confirms uploads).
+  head(key: string): Promise<{ size: number; contentType: string | undefined } | null>;
   ping(): Promise<void>;
   presignGet(key: string, expiresInSeconds?: number): Promise<string>;
   presignPut(key: string, contentType: string, expiresInSeconds?: number): Promise<string>;
@@ -50,6 +53,17 @@ class S3ObjectStorage implements ObjectStorage {
 
   async delete(key: string) {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+
+  async head(key: string) {
+    try {
+      const response = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
+      return { size: response.ContentLength ?? 0, contentType: response.ContentType };
+    } catch (error) {
+      const name = (error as { name?: string }).name;
+      if (name === "NotFound" || name === "NoSuchKey") return null;
+      throw error;
+    }
   }
 
   async ping() {

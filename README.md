@@ -78,7 +78,8 @@ CLAUDE.md         Regras de engenharia resumidas para desenvolvimento assistido 
 - [x] F03 — Catálogo de serviços
 - [x] Design system "Tinta e Papel" (documento e aplicação nas telas)
 - [x] F04 — Profissionais e horários de atendimento
-- [ ] F05 em diante, seguindo as ondas de execução do PRD
+- [x] F05 — Cadastro de pacientes
+- [ ] F06 em diante, seguindo as ondas de execução do PRD
 - [ ] Deploy de uma versão de demonstração
 
 ## Como rodar localmente

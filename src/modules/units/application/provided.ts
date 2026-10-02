@@ -2,6 +2,7 @@ import { authorize } from "@/shared/authz/guard";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction } from "@/shared/db/transaction";
 import { fail, ok, type Result } from "@/shared/kernel/result";
+import { formatAddress } from "@/shared/kernel/address";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
 import type { Week } from "../domain/business-hours";
 import { readWeek } from "./business-hours";
@@ -79,15 +80,6 @@ export type UnitContact = {
   formattedAddress: string;
 };
 
-// "Avenida Paulista, 1000 - Sala 12 - Bela Vista, São Paulo/SP - CEP 01310-100"
-export function formatAddress(address: UnitContact["address"]): string {
-  const streetLine = [address.street, address.number].filter(Boolean).join(", ");
-  const cityLine = [address.city, address.state].filter(Boolean).join("/");
-  const districtCity = [address.district, cityLine].filter(Boolean).join(", ");
-  const cep = address.cep ? `CEP ${address.cep.slice(0, 5)}-${address.cep.slice(5)}` : "";
-  return [streetLine, address.complement, districtCity, cep].filter(Boolean).join(" - ");
-}
-
 // For F08 (document templates): name, address and phone.
 export async function getUnitContact(ctx: RequestContext, unitId: string): Promise<Result<UnitContact>> {
   const allowed = await authorize(ctx, "setup:read");
@@ -113,3 +105,5 @@ export async function getUnitContact(ctx: RequestContext, unitId: string): Promi
     });
   });
 }
+
+export { formatAddress };

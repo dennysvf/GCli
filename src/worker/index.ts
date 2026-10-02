@@ -8,6 +8,7 @@ import { QUEUES, type EmailJobData } from "@/shared/jobs/queues";
 import { logger } from "@/shared/logging/logger";
 import { sentryOptions } from "@/shared/observability/sentry";
 import { cleanupIdentityData } from "./jobs/identity-cleanup";
+import { cleanupPatientUploads } from "./jobs/patients-cleanup";
 import { sendOutboxEmail } from "./jobs/email-send";
 import { startOutboxLoop } from "./outbox-dispatcher";
 
@@ -37,10 +38,15 @@ async function main() {
     if (created.length) logger.info({ created }, "audit partitions created");
   });
   await boss.work(QUEUES.identityCleanup, async () => cleanupIdentityData());
+  await boss.work(QUEUES.patientsCleanup, async () => {
+    const removed = await cleanupPatientUploads();
+    if (removed) logger.info({ removed }, "unused consent uploads removed");
+  });
 
   // Monthly on day 1 at 03:00, and daily at 03:30 (server time).
   await boss.schedule(QUEUES.auditEnsurePartitions, "0 3 1 * *");
   await boss.schedule(QUEUES.identityCleanup, "30 3 * * *");
+  await boss.schedule(QUEUES.patientsCleanup, "45 3 * * *");
   await boss.send(QUEUES.auditEnsurePartitions, {}, { singletonKey: "startup" });
 
   const stopOutbox = startOutboxLoop(boss);
