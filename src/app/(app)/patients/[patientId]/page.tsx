@@ -11,6 +11,7 @@ import {
   PatientHeaderMeta,
   patients,
 } from "@/modules/patients";
+import { AppointmentsTable, scheduling } from "@/modules/scheduling";
 import { can } from "@/shared/authz/permissions";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
 import { PageHeader } from "@/shared/ui/app-shell/page-header";
@@ -37,12 +38,15 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
   }
   const details = patient.value;
   const canManage = can(ctx, "patient:manage");
-  const [profile, sources, tags, consents, terms] = await Promise.all([
+  const [profile, sources, tags, consents, terms, appointments] = await Promise.all([
     getOrganizationProfile(ctx),
     patients.listItems(ctx, "referral-source"),
     patients.listItems(ctx, "tag"),
     patients.listConsents(ctx, patientId),
     patients.getCurrentTerms(ctx),
+    can(ctx, "schedule:read-all") || can(ctx, "schedule:read-own")
+      ? scheduling.listPatientAppointments(ctx, patientId)
+      : null,
   ]);
   const today = dateInTimeZone(new Date(), profile.ok ? profile.value.timeZone : "America/Sao_Paulo");
 
@@ -68,11 +72,12 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
         }
       />
       <IncompleteRecordAlert patient={details} />
-      {/* PRD F05: the other tabs (Agendamentos, Documentos, Financeiro, Linha do tempo) arrive with
-          the features that fill them. */}
+      {/* PRD F05: the other tabs (Documentos, Financeiro, Linha do tempo) arrive with the features
+          that fill them; F06 adds Agendamentos. */}
       <Tabs defaultValue="data">
         <TabsList>
           <TabsTrigger value="data">Dados</TabsTrigger>
+          {appointments ? <TabsTrigger value="appointments">Agendamentos</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="data" className="grid gap-8 pt-4">
           <PatientForm
@@ -91,6 +96,34 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
             actions={{ record: recordConsentAction, openFile: openConsentFileAction }}
           />
         </TabsContent>
+        {appointments ? (
+          <TabsContent value="appointments" className="grid gap-4 pt-4">
+            {appointments.ok ? (
+              <>
+                <AppointmentsTable
+                  items={appointments.value.items}
+                  showPatient={false}
+                  hrefOf={(item) =>
+                    `/schedule?${new URLSearchParams({
+                      unit: item.unitId,
+                      date: dateInTimeZone(new Date(item.startsAt), item.unitTimeZone),
+                      appointment: item.id,
+                    }).toString()}`
+                  }
+                  emptyText="Este paciente ainda não tem agendamentos."
+                />
+                {appointments.value.total > appointments.value.items.length ? (
+                  <p className="text-muted-foreground text-sm">
+                    Mostrando os {appointments.value.items.length} mais recentes de {appointments.value.total}
+                    .
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <p className="text-muted-foreground">Não foi possível carregar os agendamentos.</p>
+            )}
+          </TabsContent>
+        ) : null}
       </Tabs>
     </div>
   );

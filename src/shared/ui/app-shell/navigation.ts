@@ -50,6 +50,12 @@ export const NAVIGATION: NavGroup[] = [
       },
       { href: "/settings/patients", label: "Listas de pacientes", icon: "list", anyOf: ["setup:manage"] },
       {
+        href: "/settings/schedule",
+        label: "Motivos de cancelamento",
+        icon: "list",
+        anyOf: ["setup:manage"],
+      },
+      {
         href: "/settings/privacy-terms",
         label: "Termos de privacidade",
         icon: "shield",

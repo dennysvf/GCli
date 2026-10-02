@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { PdfDocument, PdfTable } from "@/shared/pdf/document";
 import { renderPdf } from "@/shared/pdf/render";
-import type { AgendaPdfRenderer, DailyAgendaDocument } from "../application/ports";
+import type { DailyAgendaDocument } from "../application/ports";
 
 // The printed daily agenda (design system 5.11): one table, ink only, on the shared PDF base.
 const COLUMNS = [
@@ -41,6 +41,6 @@ function DailyAgenda({ document }: { document: DailyAgendaDocument }) {
   );
 }
 
-export const reactPdfAgendaRenderer: AgendaPdfRenderer = {
-  render: (document) => renderPdf(createElement(DailyAgenda, { document })),
-};
+export function renderDailyAgenda(document: DailyAgendaDocument): Promise<Buffer> {
+  return renderPdf(createElement(DailyAgenda, { document }));
+}
