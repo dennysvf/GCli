@@ -128,7 +128,8 @@ export function PatientForm({
     save: (input: SavePatientInput) => Promise<ActionResult<SavePatientResult>>;
     reload?: (patientId: string) => Promise<ActionResult<PatientDetails>>;
   };
-  onCreated?: (patientId: string) => void;
+  // F06 booking panel: receives the new patient's id and display name (social name first).
+  onCreated?: (patientId: string, displayName: string) => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -183,7 +184,7 @@ export function PatientForm({
       draft.clear();
       toast.success(patient ? "Cadastro salvo." : "Paciente cadastrado.");
       const patientId = data.patientId;
-      if (onCreated) onCreated(patientId);
+      if (onCreated) onCreated(patientId, values.socialName?.trim() || values.fullName);
       else if (!patient) router.push(`/patients/${patientId}`);
       else router.refresh();
     });

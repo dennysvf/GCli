@@ -55,7 +55,7 @@ export interface AppointmentRepository {
   list(
     uow: UnitOfWork,
     filter: AppointmentFilter,
-    page: { skip: number; take: number } | null,
+    page: { skip: number; take: number; newestFirst?: boolean } | null,
   ): Promise<{ items: AppointmentRecord[]; total: number }>;
   seriesOccurrences(uow: UnitOfWork, seriesId: string): Promise<Appointment[]>;
   statusHistory(uow: UnitOfWork, appointmentId: string): Promise<StatusHistoryRow[]>;

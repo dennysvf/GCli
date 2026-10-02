@@ -6,6 +6,7 @@ import { units } from "@/modules/units";
 import type { RequestContext } from "@/shared/context/types";
 import { exportDailyAgenda } from "./application/agenda-pdf";
 import { bookAppointment } from "./application/book-appointment";
+import { getBookingOptions } from "./application/booking-options";
 import { cancelAppointment } from "./application/cancel-appointment";
 import {
   createCancellationReason,
@@ -59,6 +60,7 @@ export const scheduling = {
   listPatientAppointments: (ctx: RequestContext, patientId: string, page?: number) =>
     listPatientAppointments(deps, ctx, patientId, page),
   previewConflicts: (ctx: RequestContext, input: unknown) => previewConflicts(deps, ctx, input),
+  getBookingOptions: (ctx: RequestContext, input: unknown) => getBookingOptions(deps, ctx, input),
   findNextAvailableSlots: (ctx: RequestContext, input: unknown) => findNextAvailableSlots(deps, ctx, input),
   exportDailyAgenda: (ctx: RequestContext, input: unknown) => exportDailyAgenda(deps, ctx, input),
   // Cancellation reasons
@@ -95,8 +97,14 @@ export type {
   AppointmentList,
 } from "./application/queries";
 export type { BookResult } from "./application/book-appointment";
+export type { BookingOptions } from "./application/booking-options";
 export type { FindingDto } from "./application/booking";
 export type { SeriesPreview, OccurrencePreview } from "./application/series";
 export type { CancellationReasonItem } from "./application/cancellation-reasons";
 export type { AvailableSlotDto } from "./application/find-available-slots";
 export { schedulingMessages, findingMessages, SCHEDULING_LABELS, SCHEDULING_TOASTS } from "./messages";
+export { AgendaView, type AgendaActions, type AgendaViewProps } from "./ui/agenda-view";
+export type { AgendaBy, AgendaViewKind, ToolbarState } from "./ui/agenda-toolbar";
+export type { ServiceOption, PatientFormData } from "./ui/booking-panel";
+export { AppointmentsTable } from "./ui/appointments-table";
+export { CancellationReasonsPanel } from "./ui/cancellation-reasons-panel";

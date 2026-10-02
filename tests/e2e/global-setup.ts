@@ -36,6 +36,25 @@ export default async function globalSetup() {
     detached: process.platform !== "win32",
   });
 
+  // Tests start only once the worker delivers emails: tsx can take tens of seconds to boot, and
+  // the first journey waits at most 30 s for its invitation email. The worker sends its "startup"
+  // job right before starting the outbox loop.
+  const app = new Pool({ connectionString: env.DATABASE_URL, max: 1 });
+  try {
+    const deadline = Date.now() + 180_000;
+    for (;;) {
+      // pg-boss creates its tables when it starts, so a missing table also means "not ready yet".
+      const ready = await app
+        .query("SELECT 1 FROM pgboss.job WHERE singleton_key = 'startup' LIMIT 1")
+        .catch(() => ({ rowCount: 0 }));
+      if (ready.rowCount) break;
+      if (Date.now() > deadline) throw new Error("E2E worker did not start within 180 s");
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+    }
+  } finally {
+    await app.end();
+  }
+
   // tsx runs the worker in a child process, so the whole process tree must be stopped;
   // otherwise the worker outlives the run and keeps polling the next run's database.
   return async () => {

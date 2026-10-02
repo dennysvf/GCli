@@ -216,7 +216,9 @@ export const prismaAppointmentRepository: AppointmentRepository = {
     const [rows, total] = await Promise.all([
       uow.tx.appointment.findMany({
         where,
-        orderBy: [{ startsAt: "asc" }, { id: "asc" }],
+        orderBy: page?.newestFirst
+          ? [{ startsAt: "desc" }, { id: "desc" }]
+          : [{ startsAt: "asc" }, { id: "asc" }],
         ...(page ? { skip: page.skip, take: page.take } : {}),
       }),
       page ? uow.tx.appointment.count({ where }) : Promise.resolve(-1),

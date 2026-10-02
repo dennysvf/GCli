@@ -198,16 +198,22 @@ export async function getAgenda(
     return fail(SchedulingErrors.validation({ unitId: "Unidade não encontrada." }));
   const timeZone = unit?.timeZone ?? organization.timeZone;
   const serverTime = deps.clock();
-  const filter = scopedFilter(scope.value, {
-    ...(unit ? { unitId: unit.id } : {}),
-    from: localMinuteToUtc(data.from, 0, timeZone),
-    to: localMinuteToUtc(data.to, 1440, timeZone),
-    ...(data.professionalIds ? { professionalIds: data.professionalIds } : {}),
-    ...(data.roomIds ? { roomIds: data.roomIds } : {}),
-    ...(data.serviceIds ? { serviceIds: data.serviceIds } : {}),
-    ...(data.statuses ? { statuses: data.statuses } : {}),
-    ...(data.since ? { updatedSince: new Date(data.since) } : {}),
-  });
+  // Polling (`since`) returns every change in the unit, whatever the period and filters, so an
+  // appointment moved out of the visible range still reaches open agendas; the client filters.
+  const filter = scopedFilter(
+    scope.value,
+    data.since
+      ? { ...(unit ? { unitId: unit.id } : {}), updatedSince: new Date(data.since) }
+      : {
+          ...(unit ? { unitId: unit.id } : {}),
+          from: localMinuteToUtc(data.from, 0, timeZone),
+          to: localMinuteToUtc(data.to, 1440, timeZone),
+          ...(data.professionalIds ? { professionalIds: data.professionalIds } : {}),
+          ...(data.roomIds ? { roomIds: data.roomIds } : {}),
+          ...(data.serviceIds ? { serviceIds: data.serviceIds } : {}),
+          ...(data.statuses ? { statuses: data.statuses } : {}),
+        },
+  );
   const listed = await withTransaction(ctx, async (uow) =>
     ok(await deps.appointments.list(uow, filter, null)),
   );
@@ -286,13 +292,17 @@ export async function listPatientAppointments(
   const filter = scopedFilter(scope.value, { patientId });
   const listed = await withTransaction(ctx, async (uow) =>
     ok(
-      await deps.appointments.list(uow, filter, { skip: (page - 1) * LIST_PAGE_SIZE, take: LIST_PAGE_SIZE }),
+      await deps.appointments.list(uow, filter, {
+        skip: (page - 1) * LIST_PAGE_SIZE,
+        take: LIST_PAGE_SIZE,
+        newestFirst: true,
+      }),
     ),
   );
   if (!listed.ok) return listed;
   const items = await toItems(deps, ctx, listed.value.items, allUnits);
   return ok({
-    items: items.sort((a, b) => b.startsAt.localeCompare(a.startsAt)),
+    items,
     page,
     pageSize: LIST_PAGE_SIZE,
     total: listed.value.total,
