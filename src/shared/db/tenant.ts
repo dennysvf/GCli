@@ -16,9 +16,11 @@ const TENANT_MODELS = new Set<string>([
   "ServiceCategory",
   "Service",
   "ServiceAllowedRoom",
+  "ServicePrice",
   "ServicePriceChange",
   // F04
   "Professional",
+  "ProfessionalRegistration",
   "ProfessionalService",
   "ProfessionalSchedule",
   "ProfessionalWorkingInterval",

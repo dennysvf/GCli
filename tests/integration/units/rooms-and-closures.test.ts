@@ -105,7 +105,7 @@ describe("closures", () => {
       endsOn: isoDaysFromToday(4),
       reason: "Reforma",
     });
-    expect(!reversed.ok && reversed.error.fields?.endsOn).toContain("posterior");
+    expect(!reversed.ok && reversed.error.fields?.endsOn).toBe("units.validation.endBeforeStart");
   });
 
   it("F02: future closures can be deleted and past ones cannot", async () => {

@@ -1,7 +1,7 @@
 import { authorize, recordDenial } from "@/shared/authz/guard";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction } from "@/shared/db/transaction";
-import { formatAddress } from "@/shared/kernel/address";
+import { formatCountryAddress } from "@/shared/kernel/address";
 import { CommonErrors } from "@/shared/kernel/errors";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import type { ConsentItem } from "./consents";
@@ -31,7 +31,11 @@ export async function getPatientIdentity(
     const row = await uow.tx.patient.findFirst({ where: { id: patientId } });
     if (!row) return fail(PatientsErrors.notFound());
     const identity = identityOf(row, today);
-    return ok({ ...identity, formattedAddress: formatAddress(identity.address) });
+    const { country, ...address } = identity.address;
+    return ok({
+      ...identity,
+      formattedAddress: country ? formatCountryAddress({ country, ...address }) : "",
+    });
   });
 }
 

@@ -1,0 +1,58 @@
+{
+  "errors": {
+    "PROFESSIONALS_NOT_FOUND": "Profesional no encontrado.",
+    "PROFESSIONALS_LIMIT": "Se alcanzó el límite de 100 profesionales activos.",
+    "PROFESSIONALS_INACTIVE": "Este profesional está desactivado. Reactívelo antes de modificarlo.",
+    "PROFESSIONALS_DOCUMENT_TAKEN": "Este {type} ya está registrado para otro profesional.",
+    "PROFESSIONALS_COUNCIL_TAKEN": "Este registro profesional ya está registrado para otro profesional.",
+    "PROFESSIONALS_REGISTRATION_DUPLICATE": "Use un registro por país.",
+    "PROFESSIONALS_REGISTRATION_REQUIRED": "Registre el registro profesional en {country} antes de definir horarios en la sede {unit}.",
+    "PROFESSIONALS_USER_ALREADY_LINKED": "Este usuario ya está vinculado a otro profesional.",
+    "PROFESSIONALS_USER_NOT_LINKABLE": "Seleccione un usuario activo con perfil Profesional, Gerente o Administrador.",
+    "PROFESSIONALS_HAS_FUTURE_APPOINTMENTS": "Hay {count} citas futuras. Reprográmelas o cancélelas antes de desactivar.",
+    "PROFESSIONALS_INVALID_SERVICES": "Seleccione solo servicios activos.",
+    "PROFESSIONALS_INVALID_UNITS": "Seleccione solo sedes activas.",
+    "PROFESSIONALS_INVALID_INTERVALS": "Revise los horarios resaltados.",
+    "PROFESSIONALS_CROSS_UNIT_CONFLICT": "Conflicto de horario: este profesional ya atiende en la sede {unit} los {weekday, select, 1 {lunes} 2 {martes} 3 {miércoles} 4 {jueves} 5 {viernes} 6 {sábados} other {domingos}}, {interval}.",
+    "PROFESSIONALS_OUTSIDE_BUSINESS_HOURS": "El horario ingresado está fuera del funcionamiento de la sede ({hours}).",
+    "PROFESSIONALS_SCHEDULE_OVERLAP": "Ya existe un horario con vigencia desde el {date}. Edítelo o elija otra fecha.",
+    "PROFESSIONALS_SCHEDULE_ENDED": "Los horarios finalizados no se pueden modificar.",
+    "PROFESSIONALS_SCHEDULE_STARTED": "Los horarios ya vigentes no se pueden eliminar. Defina una fecha de término.",
+    "PROFESSIONALS_TIME_OFF_TOO_FAR": "La ausencia debe terminar en un plazo máximo de 1 año desde hoy.",
+    "PROFESSIONALS_TIME_OFF_ENDED": "Las ausencias finalizadas no se pueden eliminar."
+  },
+  "hours": {
+    "closedOn": "cerrada los {weekday, select, 1 {lunes} 2 {martes} 3 {miércoles} 4 {jueves} 5 {viernes} 6 {sábados} other {domingos}}"
+  },
+  "validation": {
+    "fullNameRequired": "Ingrese el nombre completo.",
+    "fullNameTooLong": "El nombre debe tener como máximo 150 caracteres.",
+    "displayNameTooLong": "El nombre para mostrar debe tener como máximo 60 caracteres.",
+    "specialtyTooLong": "La especialidad debe tener como máximo 100 caracteres.",
+    "councilRequired": "Seleccione el colegio o consejo.",
+    "councilInvalid": "Seleccione un colegio o consejo del país.",
+    "councilNameRequired": "Ingrese el nombre del colegio o consejo.",
+    "councilNameTooLong": "El nombre del colegio o consejo debe tener como máximo 40 caracteres.",
+    "numberRequired": "Ingrese el número de registro.",
+    "numberInvalid": "Use hasta 20 letras, números, puntos o guiones con el formato del colegio.",
+    "regionRequired": "Indique el estado o región del registro.",
+    "regionInvalid": "Seleccione un valor de la lista.",
+    "npiInvalid": "Ingrese un NPI válido de 10 dígitos.",
+    "emailInvalid": "Ingrese un correo electrónico válido.",
+    "colorRequired": "Seleccione un color.",
+    "oneRegistrationPerCountry": "Use un registro por país.",
+    "dateInvalid": "Ingrese una fecha válida.",
+    "dateTimeRequired": "Ingrese fecha y hora.",
+    "timeOffTypeRequired": "Seleccione el tipo de ausencia.",
+    "startRequired": "Ingrese el inicio.",
+    "endRequired": "Ingrese el fin.",
+    "timeOffNoteTooLong": "La observación debe tener como máximo 200 caracteres.",
+    "intervals": {
+      "weekday": "Día de la semana no válido.",
+      "range": "Ingrese un horario entre 00:00 y 24:00, con el inicio antes del término.",
+      "granularity": "Use horarios en múltiplos de 5 minutos.",
+      "tooMany": "Máximo 4 intervalos por día en cada sede.",
+      "overlap": "Los intervalos de un mismo día no pueden superponerse."
+    }
+  }
+}

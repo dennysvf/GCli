@@ -2,13 +2,15 @@ import { authorize, recordDenial } from "@/shared/authz/guard";
 import { can } from "@/shared/authz/permissions";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
+import { DEFAULT_LOCALE, isLocale } from "@/shared/i18n/locales";
+import { createTranslator } from "@/shared/i18n/translator";
 import { CommonErrors } from "@/shared/kernel/errors";
 import { newId } from "@/shared/kernel/ids";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import { parseInput } from "@/shared/kernel/validation";
 import { SchedulingErrors } from "../domain/errors";
 import { MAX_ACTIVE_REASONS } from "../domain/limits";
-import { DEFAULT_CANCELLATION_REASONS } from "../messages";
+import { DEFAULT_CANCELLATION_REASON_KEYS } from "../domain/limits";
 import { createReasonSchema, renameReasonSchema, setReasonActiveSchema } from "./schemas";
 
 // The configurable list of cancellation reasons (PRD F06: "reason from a configurable list"),
@@ -21,11 +23,16 @@ export type CancellationReasonItem = { id: string; name: string; active: boolean
 async function ensureDefaults(ctx: RequestContext, uow: UnitOfWork): Promise<void> {
   const count = await uow.tx.cancellationReason.count({});
   if (count > 0) return;
+  // Created in the organization's default language (PRD F16); clinic data from then on.
+  const organization = await uow.tx.organization.findFirst({ select: { defaultLocale: true } });
+  const t = createTranslator(
+    isLocale(organization?.defaultLocale) ? organization.defaultLocale : DEFAULT_LOCALE,
+  );
   await uow.tx.cancellationReason.createMany({
-    data: DEFAULT_CANCELLATION_REASONS.map((name, index) => ({
+    data: DEFAULT_CANCELLATION_REASON_KEYS.map((key, index) => ({
       id: newId(),
       organizationId: ctx.organizationId,
-      name,
+      name: t(`scheduling.defaultCancellationReasons.${key}`),
       sortOrder: index + 1,
     })),
     skipDuplicates: true,

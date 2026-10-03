@@ -1,0 +1,58 @@
+{
+  "errors": {
+    "PROFESSIONALS_NOT_FOUND": "Professional not found.",
+    "PROFESSIONALS_LIMIT": "The limit of 100 active professionals has been reached.",
+    "PROFESSIONALS_INACTIVE": "This professional is deactivated. Reactivate them before changing.",
+    "PROFESSIONALS_DOCUMENT_TAKEN": "This {type} is already registered for another professional.",
+    "PROFESSIONALS_COUNCIL_TAKEN": "This council registration is already registered for another professional.",
+    "PROFESSIONALS_REGISTRATION_DUPLICATE": "Use one registration per country.",
+    "PROFESSIONALS_REGISTRATION_REQUIRED": "Add the professional registration in {country} before setting working hours at unit {unit}.",
+    "PROFESSIONALS_USER_ALREADY_LINKED": "This user is already linked to another professional.",
+    "PROFESSIONALS_USER_NOT_LINKABLE": "Select an active user with the Professional, Manager or Administrator role.",
+    "PROFESSIONALS_HAS_FUTURE_APPOINTMENTS": "There are {count} future appointments. Reschedule or cancel them before deactivating.",
+    "PROFESSIONALS_INVALID_SERVICES": "Select only active services.",
+    "PROFESSIONALS_INVALID_UNITS": "Select only active units.",
+    "PROFESSIONALS_INVALID_INTERVALS": "Check the highlighted hours.",
+    "PROFESSIONALS_CROSS_UNIT_CONFLICT": "Schedule conflict: this professional already works at unit {unit} on {weekday, select, 1 {Mondays} 2 {Tuesdays} 3 {Wednesdays} 4 {Thursdays} 5 {Fridays} 6 {Saturdays} other {Sundays}}, {interval}.",
+    "PROFESSIONALS_OUTSIDE_BUSINESS_HOURS": "The time entered is outside the unit business hours ({hours}).",
+    "PROFESSIONALS_SCHEDULE_OVERLAP": "A schedule starting on {date} already exists. Edit it or choose another date.",
+    "PROFESSIONALS_SCHEDULE_ENDED": "Ended schedules cannot be changed.",
+    "PROFESSIONALS_SCHEDULE_STARTED": "Schedules already in effect cannot be deleted. Set an end date.",
+    "PROFESSIONALS_TIME_OFF_TOO_FAR": "The absence must end within 1 year from today.",
+    "PROFESSIONALS_TIME_OFF_ENDED": "Ended absences cannot be deleted."
+  },
+  "hours": {
+    "closedOn": "closed on {weekday, select, 1 {Mondays} 2 {Tuesdays} 3 {Wednesdays} 4 {Thursdays} 5 {Fridays} 6 {Saturdays} other {Sundays}}"
+  },
+  "validation": {
+    "fullNameRequired": "Enter the full name.",
+    "fullNameTooLong": "The name must have at most 150 characters.",
+    "displayNameTooLong": "The display name must have at most 60 characters.",
+    "specialtyTooLong": "The specialty must have at most 100 characters.",
+    "councilRequired": "Select the council.",
+    "councilInvalid": "Select a council of the country.",
+    "councilNameRequired": "Enter the council name.",
+    "councilNameTooLong": "The council name must have at most 40 characters.",
+    "numberRequired": "Enter the registration number.",
+    "numberInvalid": "Use up to 20 letters, numbers, dots or hyphens in the format of the council.",
+    "regionRequired": "Enter the state or region of the registration.",
+    "regionInvalid": "Select a value from the list.",
+    "npiInvalid": "Enter a valid 10-digit NPI.",
+    "emailInvalid": "Enter a valid email.",
+    "colorRequired": "Select a color.",
+    "oneRegistrationPerCountry": "Use one registration per country.",
+    "dateInvalid": "Enter a valid date.",
+    "dateTimeRequired": "Enter date and time.",
+    "timeOffTypeRequired": "Select the absence type.",
+    "startRequired": "Enter the start.",
+    "endRequired": "Enter the end.",
+    "timeOffNoteTooLong": "The note must have at most 200 characters.",
+    "intervals": {
+      "weekday": "Invalid weekday.",
+      "range": "Enter a time between 00:00 and 24:00, with the start before the end.",
+      "granularity": "Use times in multiples of 5 minutes.",
+      "tooMany": "At most 4 intervals per day in each unit.",
+      "overlap": "The intervals of the same day cannot overlap."
+    }
+  }
+}

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { ageOn, isMinor } from "./age";
 import { consentStatus, isRecordComplete } from "./consent";
-import { maskCpf, phoneEnd } from "./masking";
+import { maskDocument } from "@/shared/kernel/documents";
+import { phoneEnd } from "./masking";
 import { abbreviateName, displayName, normalizeName } from "./names";
 import { phoneDigits } from "./patient-fields";
 import { classifySearchTerm } from "./search-term";
@@ -12,7 +13,7 @@ describe("patient names", () => {
     expect(normalizeName("João Conceição")).toBe("joao conceicao");
   });
 
-  it("F05: the CPF message abbreviates the existing patient's name", () => {
+  it("F05: the document message abbreviates the existing patient's name", () => {
     expect(abbreviateName("Maria Silva Oliveira")).toBe("Maria S. Oliveira");
     expect(abbreviateName("Ana Maria dos Santos Costa")).toBe("Ana M. S. Costa");
     expect(abbreviateName("Pedro Alves")).toBe("Pedro Alves");
@@ -36,13 +37,26 @@ describe("ages", () => {
 });
 
 describe("search terms", () => {
-  it("F05: search terms are classified as name, CPF or phone", () => {
+  it("F05: search terms are classified as name, document or phone", () => {
     expect(classifySearchTerm("Már")).toEqual({ kind: "name", value: "mar" });
-    expect(classifySearchTerm("529.982.247-25")).toEqual({ kind: "cpf-or-phone", value: "52998224725" });
-    expect(classifySearchTerm("(11) 98888-7777")).toEqual({ kind: "cpf-or-phone", value: "11988887777" });
-    expect(classifySearchTerm("8888-7777")).toEqual({ kind: "phone", value: "88887777" });
+    expect(classifySearchTerm("529.982.247-25")).toEqual({ kind: "document-or-phone", value: "52998224725" });
+    expect(classifySearchTerm("(11) 98888-7777")).toEqual({
+      kind: "document-or-phone",
+      value: "11988887777",
+    });
+    expect(classifySearchTerm("8888-7777")).toEqual({ kind: "document-or-phone", value: "88887777" });
+    expect(classifySearchTerm("8888")).toEqual({ kind: "phone", value: "8888" });
     expect(classifySearchTerm("ab")).toEqual({ kind: "too-short" });
     expect(classifySearchTerm("  a b ")).toEqual({ kind: "too-short" });
+  });
+
+  it("F16: patient search terms recognize documents of any type", () => {
+    expect(classifySearchTerm("12345678Z")).toEqual({ kind: "document", value: "12345678Z" });
+    expect(classifySearchTerm("12.345.678-5")).toEqual({ kind: "document-or-phone", value: "123456785" });
+    expect(classifySearchTerm("x-1234567-l")).toEqual({ kind: "document", value: "X1234567L" });
+    expect(classifySearchTerm("Mar")).toEqual({ kind: "name", value: "mar" });
+    // A name with a digit but fewer than 5 characters is still a name.
+    expect(classifySearchTerm("Ana 2")).toEqual({ kind: "name", value: "ana 2" });
   });
 });
 
@@ -58,9 +72,17 @@ describe("consent and masking", () => {
   });
 
   it("F05: CPF is masked except the last 5 digits", () => {
-    expect(maskCpf("52998224725")).toBe("***.***.247-25");
-    expect(phoneEnd("11988887777")).toBe("7777");
-    expect(phoneDigits("11988887777", null)).toBe("11988887777");
-    expect(phoneDigits("11988887777", "1133334444")).toBe("11988887777 1133334444");
+    expect(maskDocument("CPF", "52998224725")).toBe("***.***.247-25");
+    expect(phoneEnd("+5511988887777")).toBe("7777");
+  });
+
+  it("F16: other documents are masked except their last 4 characters", () => {
+    expect(maskDocument("DNI_ES", "12345678Z")).toBe("•••678Z");
+  });
+
+  it("F16: the phone search column holds the national numbers of both phones", () => {
+    expect(phoneDigits("+5511988887777", null)).toBe("11988887777");
+    expect(phoneDigits("+5511988887777", "+551133334444")).toBe("11988887777 1133334444");
+    expect(phoneDigits("+34612345678", null)).toBe("612345678");
   });
 });

@@ -28,6 +28,8 @@ async function adminContext() {
 const baseInput = {
   legalName: "Clínica Exemplo Ltda",
   tradeName: "Clínica Exemplo",
+  country: "BR",
+  defaultLocale: "pt-BR",
   timeZone: "America/Sao_Paulo",
   slotGranularityMinutes: 15,
   version: 1,
@@ -42,22 +44,23 @@ async function png(width: number, height: number): Promise<Uint8Array> {
 }
 
 describe("organization settings", () => {
-  it("F01: administrator saves settings with a valid CNPJ and the change is audited", async () => {
+  it("F01: administrator saves settings with a valid tax ID and the change is audited", async () => {
     const ctx = await adminContext();
-    const result = await identity.updateOrganization(ctx, { ...baseInput, cnpj: "12.ABC.345/01DE-35" });
+    const result = await identity.updateOrganization(ctx, { ...baseInput, taxId: "12.ABC.345/01DE-35" });
     expect(result).toEqual({ ok: true, value: { version: 2 } });
     const org = await db().organization.findUniqueOrThrow({ where: { id: orgId } });
-    expect(org.cnpj).toBe("12ABC34501DE35");
+    expect(org.taxId).toBe("12ABC34501DE35");
     const [event] = await auditEvents({ action: "UPDATE", entityId: orgId });
-    expect(event?.changes).toMatchObject({ cnpj: { before: null, after: "12ABC34501DE35" } });
+    expect(event?.changes).toMatchObject({ taxId: { before: null, after: "12ABC34501DE35" } });
   });
 
-  it("F01: invalid CNPJ is rejected with inline error", async () => {
+  it("F01: an invalid tax ID is rejected with an inline error", async () => {
     const ctx = await adminContext();
-    const result = await identity.updateOrganization(ctx, { ...baseInput, cnpj: "11.222.333/0001-82" });
+    const result = await identity.updateOrganization(ctx, { ...baseInput, taxId: "11.222.333/0001-82" });
     expect(!result.ok && result.error).toMatchObject({
-      code: "ORG_INVALID_CNPJ",
-      fields: { cnpj: "CNPJ inválido." },
+      code: "TAX_ID_INVALID",
+      fields: { taxId: "errors.TAX_ID_INVALID" },
+      params: { type: "CNPJ" },
     });
     expect((await db().organization.findUniqueOrThrow({ where: { id: orgId } })).version).toBe(1);
   });
@@ -140,9 +143,9 @@ describe("organization settings", () => {
 });
 
 describe("provided to other features", () => {
-  it("F01→F08/F13: getOrganizationProfile returns name, CNPJ, logo URL and time zone", async () => {
+  it("F01→F08/F13: getOrganizationProfile returns name, tax ID, country, logo URL and time zone", async () => {
     const ctx = await adminContext();
-    await identity.updateOrganization(ctx, { ...baseInput, cnpj: "11.222.333/0001-81" });
+    await identity.updateOrganization(ctx, { ...baseInput, taxId: "11.222.333/0001-81" });
     await identity.uploadOrganizationLogo(ctx, { bytes: await png(100, 40), type: "image/png" });
     const desk = await createUser({ organizationId: orgId, role: "FRONT_DESK" });
     const profile = await getOrganizationProfile((await signedInContext(desk)).ctx);
@@ -151,7 +154,9 @@ describe("provided to other features", () => {
       value: {
         legalName: "Clínica Exemplo Ltda",
         tradeName: "Clínica Exemplo",
-        cnpj: "11222333000181",
+        taxId: "11222333000181",
+        country: "BR",
+        defaultLocale: "pt-BR",
         logoUrl: "/api/organization/logo?v=1",
         timeZone: "America/Sao_Paulo",
         slotGranularityMinutes: 15,

@@ -1,58 +1,34 @@
-// Council registration (PRD F04): CRM, CRO, CREFITO, CRP, CRN, COREN, CRBM, CRF, other or none.
-// "Outro" needs the council's name; number and state are required for every type except none.
-export const COUNCIL_TYPES = [
-  "CRM",
-  "CRO",
-  "CREFITO",
-  "CRP",
-  "CRN",
-  "COREN",
-  "CRBM",
-  "CRF",
-  "OTHER",
-  "NONE",
-] as const;
-export type CouncilType = (typeof COUNCIL_TYPES)[number];
+import type { CountryCode } from "@/shared/kernel/countries/codes";
 
-export const COUNCIL_TYPE_LABELS: Record<CouncilType, string> = {
-  CRM: "CRM",
-  CRO: "CRO",
-  CREFITO: "CREFITO",
-  CRP: "CRP",
-  CRN: "CRN",
-  COREN: "COREN",
-  CRBM: "CRBM",
-  CRF: "CRF",
-  OTHER: "Outro",
-  NONE: "Nenhum",
-};
-
+// Council registrations (PRD F04 and F16): one per country, with the types each country's profile
+// offers (CRM and CRO in Brazil, Ordem dos Médicos in Portugal, state license and NPI in the US).
+// "Outro" needs the council's name; the US NPI is stored next to the state license.
 export type CouncilRegistration = {
-  type: CouncilType;
-  otherName: string | null;
+  country: CountryCode;
+  councilType: string;
+  councilOtherName: string | null;
   number: string | null;
-  state: string | null;
+  region: string | null;
+  npi: string | null;
 };
 
-export function requiresRegistration(type: CouncilType): boolean {
-  return type !== "NONE";
+// The label printed before the number: the council's name for "Outro", else the label of the type
+// (an acronym in Brazil, the name of the order or college elsewhere).
+export function councilLabel(
+  registration: Pick<CouncilRegistration, "councilType" | "councilOtherName">,
+  typeLabel: string,
+): string {
+  return registration.councilType === "OTHER" ? (registration.councilOtherName ?? "") : typeLabel;
 }
 
-export function requiresOtherName(type: CouncilType): boolean {
-  return type === "OTHER";
-}
-
-// The acronym printed before the number: the type itself, or the council's name for "Outro".
-export function councilLabel(registration: Pick<CouncilRegistration, "type" | "otherName">): string {
-  if (registration.type === "NONE") return "";
-  if (registration.type === "OTHER") return registration.otherName ?? "";
-  return registration.type;
-}
-
-// "CRM 123456/SP"; empty when the professional has no registration.
-export function formatRegistration(registration: CouncilRegistration): string {
-  if (!requiresRegistration(registration.type) || !registration.number || !registration.state) return "";
-  return `${councilLabel(registration)} ${registration.number}/${registration.state}`;
+// "CRM 123456/SP"; the US NPI is appended ("State license 1234/NY · NPI 1234567893").
+export function formatRegistration(registration: CouncilRegistration, label: string): string {
+  const parts: string[] = [];
+  if (registration.number) {
+    parts.push(`${label} ${registration.number}${registration.region ? `/${registration.region}` : ""}`);
+  }
+  if (registration.npi) parts.push(`NPI ${registration.npi}`);
+  return parts.join(" · ");
 }
 
 // Up to two initials for the avatar: first and last word of the name ("Ana Paula Lima" → "AL").

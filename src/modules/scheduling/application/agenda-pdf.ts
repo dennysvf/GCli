@@ -4,7 +4,7 @@ import { withTransaction } from "@/shared/db/transaction";
 import { formatDateBR } from "@/shared/kernel/calendar-date";
 import { CommonErrors } from "@/shared/kernel/errors";
 import { fail, ok, type Result } from "@/shared/kernel/result";
-import { formatPhone } from "@/shared/kernel/phone";
+import { formatPhoneNumber } from "@/shared/kernel/phone";
 import { parseInput } from "@/shared/kernel/validation";
 import { localMinuteToUtc, utcToZonedParts } from "@/shared/kernel/zoned-time";
 import { localTime } from "../domain/agenda-time";
@@ -57,9 +57,11 @@ export async function exportDailyAgenda(
     deps.directory.listUnits(ctx),
   ]);
   const professional = people[0];
-  if (!unit) return fail(SchedulingErrors.validation({ unitId: "Unidade não encontrada." }));
+  if (!unit) return fail(SchedulingErrors.validation({ unitId: "scheduling.validation.unitNotFound" }));
   if (!professional)
-    return fail(SchedulingErrors.validation({ professionalId: "Profissional não encontrado." }));
+    return fail(
+      SchedulingErrors.validation({ professionalId: "scheduling.validation.professionalNotFound" }),
+    );
 
   const filter = {
     unitId,
@@ -87,7 +89,7 @@ export async function exportDailyAgenda(
     rows: items.map((item) => ({
       time: `${localTime(new Date(item.startsAt), unit.timeZone)}–${localTime(new Date(item.endsAt), unit.timeZone)}`,
       patient: item.patient.displayName,
-      phone: item.patient.mobilePhone ? formatPhone(item.patient.mobilePhone) : "",
+      phone: item.patient.mobilePhone ? formatPhoneNumber(item.patient.mobilePhone, unit.country) : "",
       service: item.service.name,
       room: item.room?.name ?? "",
       status: STATUS_LABELS[item.status],

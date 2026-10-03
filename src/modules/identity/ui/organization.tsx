@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ImageUp, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
 import type { ActionResult } from "@/shared/kernel/action-result";
@@ -15,8 +15,12 @@ import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import { useFormDraft } from "@/shared/ui/forms/use-form-draft";
-import { formatCnpj } from "@/shared/kernel/cnpj";
-import { BRAZIL_TIME_ZONES, LOGO_MAX_BYTES, SLOT_GRANULARITIES } from "../domain/policies";
+import { useTranslations } from "next-intl";
+import { LOCALE_NAMES, SUPPORTED_LOCALES } from "@/shared/i18n/locales";
+import { COUNTRY_LIST, countryProfile, type CountryCode } from "@/shared/kernel/countries";
+import { timeZoneLabel } from "@/shared/kernel/time-zones";
+import { formatTaxId, taxIdSpec } from "@/shared/kernel/tax-id";
+import { LOGO_MAX_BYTES, SLOT_GRANULARITIES } from "../domain/policies";
 import { updateOrganizationSchema } from "../application/schemas";
 import type { OrganizationProfile } from "../application/organization";
 
@@ -31,14 +35,17 @@ export function OrganizationForm({
   action: (input: Parsed) => Promise<ActionResult<{ version: number }>>;
 }) {
   const router = useRouter();
+  const tCountries = useTranslations("countries");
   const [pending, startTransition] = useTransition();
   const form = useForm<Values, unknown, Parsed>({
     resolver: zodResolver(updateOrganizationSchema),
     defaultValues: {
       legalName: profile.legalName,
       tradeName: profile.tradeName ?? "",
-      cnpj: profile.cnpj ? formatCnpj(profile.cnpj) : "",
-      timeZone: profile.timeZone as Values["timeZone"],
+      country: profile.country,
+      defaultLocale: profile.defaultLocale,
+      taxId: profile.taxId ? formatTaxId(profile.country, profile.taxId) : "",
+      timeZone: profile.timeZone,
       slotGranularityMinutes: profile.slotGranularityMinutes,
       version: profile.version,
     },
@@ -46,6 +53,8 @@ export function OrganizationForm({
   // PRD F01: unsaved data survives a session expiry and is restored after signing in again.
   const draft = useFormDraft("settings-organization", form);
   const { errors } = form.formState;
+  const country = useWatch({ control: form.control, name: "country" }) as CountryCode;
+  const profileOfCountry = countryProfile(country);
 
   const onSubmit = form.handleSubmit((values) =>
     startTransition(async () => {
@@ -68,18 +77,62 @@ export function OrganizationForm({
         <Field id="tradeName" label="Nome fantasia" error={errors.tradeName?.message}>
           <Input id="tradeName" defaultValue={profile.tradeName ?? ""} {...form.register("tradeName")} />
         </Field>
-        <Field
-          id="cnpj"
-          label="CNPJ"
-          error={errors.cnpj?.message}
-          hint="Aceita CNPJ numérico e alfanumérico."
-        >
+        <Field id="country" label="País da sede" error={errors.country?.message}>
+          <Controller
+            control={form.control}
+            name="country"
+            render={({ field }) => (
+              <Select
+                value={field.value}
+                onValueChange={(next) => {
+                  field.onChange(next);
+                  // The zone must belong to the country: start from its default.
+                  form.setValue("timeZone", countryProfile(next as CountryCode).defaultTimeZone);
+                }}
+              >
+                <SelectTrigger id="country" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COUNTRY_LIST.map((item) => (
+                    <SelectItem key={item.code} value={item.code}>
+                      {tCountries(`names.${item.code}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Field>
+        <Field id="defaultLocale" label="Idioma padrão" error={errors.defaultLocale?.message}>
+          <Controller
+            control={form.control}
+            name="defaultLocale"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="defaultLocale" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_LOCALES.map((locale) => (
+                    <SelectItem key={locale} value={locale}>
+                      {LOCALE_NAMES[locale]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </Field>
+        <Field id="taxId" label={taxIdSpec(country).shortLabel} error={errors.taxId?.message}>
           <Input
-            id="cnpj"
-            placeholder="00.000.000/0000-00"
-            maxLength={18}
-            defaultValue={profile.cnpj ? formatCnpj(profile.cnpj) : ""}
-            {...form.register("cnpj")}
+            id="taxId"
+            maxLength={24}
+            {...form.register("taxId", {
+              onChange: (event) => {
+                event.target.value = formatTaxId(country, event.target.value);
+              },
+            })}
           />
         </Field>
         <Field id="timeZone" label="Fuso horário" error={errors.timeZone?.message}>
@@ -92,9 +145,9 @@ export function OrganizationForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {BRAZIL_TIME_ZONES.map((zone) => (
+                  {profileOfCountry.timeZones.map((zone) => (
                     <SelectItem key={zone} value={zone}>
-                      {zone.replace("America/", "").replaceAll("_", " ")}
+                      {timeZoneLabel(zone)}
                     </SelectItem>
                   ))}
                 </SelectContent>

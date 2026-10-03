@@ -1,4 +1,5 @@
 import type { RequestContext } from "@/shared/context/types";
+import type { CountryCode } from "@/shared/kernel/countries/codes";
 import type { BusinessDay } from "../domain/working-hours";
 
 // An appointment hit by a new time-off, listed so the user can reschedule it (PRD F04 Experience).
@@ -34,6 +35,7 @@ export interface ProfessionalAppointments {
 export type UnitInfo = {
   id: string;
   name: string;
+  country: CountryCode;
   timeZone: string;
   active: boolean;
   businessHours: BusinessDay[];
@@ -49,7 +51,7 @@ export type ServiceInfo = {
   categoryId: string;
   categoryName: string;
   durationMinutes: number;
-  priceCents: number;
+  prices: { currency: string; amountMinor: number }[];
   color: string;
 };
 

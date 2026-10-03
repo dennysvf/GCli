@@ -16,7 +16,7 @@ import {
 } from "@/shared/ui/components/alert-dialog";
 import { Button } from "@/shared/ui/components/button";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
-import { PROFESSIONALS_DEACTIVATE_CONFIRMATION } from "../messages";
+import { PROFESSIONALS_DEACTIVATE_CONFIRMATION } from "../notices";
 
 // Deactivation asks first (design system 5.7) and, when future appointments block it (PRD F04),
 // keeps the message on screen with a link to the filtered agenda list (F06 URL contract).

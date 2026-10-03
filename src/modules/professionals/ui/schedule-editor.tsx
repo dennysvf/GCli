@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -24,15 +25,17 @@ import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import type { UnitInfo } from "../application/ports";
 import type { DeleteScheduleResult, SaveScheduleResult, ScheduleItem } from "../application/schedules";
 import { formatDateBR, nextMonday } from "../domain/dates";
-import { utcOffsetMinutes } from "../domain/time-zone-offsets";
 import {
   findCrossUnitConflict,
   findOutsideBusinessHours,
   validateIntervals,
   type WorkingInterval,
 } from "../domain/working-hours";
-import { crossUnitConflictMessage, outsideBusinessHoursMessage } from "../domain/working-hours-text";
-import { PROFESSIONALS_SCHEDULE_PREVIOUS_CLOSED } from "../messages";
+import { businessDayHours, crossUnitConflictParams } from "../domain/working-hours-text";
+import { formatDate, formatLocale } from "@/shared/i18n/format";
+import type { Locale } from "@/shared/i18n/locales";
+import type { Translator } from "@/shared/i18n/translator";
+import { PROFESSIONALS_SCHEDULE_PREVIOUS_CLOSED } from "../notices";
 import { WeekGrid } from "./week-grid";
 
 type Draft = {
@@ -79,23 +82,31 @@ function intervalErrors(
   intervals: WorkingInterval[],
   units: UnitInfo[],
   validFrom: string,
+  t: Translator,
+  locale: Locale,
 ): Record<number, string> {
   const errors: Record<number, string> = {};
   const shape = validateIntervals(intervals) ?? {};
-  for (const [key, message] of Object.entries(shape)) errors[Number(key.split(".")[1])] = message;
+  for (const [key, message] of Object.entries(shape)) errors[Number(key.split(".")[1])] = t(message);
   const weeks = new Map(units.map((unit) => [unit.id, unit.businessHours]));
   for (const item of findOutsideBusinessHours(intervals, weeks)) {
-    errors[item.index] ??= outsideBusinessHoursMessage(item.day, item.weekday);
+    errors[item.index] ??= t("professionals.errors.PROFESSIONALS_OUTSIDE_BUSINESS_HOURS", {
+      hours:
+        businessDayHours(item.day) ?? t("professionals.hours.closedOn", { weekday: String(item.weekday) }),
+    });
   }
   if (Object.keys(errors).length === 0) {
-    const reference = new Date(`${validFrom || "2026-01-01"}T12:00:00.000Z`);
-    const offsets = new Map(units.map((unit) => [unit.id, utcOffsetMinutes(unit.timeZone, reference)]));
-    const conflict = findCrossUnitConflict(intervals, offsets);
+    const zones = new Map(units.map((unit) => [unit.id, unit.timeZone]));
+    const conflict = findCrossUnitConflict(intervals, zones, validFrom || "2026-01-01");
     const other = conflict ? intervals[conflict.conflictWith] : undefined;
     if (conflict && other) {
-      errors[conflict.index] = crossUnitConflictMessage(
-        units.find((unit) => unit.id === other.unitId)?.name ?? "",
-        other,
+      errors[conflict.index] = t(
+        "professionals.errors.PROFESSIONALS_CROSS_UNIT_CONFLICT",
+        crossUnitConflictParams(
+          units.find((unit) => unit.id === other.unitId)?.name ?? "",
+          other,
+          formatDate(conflict.date, formatLocale(locale)),
+        ),
       );
     }
   }
@@ -122,6 +133,13 @@ export function ScheduleEditor({
   };
 }) {
   const router = useRouter();
+  const locale = useLocale() as Locale;
+  const translate = useTranslations();
+  const t = useMemo<Translator>(() => {
+    const call = (key: string, params?: Record<string, string | number | Date>) =>
+      translate(key as never, params as never) as string;
+    return Object.assign(call, { has: (key: string) => translate.has(key as never) }) as Translator;
+  }, [translate]);
   const [pending, startTransition] = useTransition();
   const initial =
     schedules.find((schedule) => schedule.state === "current") ??
@@ -139,8 +157,8 @@ export function ScheduleEditor({
   const state = stored?.state ?? "future";
   const locked = readOnly || state === "ended";
   const clientErrors = useMemo(
-    () => intervalErrors(draft.intervals, units, draft.validFrom),
-    [draft.intervals, draft.validFrom, units],
+    () => intervalErrors(draft.intervals, units, draft.validFrom, t, locale),
+    [draft.intervals, draft.validFrom, units, t, locale],
   );
   const errors: Record<number, string> = { ...clientErrors };
   for (const [key, message] of Object.entries(serverErrors)) {

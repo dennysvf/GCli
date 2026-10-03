@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { formatCents } from "@/shared/kernel/money";
+import { useLocale } from "next-intl";
+import { formatLocale, formatMoney } from "@/shared/i18n/format";
+import type { Locale } from "@/shared/i18n/locales";
 import { Stamp } from "@/shared/ui/components/stamp";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/components/table";
 import { cn } from "@/shared/ui/utils";
@@ -10,6 +12,7 @@ import { PALETTE } from "@/shared/ui/palette/palette";
 // Services grouped by category (PRD F03 Experience). Each row opens the side panel through the
 // ?service= query, keeping the current filters.
 export function ServicesTable({ groups, query }: { groups: ServiceGroup[]; query: string }) {
+  const locale = useLocale() as Locale;
   if (groups.length === 0) {
     return <p className="text-muted-foreground">Nenhum serviço encontrado com estes filtros.</p>;
   }
@@ -59,7 +62,11 @@ export function ServicesTable({ groups, query }: { groups: ServiceGroup[]; query
                       </TableCell>
                       <TableCell>{formatDuration(service.durationMinutes)}</TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {formatCents(service.priceCents)}
+                        {service.prices.length === 0
+                          ? "—"
+                          : service.prices.map((price) => (
+                              <div key={price.currency}>{formatMoney(price, formatLocale(locale, null))}</div>
+                            ))}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {service.enabledProfessionals}

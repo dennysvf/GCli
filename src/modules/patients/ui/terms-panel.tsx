@@ -18,7 +18,7 @@ import { Textarea } from "@/shared/ui/components/textarea";
 import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import type { TermsVersion } from "../application/terms";
-import { PATIENTS_TERMS_PUBLISHED } from "../messages";
+import { PATIENTS_TERMS_PUBLISHED } from "../notices";
 import { formatDateTimeBR } from "./format";
 
 // Privacy terms (PRD F05): the Administrator publishes numbered versions; a new version leaves the

@@ -33,7 +33,9 @@
       "cityTooLong": "Cidade muito longa.",
       "regionTooLong": "Estado ou região muito longo.",
       "regionInvalid": "Escolha um estado ou região da lista."
-    }
+    },
+    "required": "Preencha este campo.",
+    "documentTypeInvalid": "Escolha um tipo de documento do país."
   },
   "shell": {
     "tagline": "Gestão para clínicas",
@@ -161,7 +163,12 @@
         "CL": "Região",
         "CO": "Departamento",
         "US": "Estado"
-      }
+      },
+      "title": "Endereço",
+      "cepHint": "O endereço é preenchido a partir do CEP.",
+      "cepLooking": "Consultando CEP...",
+      "cepNotFound": "CEP não encontrado. Preencha o endereço manualmente.",
+      "cepUnavailable": "Não foi possível consultar o CEP agora. Preencha o endereço manualmente."
     },
     "paymentMethods": {
       "CASH": "Dinheiro",
@@ -179,6 +186,47 @@
       "PSE": "PSE",
       "CHECK": "Cheque",
       "ZELLE": "Zelle"
+    },
+    "fields": {
+      "documentCountry": "País do documento",
+      "documentType": "Tipo de documento",
+      "phoneCountry": "Código do país"
+    }
+  },
+  "errors": {
+    "GENERIC": "Não foi possível concluir a operação. Tente novamente.",
+    "VALIDATION_FAILED": "Verifique os campos destacados.",
+    "AUTH_UNAUTHENTICATED": "Sua sessão expirou. Entre novamente para continuar.",
+    "AUTHZ_FORBIDDEN": "Você não tem permissão para acessar esta página.",
+    "CONFLICT_STALE_VERSION": "Estes dados foram alterados por outra pessoa. Recarregue a página e tente novamente.",
+    "NOT_FOUND": "Registro não encontrado.",
+    "DOCUMENT_INVALID": "{type} inválido.",
+    "TAX_ID_INVALID": "{type} inválido.",
+    "PHONE_INVALID": "Informe um telefone válido.",
+    "POSTAL_CODE_INVALID": "Código postal inválido.",
+    "LOCALE_INVALID": "Escolha um idioma da lista.",
+    "MONEY_INVALID": "Informe um valor válido."
+  },
+  "email": {
+    "footer": "Se você não esperava este e-mail, ignore-o.",
+    "copyLink": "Ou copie e cole no navegador: {url}",
+    "invitation": {
+      "subject": "Convite para acessar o GCli — {organization}",
+      "title": "Você foi convidado para o GCli",
+      "greeting": "Olá, {name}.",
+      "body": "Você foi convidado para acessar o sistema da {organization}. Defina sua senha para começar.",
+      "button": "Definir senha e entrar",
+      "link": "Defina sua senha em: {url}",
+      "validity": "Este link é válido até {expires} e só pode ser usado uma vez."
+    },
+    "passwordReset": {
+      "subject": "Redefinição de senha do GCli",
+      "title": "Redefinir sua senha",
+      "greeting": "Olá, {name}.",
+      "body": "Recebemos um pedido para redefinir a senha da sua conta.",
+      "button": "Redefinir senha",
+      "link": "Redefina em: {url}",
+      "validity": "Este link é válido por 60 minutos e só pode ser usado uma vez."
     }
   }
 }

@@ -1,0 +1,44 @@
+{
+  "errors": {
+    "UNITS_NOT_FOUND": "Unidade ou sala não encontrada.",
+    "UNITS_NAME_TAKEN": "Já existe uma unidade com este nome.",
+    "UNITS_ROOM_NAME_TAKEN": "Já existe uma sala com este nome.",
+    "UNITS_UNIT_LIMIT": "Limite de 20 unidades ativas atingido.",
+    "UNITS_ROOM_LIMIT": "Limite de 30 salas ativas nesta unidade atingido.",
+    "UNITS_CLOSURE_LIMIT": "Limite de 100 fechamentos futuros nesta unidade atingido.",
+    "UNITS_INVALID_HOURS": "Verifique os horários destacados.",
+    "UNITS_ROOM_HAS_APPOINTMENTS": "Esta sala possui {count} agendamentos futuros. Reatribua-os antes de desativar.",
+    "UNITS_UNIT_HAS_APPOINTMENTS": "Esta unidade possui {count} agendamentos futuros. Reatribua-os ou cancele-os antes de desativar.",
+    "UNITS_CLOSURE_CONFIRMATION_REQUIRED": "Existem {count} agendamentos neste período. Eles não serão cancelados automaticamente.",
+    "UNITS_CLOSURE_IN_PAST": "Fechamentos passados não podem ser removidos.",
+    "UNITS_UNIT_INACTIVE": "Esta unidade está desativada. Reative-a antes de alterá-la.",
+    "UNITS_COUNTRY_LOCKED": "Não é possível alterar o país de uma unidade que já tem agendamentos, cobranças ou caixas."
+  },
+  "validation": {
+    "nameRequired": "Informe o nome da unidade.",
+    "nameTooLong": "Nome muito longo.",
+    "timeZoneRequired": "Selecione um fuso horário do país.",
+    "emailInvalid": "E-mail inválido.",
+    "roomNameRequired": "Informe o nome da sala.",
+    "descriptionTooLong": "Descrição muito longa.",
+    "dateInvalid": "Data inválida.",
+    "reasonRequired": "Informe o motivo.",
+    "reasonTooLong": "Motivo muito longo.",
+    "endBeforeStart": "A data final deve ser igual ou posterior à inicial.",
+    "hours": {
+      "weekdayInvalid": "Dia da semana inválido ou repetido.",
+      "sevenDays": "Informe os sete dias da semana.",
+      "closedWithIntervals": "Um dia fechado não pode ter horários.",
+      "needsInterval": "Informe ao menos um horário para um dia aberto.",
+      "maxIntervals": "No máximo dois intervalos por dia.",
+      "outsideDay": "Horário fora do dia.",
+      "granularity": "Use horários em múltiplos de 5 minutos.",
+      "startBeforeEnd": "O horário de início deve ser anterior ao de término.",
+      "secondAfterFirst": "O segundo intervalo deve começar depois do fim do primeiro."
+    }
+  },
+  "legalBanner": "As regras legais deste país ainda não foram validadas. O sistema aplica as regras brasileiras.",
+  "newCurrencyWarning": "{count, plural, one {# serviço ativo não tem preço em {currency}: {names}.} other {# serviços ativos não têm preço em {currency}: {names}.}}",
+  "country": "País",
+  "currency": "Moeda"
+}

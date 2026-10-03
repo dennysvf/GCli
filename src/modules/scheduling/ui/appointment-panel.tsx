@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { interpolate, type ActionResult } from "@/shared/kernel/action-result";
-import { formatCents } from "@/shared/kernel/money";
+import { useLocale } from "next-intl";
+import { formatLocale, formatMoney } from "@/shared/i18n/format";
+import type { Locale } from "@/shared/i18n/locales";
+import type { CountryCode, Currency } from "@/shared/kernel/countries/codes";
 import { Button } from "@/shared/ui/components/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/shared/ui/components/sheet";
 import { Stamp } from "@/shared/ui/components/stamp";
@@ -17,7 +20,7 @@ import type { SeriesPreview } from "../application/series";
 import { withinUndoWindow } from "../domain/agenda-time";
 import { CANCELLATION_ORIGIN_LABELS, type CancellationOrigin } from "../domain/appointment";
 import { isOpen, nextStatuses, STATUS_LABELS, type AppointmentStatus } from "../domain/status";
-import { SCHEDULING_TOASTS } from "../messages";
+import { SCHEDULING_TOASTS } from "../notices";
 import { CancelForm } from "./cancel-form";
 import { ChangeForm, type ChangeKind } from "./change-form";
 import { dateTimeOf, longDate, localParts, STATUS_STAMPS, statusText, timeRange } from "./format";
@@ -63,6 +66,7 @@ export function AppointmentPanel({
   appointmentId,
   initialAction,
   granularity,
+  country,
   services,
   reasons,
   permissions,
@@ -73,6 +77,8 @@ export function AppointmentPanel({
   appointmentId: string;
   initialAction?: "reschedule";
   granularity: number;
+  // The country of the unit decides the regional format of the price.
+  country: CountryCode;
   services: ServiceOption[];
   reasons: CancellationReasonItem[];
   permissions: Permissions;
@@ -80,6 +86,7 @@ export function AppointmentPanel({
   onChanged: () => void;
   onClose: () => void;
 }) {
+  const locale = useLocale() as Locale;
   const [details, setDetails] = useState<AppointmentDetails | null>(null);
   const [missing, setMissing] = useState(false);
   const [mode, setMode] = useState<Mode>({ kind: "details" });
@@ -202,7 +209,15 @@ export function AppointmentPanel({
                     <dt className="text-muted-foreground">Sala</dt>
                     <dd>{details.room?.name ?? "Sem sala"}</dd>
                     <dt className="text-muted-foreground">Valor</dt>
-                    <dd className="tabular-nums">{formatCents(details.priceCents)}</dd>
+                    <dd className="tabular-nums">
+                      {formatMoney(
+                        {
+                          amountMinor: details.price.amountMinor,
+                          currency: details.price.currency as Currency,
+                        },
+                        formatLocale(locale, country),
+                      )}
+                    </dd>
                     {details.seriesIndex ? (
                       <>
                         <dt className="text-muted-foreground">Série</dt>

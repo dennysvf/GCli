@@ -3,6 +3,7 @@ import { getOrganizationProfile, getUserNames, identity, listLinkableUsers } fro
 import { services } from "@/modules/services";
 import { units } from "@/modules/units";
 import type { RequestContext } from "@/shared/context/types";
+import type { CountryCode } from "@/shared/kernel/countries/codes";
 import { definePort } from "@/shared/ports/registry";
 import { getEnabledServices, replaceEnabledServices } from "./application/enabled-services";
 import { professionalLinks, serviceProfessionals } from "./application/links";
@@ -45,6 +46,7 @@ const deps: ProfessionalsDeps = {
           return {
             id: unit.id,
             name: unit.name,
+            country: unit.country,
             timeZone: unit.timeZone,
             active: unit.active,
             businessHours: hours.ok ? hours.value : [],
@@ -105,8 +107,8 @@ export const professionals = {
     getWorkingCalendar(deps, ctx, professionalId, range),
   getProfessionals: (ctx: RequestContext, options?: { ids?: string[]; activeOnly?: boolean }) =>
     getProfessionals(ctx, options),
-  getProfessionalCredentials: (ctx: RequestContext, professionalId: string) =>
-    getProfessionalCredentials(ctx, professionalId),
+  getProfessionalCredentials: (ctx: RequestContext, professionalId: string, country?: CountryCode) =>
+    getProfessionalCredentials(ctx, professionalId, country),
   // Extension point for scheduling (F06); null restores the inert default.
   registerProfessionalAppointments: (implementation: ProfessionalAppointments | null) => {
     professionalAppointments.register(implementation);
@@ -132,15 +134,15 @@ export type {
   WorkingCalendar,
 } from "./application/provided";
 export { PROFESSIONAL_STATUSES, type ProfessionalStatusFilter } from "./application/schemas";
+export { professionalsCatalog } from "./messages/catalog";
 export {
-  professionalsMessages,
+  PROFESSIONALS_DEACTIVATE_CONFIRMATION,
   PROFESSIONALS_NOT_LINKED,
   PROFESSIONALS_SCHEDULE_PREVIOUS_CLOSED,
   PROFESSIONALS_SERVICES_REMOVED_WITH_APPOINTMENTS,
   PROFESSIONALS_TIME_OFF_AFFECTED_APPOINTMENTS,
-} from "./messages";
-export { PROFESSIONALS_DEACTIVATE_CONFIRMATION } from "./messages";
-export { COUNCIL_TYPE_LABELS } from "./domain/council";
+} from "./notices";
+export type { RegistrationItem } from "./application/registrations";
 export { ProfessionalActiveToggle } from "./ui/professional-active-toggle";
 export { ProfessionalForm, type LinkableUserOption } from "./ui/professional-form";
 export { ProfessionalsFilters } from "./ui/professionals-filters";

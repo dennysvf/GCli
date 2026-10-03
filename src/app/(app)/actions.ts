@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { identity, identityMessages } from "@/modules/identity";
+import { identity } from "@/modules/identity";
 import {
   applySetCookies,
   getRequestContext,
@@ -20,6 +20,6 @@ export async function signOutAction(): Promise<void> {
 // The user's own interface language (PRD F16); the client refreshes the page afterwards.
 export async function setUserLocaleAction(locale: Locale): Promise<ActionResult<{ locale: Locale }>> {
   return withRequestContext(async (ctx) =>
-    toActionResult(await identity.setUserLocale(ctx, { locale }), identityMessages),
+    toActionResult(await identity.setUserLocale(ctx, { locale }), ctx.locale, "identity"),
   );
 }

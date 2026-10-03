@@ -3,6 +3,7 @@ import "server-only";
 import { headers } from "next/headers";
 import { forbidden, redirect } from "next/navigation";
 import { cache } from "react";
+import { resolveRequestLocale } from "@/i18n/locale";
 import { recordDenial } from "@/shared/authz/guard";
 import { can, type Action } from "@/shared/authz/permissions";
 import type { RequestContext } from "@/shared/context/types";
@@ -10,7 +11,6 @@ import { toActionResult, type ActionResult } from "@/shared/kernel/action-result
 import { CommonErrors } from "@/shared/kernel/errors";
 import { fail } from "@/shared/kernel/result";
 import { identity } from "./index";
-import { identityMessages } from "./messages";
 import { applySetCookies, getRequestMeta } from "./infrastructure/next";
 
 // Resolved once per request (React cache).
@@ -50,6 +50,7 @@ export async function withRequestContext<T>(
   fn: (ctx: RequestContext) => Promise<ActionResult<T>>,
 ): Promise<ActionResult<T>> {
   const ctx = await getRequestContext();
-  if (!ctx) return toActionResult(fail(CommonErrors.unauthenticated()), identityMessages);
+  if (!ctx)
+    return toActionResult(fail(CommonErrors.unauthenticated()), await resolveRequestLocale(null), "identity");
   return fn(ctx);
 }

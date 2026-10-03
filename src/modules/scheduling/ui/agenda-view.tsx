@@ -1,5 +1,6 @@
 "use client";
 
+import type { CountryCode, Currency } from "@/shared/kernel/countries/codes";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -24,7 +25,7 @@ import type { FindingDto } from "../application/booking";
 import type { CancellationReasonItem } from "../application/cancellation-reasons";
 import type { AgendaItem, AppointmentList as AppointmentListData } from "../application/queries";
 import type { AppointmentStatus } from "../domain/status";
-import { SCHEDULING_LABELS, SCHEDULING_TOASTS } from "../messages";
+import { SCHEDULING_LABELS, SCHEDULING_TOASTS } from "../notices";
 import { AgendaToolbar, type AgendaBy, type AgendaViewKind, type ToolbarState } from "./agenda-toolbar";
 import { AppointmentsTable } from "./appointments-table";
 import { AppointmentPanel, type AppointmentActions, type Permissions } from "./appointment-panel";
@@ -44,6 +45,8 @@ import { useAgenda, visibleItems, type AgendaRequest } from "./use-agenda";
 export type AgendaViewProps = {
   unitId: string;
   unitName: string;
+  unitCurrency: Currency;
+  unitCountry: CountryCode;
   timeZone: string;
   granularity: number;
   today: string;
@@ -365,6 +368,8 @@ export function AgendaView(props: AgendaViewProps) {
         <BookingPanel
           draft={booking}
           unitId={unitId}
+          currency={props.unitCurrency}
+          country={props.unitCountry}
           granularity={granularity}
           services={props.services}
           canRegisterPatient={permissions.canRegisterPatient}
@@ -384,6 +389,7 @@ export function AgendaView(props: AgendaViewProps) {
           appointmentId={opened.id}
           {...(opened.action ? { initialAction: opened.action } : {})}
           granularity={granularity}
+          country={props.unitCountry}
           services={props.services}
           reasons={props.reasons}
           permissions={permissions}

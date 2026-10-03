@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import { splitMessageKey } from "@/shared/i18n/message-key";
 import { Label } from "@/shared/ui/components/label";
 
 // Label + control + error message, with the ARIA wiring screen readers need. Validation messages
@@ -21,7 +22,8 @@ export function Field({
   children: ReactNode;
 }) {
   const t = useTranslations();
-  const message = error && t.has(error) ? t(error) : error;
+  const split = error ? splitMessageKey(error) : null;
+  const message = error && split && t.has(split.key) ? t(split.key, split.params) : error;
   return (
     <div className="grid gap-2">
       <Label htmlFor={id}>{label}</Label>

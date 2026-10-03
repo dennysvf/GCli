@@ -6,19 +6,26 @@ import { CommonErrors } from "@/shared/kernel/errors";
 import { newId } from "@/shared/kernel/ids";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import { parseInput } from "@/shared/kernel/validation";
-import { isValidCnpj, normalizeCnpj } from "@/shared/kernel/cnpj";
+import { countryProfile, type CountryCode } from "@/shared/kernel/countries";
+import { isCountryCode } from "@/shared/kernel/countries/codes";
+import { isLocale, type Locale } from "@/shared/i18n/locales";
+import { normalizeTaxId, taxIdSpec, validateTaxId } from "@/shared/kernel/tax-id";
 import { LOGO_MAX_BYTES, LOGO_MAX_HEIGHT, LOGO_MAX_WIDTH } from "../domain/policies";
 import { IDENTITY_EVENTS } from "../events";
 import { IdentityErrors } from "./errors";
 import { createInvitation } from "./invitations";
 import type { IdentityDeps } from "./ports";
-import { emailSchema, updateOrganizationSchema } from "./schemas";
+import { emailSchema, localeSchema, updateOrganizationSchema } from "./schemas";
+import { COUNTRY_CODES } from "@/shared/kernel/countries/codes";
 import { z } from "zod";
 
 export type OrganizationProfile = {
   legalName: string;
   tradeName: string | null;
-  cnpj: string | null;
+  // Normalized tax ID of the headquarters country (PRD F16).
+  taxId: string | null;
+  country: CountryCode;
+  defaultLocale: Locale;
   logoUrl: string | null;
   timeZone: string;
   slotGranularityMinutes: number;
@@ -35,7 +42,9 @@ export async function getOrganizationProfile(ctx: RequestContext): Promise<Resul
     return ok({
       legalName: org.legalName,
       tradeName: org.tradeName,
-      cnpj: org.cnpj,
+      taxId: org.taxId,
+      country: isCountryCode(org.country) ? org.country : "BR",
+      defaultLocale: isLocale(org.defaultLocale) ? org.defaultLocale : "pt-BR",
       logoUrl: org.logoObjectKey ? `/api/organization/logo?v=${org.logoVersion}` : null,
       timeZone: org.timeZone,
       slotGranularityMinutes: org.slotGranularityMinutes,
@@ -53,8 +62,11 @@ export async function updateOrganization(
   if (!allowed.ok) return allowed;
   const parsed = parseInput(updateOrganizationSchema, input);
   if (!parsed.ok) return parsed;
-  const { version, ...data } = parsed.value;
-  if (data.cnpj && !isValidCnpj(data.cnpj)) return fail(IdentityErrors.invalidCnpj());
+  const { version, taxId: rawTaxId, ...rest } = parsed.value;
+  if (rawTaxId && !validateTaxId(rest.country, rawTaxId)) {
+    return fail(IdentityErrors.invalidTaxId(taxIdSpec(rest.country).shortLabel));
+  }
+  const data = { ...rest, taxId: rawTaxId ? normalizeTaxId(rest.country, rawTaxId) : null };
 
   return withTransaction(ctx, async (uow) => {
     const before = await uow.tx.organization.findFirst({});
@@ -201,7 +213,9 @@ export async function getOrganizationLogo(
 const setupSchema = z.object({
   organizationName: z.string().trim().min(2).max(150),
   legalName: z.string().trim().min(2).max(150).optional(),
-  cnpj: z.string().trim().optional(),
+  taxId: z.string().trim().optional(),
+  country: z.enum(COUNTRY_CODES).default("BR"),
+  defaultLocale: localeSchema.default("pt-BR"),
   adminName: z.string().trim().min(2).max(150),
   adminEmail: emailSchema,
 });
@@ -214,8 +228,11 @@ export async function setupFirstAdministrator(
   const parsed = parseInput(setupSchema, input);
   if (!parsed.ok) return parsed;
   const { organizationName, legalName, adminName, adminEmail } = parsed.value;
-  const cnpj = parsed.value.cnpj ? normalizeCnpj(parsed.value.cnpj) : null;
-  if (cnpj && !isValidCnpj(cnpj)) return fail(IdentityErrors.invalidCnpj());
+  const { country, defaultLocale } = parsed.value;
+  if (parsed.value.taxId && !validateTaxId(country, parsed.value.taxId)) {
+    return fail(IdentityErrors.invalidTaxId(taxIdSpec(country).shortLabel));
+  }
+  const taxId = parsed.value.taxId ? normalizeTaxId(country, parsed.value.taxId) : null;
   if ((await countOrganizations()) > 0) {
     return fail({ code: "SETUP_ALREADY_DONE", httpStatus: 409 });
   }
@@ -234,7 +251,10 @@ export async function setupFirstAdministrator(
         id: organizationId,
         legalName: legalName ?? organizationName,
         tradeName: organizationName,
-        cnpj,
+        taxId,
+        country,
+        defaultLocale,
+        timeZone: countryProfile(country).defaultTimeZone,
       },
     });
     await uow.audit.record({

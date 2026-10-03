@@ -8,6 +8,7 @@ import { can } from "@/shared/authz/permissions";
 import { Stamp } from "@/shared/ui/components/stamp";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { LegalBanner } from "@/shared/ui/i18n/legal-banner";
 
 export const metadata: Metadata = { title: "Unidades" };
 
@@ -32,6 +33,12 @@ export default async function UnitsPage() {
           ) : null
         }
       />
+      {/* PRD F16: the Administrator is warned about units in countries whose legal rules are not validated. */}
+      {[...new Set(list.filter((unit) => unit.active).map((unit) => unit.country))].some(
+        (code) => code !== "BR",
+      ) ? (
+        <LegalBanner country={list.find((unit) => unit.country !== "BR")?.country ?? "PT"} />
+      ) : null}
       {list.length === 0 ? (
         <p className="text-muted-foreground">
           Nenhuma unidade cadastrada ainda. As unidades definem onde a clínica atende, com horário de

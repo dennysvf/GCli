@@ -1,12 +1,11 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { patients } from "@/modules/patients";
 import { professionals } from "@/modules/professionals";
-import { scheduling, schedulingMessages } from "@/modules/scheduling";
+import { scheduling } from "@/modules/scheduling";
 import { services } from "@/modules/services";
 import { units } from "@/modules/units";
 import { db } from "@/shared/db/client";
-import { interpolate } from "@/shared/kernel/action-result";
-import { auditEvents, closeHelpers, resetDatabase } from "../helpers";
+import { auditEvents, closeHelpers, errorText, resetDatabase } from "../helpers";
 import { booking, bookOrThrow, day, schedulingWorld, type World } from "./support";
 
 beforeEach(resetDatabase);
@@ -24,21 +23,24 @@ beforeEach(async () => {
 describe("booking", () => {
   it("F06: booking fills duration and price from the service and lists only enabled professionals", async () => {
     const booked = await bookOrThrow(world.desk, booking(world));
-    expect(booked.priceCents).toBe(25_000);
+    expect(booked.price).toEqual({ amountMinor: 25_000, currency: "BRL" });
     expect(new Date(booked.endsAt).getTime() - new Date(booked.startsAt).getTime()).toBe(50 * 60_000);
     const row = await db().appointment.findUniqueOrThrow({ where: { id: booked.appointmentId } });
-    expect(row).toMatchObject({ durationMinutes: 50, priceCents: 25_000, status: "SCHEDULED" });
+    expect(row).toMatchObject({
+      durationMinutes: 50,
+      priceMinor: 25_000n,
+      currency: "BRL",
+      status: "SCHEDULED",
+    });
 
     // A professional without the service enabled is neither listed nor bookable.
     const other = await professionals.createProfessional(world.admin, {
       fullName: "Carla Souza",
       displayName: "Carla Souza",
       specialty: null,
-      councilType: "NONE",
-      councilOtherName: null,
-      councilNumber: null,
-      councilState: null,
-      cpf: null,
+      hasNoCouncil: true,
+      registrations: [],
+      document: null,
       phone: null,
       email: null,
       color: "violet",
@@ -207,7 +209,7 @@ describe("booking", () => {
       true,
     );
     expect(codes).toContain("SCHEDULING_SLOT_TAKEN");
-    expect(interpolate(schedulingMessages.SCHEDULING_SLOT_TAKEN ?? "")).toBe(
+    expect(errorText("scheduling", { code: "SCHEDULING_SLOT_TAKEN" })).toBe(
       "Este horário acabou de ser ocupado por outro agendamento. Atualize a agenda e escolha outro horário.",
     );
     expect(await db().appointment.count({ where: { status: { not: "CANCELLED" } } })).toBe(1);

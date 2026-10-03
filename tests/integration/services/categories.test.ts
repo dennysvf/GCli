@@ -16,7 +16,7 @@ describe("service categories", () => {
     const duplicate = await services.createCategory(ctx, { name: "CONSULTAS" });
     expect(!duplicate.ok && duplicate.error).toMatchObject({
       code: "SERVICES_CATEGORY_NAME_TAKEN",
-      fields: { name: "Já existe uma categoria com este nome." },
+      fields: { name: "services.errors.SERVICES_CATEGORY_NAME_TAKEN" },
     });
   });
 

@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { patients } from "@/modules/patients";
 import { auditEvents, closeHelpers, resetDatabase } from "../helpers";
-import { createPatientOrThrow, patientsContext, publishTerms, VALID_CPF } from "./support";
+import { createPatientOrThrow, patientsContext, publishTerms, VALID_CPF, cpfDoc } from "./support";
 
 beforeEach(resetDatabase);
 afterAll(closeHelpers);
@@ -12,15 +12,16 @@ describe("patients public API", () => {
     const id = await createPatientOrThrow(ctx, {
       fullName: "João Pedro Silva",
       socialName: "Joana Silva",
-      cpf: VALID_CPF,
+      document: cpfDoc(VALID_CPF),
       address: {
-        cep: "01310-100",
+        country: "BR",
+        postalCode: "01310-100",
         street: "Avenida Paulista",
         number: "1000",
         complement: "Sala 12",
         district: "Bela Vista",
         city: "São Paulo",
-        state: "SP",
+        region: "SP",
       },
     });
     const identity = await patients.getPatientIdentity(ctx, id);
@@ -30,9 +31,9 @@ describe("patients public API", () => {
       fullName: "João Pedro Silva",
       socialName: "Joana Silva",
       displayName: "Joana Silva",
-      cpf: VALID_CPF,
+      document: cpfDoc(VALID_CPF),
       birthDate: "1988-04-12",
-      mobilePhone: "11988887777",
+      mobilePhone: "+5511988887777",
       active: true,
       formattedAddress: "Avenida Paulista, 1000 - Sala 12 - Bela Vista, São Paulo/SP - CEP 01310-100",
     });

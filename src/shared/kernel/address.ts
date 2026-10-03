@@ -87,33 +87,51 @@ const text = (max: number, message: string) =>
     .nullish()
     .transform((value) => value || null);
 
+const addressFields = {
+  postalCode: z.string().nullish(),
+  street: text(MAX_LENGTHS.street, "validation.address.streetTooLong"),
+  number: text(MAX_LENGTHS.number, "validation.address.numberTooLong"),
+  complement: text(MAX_LENGTHS.complement, "validation.address.complementTooLong"),
+  district: text(MAX_LENGTHS.district, "validation.address.districtTooLong"),
+  city: text(MAX_LENGTHS.city, "validation.address.cityTooLong"),
+  region: text(MAX_LENGTHS.region, "validation.address.regionTooLong"),
+};
+
+// The fields of an address whose country comes from elsewhere (a unit's address has the unit's).
+export const addressFieldsSchema = z.object(addressFields);
+export type AddressFieldsInput = z.input<typeof addressFieldsSchema>;
+
+type AddIssue = (path: string, message: string) => void;
+
+// Applies the country's rules: postal code pattern and, when the profile lists them, the region.
+export function normalizeAddress(
+  country: CountryCode,
+  value: z.output<typeof addressFieldsSchema>,
+  addIssue: AddIssue,
+): CountryAddress {
+  const { address } = countryProfile(country);
+  const postalCode = value.postalCode ? address.postalCode.normalize(value.postalCode) : "";
+  if (postalCode && !address.postalCode.pattern.test(postalCode)) {
+    addIssue("postalCode", "validation.postalCodeInvalid");
+  }
+  let region = value.region;
+  if (region && address.region.regions) {
+    const code = region.toUpperCase();
+    if (address.region.regions.some((item) => item.code === code)) region = code;
+    else addIssue("region", "validation.address.regionInvalid");
+  }
+  return { ...value, country, postalCode: postalCode || null, region };
+}
+
 // Messages are catalog keys (ADR-028). The country decides the postal code pattern and whether
 // the region comes from a closed list.
 export const countryAddressSchema = z
-  .object({
-    country: z.enum(COUNTRY_CODES, { error: "validation.countryInvalid" }),
-    postalCode: z.string().nullish(),
-    street: text(MAX_LENGTHS.street, "validation.address.streetTooLong"),
-    number: text(MAX_LENGTHS.number, "validation.address.numberTooLong"),
-    complement: text(MAX_LENGTHS.complement, "validation.address.complementTooLong"),
-    district: text(MAX_LENGTHS.district, "validation.address.districtTooLong"),
-    city: text(MAX_LENGTHS.city, "validation.address.cityTooLong"),
-    region: text(MAX_LENGTHS.region, "validation.address.regionTooLong"),
-  })
-  .transform((value, ctx): CountryAddress => {
-    const { address } = countryProfile(value.country);
-    const postalCode = value.postalCode ? address.postalCode.normalize(value.postalCode) : "";
-    if (postalCode && !address.postalCode.pattern.test(postalCode)) {
-      ctx.addIssue({ code: "custom", path: ["postalCode"], message: "validation.postalCodeInvalid" });
-    }
-    let region = value.region;
-    if (region && address.region.regions) {
-      const code = region.toUpperCase();
-      if (address.region.regions.some((item) => item.code === code)) region = code;
-      else ctx.addIssue({ code: "custom", path: ["region"], message: "validation.address.regionInvalid" });
-    }
-    return { ...value, postalCode: postalCode || null, region };
-  });
+  .object({ country: z.enum(COUNTRY_CODES, { error: "validation.countryInvalid" }), ...addressFields })
+  .transform((value, ctx): CountryAddress =>
+    normalizeAddress(value.country, value, (path, message) =>
+      ctx.addIssue({ code: "custom", path: [path], message }),
+    ),
+  );
 
 export type CountryAddressInput = z.input<typeof countryAddressSchema>;
 

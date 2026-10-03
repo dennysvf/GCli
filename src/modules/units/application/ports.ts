@@ -13,6 +13,9 @@ export interface ScheduledAppointments {
     endsOn: string,
     timeZone: string,
   ): Promise<number>;
+  // Whether the unit has any appointment at all; its country cannot change afterwards (PRD F16).
+  // F09 and F11 will add their charges and cash registers to this rule.
+  hasAnyInUnit(organizationId: string, unitId: string): Promise<boolean>;
   // Future appointments that would fall outside the given weekly hours (local to the unit).
   countFutureOutsideHours(
     organizationId: string,
@@ -23,7 +26,14 @@ export interface ScheduledAppointments {
   ): Promise<number>;
 }
 
+// Active services without a price in a currency, provided by services (F03) so units can warn
+// when a unit brings a currency the catalog does not price yet (PRD F16).
+export interface ServicePricing {
+  servicesWithoutPrice(organizationId: string, currency: string): Promise<{ id: string; name: string }[]>;
+}
+
 export type UnitsDeps = {
   appointments: () => ScheduledAppointments;
+  pricing: () => ServicePricing;
   clock: () => Date;
 };

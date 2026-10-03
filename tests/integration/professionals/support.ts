@@ -70,7 +70,7 @@ export async function createServiceOrThrow(
     categoryId,
     description: null,
     durationMinutes: 30,
-    priceCents: 25000,
+    prices: [{ currency: "BRL", amountMinor: 25000 }],
     color: "blue",
     requiresRoom: false,
     allowedRoomIds: [],
@@ -79,16 +79,31 @@ export async function createServiceOrThrow(
   return result.value.serviceId;
 }
 
+// One council registration of a country; the defaults are a Brazilian CRM.
+export function registration(overrides: Record<string, unknown> = {}) {
+  return {
+    country: "BR",
+    councilType: "CRM",
+    councilOtherName: null,
+    number: "123456",
+    region: "SP",
+    npi: null,
+    ...overrides,
+  };
+}
+
+export function cpfDocument(number: string) {
+  return { country: "BR", type: "CPF", number };
+}
+
 export function professionalInput(overrides: Record<string, unknown> = {}) {
   return {
     fullName: "Ana Paula Lima",
     displayName: "Dra. Ana Lima",
     specialty: "Dermatologia",
-    councilType: "CRM",
-    councilOtherName: null,
-    councilNumber: "123456",
-    councilState: "SP",
-    cpf: null,
+    hasNoCouncil: false,
+    registrations: [registration()],
+    document: null,
     phone: "(11) 98888-7777",
     email: "ana.lima@clinicaexemplo.com.br",
     color: "teal",

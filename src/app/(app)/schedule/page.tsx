@@ -1,3 +1,4 @@
+import { currencyOf } from "@/shared/kernel/countries/codes";
 import type { Metadata } from "next";
 import { getOrganizationProfile } from "@/modules/identity";
 import { requirePermission } from "@/modules/identity/next";
@@ -122,6 +123,8 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
       key={`${unitId}-${view}`}
       unitId={unitId}
       unitName={unit?.name ?? "Todas as unidades"}
+      unitCurrency={unit?.currency ?? currencyOf(ctx.organizationCountry)}
+      unitCountry={unit?.country ?? ctx.organizationCountry}
       timeZone={timeZone}
       granularity={granularity}
       today={today}

@@ -32,12 +32,14 @@ export function PatientsTable({ items }: { items: PatientSearchItem[] }) {
                     {item.displayName}
                   </Link>
                   <span className="text-muted-foreground text-xs tabular-nums md:hidden">
-                    {item.cpf ?? "CPF não informado"} · {item.mobilePhone}
+                    {item.document?.display ?? "Documento não informado"} · {item.mobilePhone}
                   </span>
                 </div>
               </TableCell>
               <TableCell className="text-right tabular-nums">{item.age}</TableCell>
-              <TableCell className="hidden tabular-nums md:table-cell">{item.cpf ?? "—"}</TableCell>
+              <TableCell className="hidden tabular-nums md:table-cell">
+                {item.document?.display ?? "—"}
+              </TableCell>
               <TableCell className="hidden tabular-nums md:table-cell">{item.mobilePhone}</TableCell>
               <TableCell className="hidden tabular-nums lg:table-cell">
                 {item.lastAppointmentAt ? formatDateBR(item.lastAppointmentAt) : "—"}

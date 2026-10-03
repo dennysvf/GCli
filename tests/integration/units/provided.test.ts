@@ -39,7 +39,7 @@ describe("provided to other features", () => {
     const contact = await units.getUnitContact(ctx, unitId);
     expect(contact.ok && contact.value).toMatchObject({
       name: "Unidade Centro",
-      phone: "1133334444",
+      phone: "+551133334444",
       formattedAddress: "Avenida Paulista, 1000 - Sala 12 - Bela Vista, São Paulo/SP - CEP 01310-100",
     });
   });

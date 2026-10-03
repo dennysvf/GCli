@@ -11,9 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import type { PriceChangeItem, SaveServiceResult, ServiceDetails } from "../application/services";
 import type { ServiceColor } from "../domain/palette";
-import { SERVICES_DEACTIVATED_WITH_APPOINTMENTS } from "../messages";
+import { SERVICES_DEACTIVATED_WITH_APPOINTMENTS } from "../notices";
 import { PriceHistory } from "./price-history";
-import { ServiceForm, type SelectableRoom } from "./service-form";
+import { ServiceForm, type PriceCurrency, type SelectableRoom } from "./service-form";
 
 type ServiceActions = {
   save: (input: Record<string, unknown>) => Promise<ActionResult<SaveServiceResult>>;
@@ -31,6 +31,7 @@ export function ServiceSheet({
   categories,
   rooms,
   defaultColor,
+  currencies,
   timeZone,
   canManage,
   actions,
@@ -40,6 +41,7 @@ export function ServiceSheet({
   categories: { id: string; name: string }[];
   rooms: SelectableRoom[];
   defaultColor: ServiceColor;
+  currencies: PriceCurrency[];
   timeZone: string;
   canManage: boolean;
   actions: ServiceActions;
@@ -82,6 +84,7 @@ export function ServiceSheet({
       categories={categories}
       rooms={rooms}
       defaultColor={defaultColor}
+      currencies={currencies}
       readOnly={!canManage}
       action={(input) => actions.save(input)}
       createCategoryAction={actions.createCategory}

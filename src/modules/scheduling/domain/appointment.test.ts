@@ -17,7 +17,8 @@ function booked() {
     roomId: "r1",
     startsAt: START,
     durationMinutes: 50,
-    priceCents: 25_000,
+    priceMinor: 25_000,
+    currency: "BRL",
     notes: null,
     seriesId: null,
     seriesIndex: null,
@@ -156,9 +157,9 @@ describe("Appointment", () => {
   it("F06: editing service or duration is refused after check-in", () => {
     const appointment = booked();
     expect(appointment.edit({ durationMinutes: 60 }).ok).toBe(true);
-    expect(appointment.snapshot.priceCents).toBe(25_000);
+    expect(appointment.snapshot.priceMinor).toBe(25_000);
     moveTo(appointment, ["CHECKED_IN"], minutes(-5));
-    const result = appointment.edit({ serviceId: "s2", priceCents: 30_000 });
+    const result = appointment.edit({ serviceId: "s2", priceMinor: 30_000 });
     expect(result.ok ? null : result.error.code).toBe("SCHEDULING_NOT_EDITABLE");
   });
 

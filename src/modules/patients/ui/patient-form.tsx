@@ -7,7 +7,6 @@ import { useState, useTransition } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
-import { maskCep } from "@/shared/kernel/address";
 import type { ActionResult } from "@/shared/kernel/action-result";
 import { Alert, AlertDescription } from "@/shared/ui/components/alert";
 import { Button } from "@/shared/ui/components/button";
@@ -17,7 +16,9 @@ import { Label } from "@/shared/ui/components/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 import { Textarea } from "@/shared/ui/components/textarea";
 import { AddressFields } from "@/shared/ui/forms/address-fields";
-import { CpfInput } from "@/shared/ui/forms/cpf-input";
+import { DocumentInput } from "@/shared/ui/forms/document-input";
+import { COUNTRY_LIST, countryProfile, type CountryCode } from "@/shared/kernel/countries";
+import { useTranslations } from "next-intl";
 import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
@@ -50,7 +51,7 @@ const FIELD_LABELS: Record<string, string> = {
   socialName: "Nome social",
   birthDate: "Data de nascimento",
   sex: "Sexo",
-  cpf: "CPF",
+  document: "Documento",
   rg: "RG",
   mobilePhone: "Celular",
   secondaryPhone: "Telefone secundário",
@@ -61,26 +62,31 @@ const FIELD_LABELS: Record<string, string> = {
   guardian: "Responsável",
 };
 
-function defaultsFrom(patient: PatientDetails | undefined): Values {
+function emptyDocument(country: CountryCode) {
+  return { country, type: countryProfile(country).identityDocuments[0]?.type ?? "CPF", number: "" } as const;
+}
+
+function defaultsFrom(patient: PatientDetails | undefined, defaultCountry: CountryCode): Values {
   return {
     mode: "full",
     fullName: patient?.fullName ?? "",
     socialName: patient?.socialName ?? "",
     birthDate: patient?.birthDate ?? "",
     sex: patient?.sex ?? "NOT_INFORMED",
-    cpf: patient?.cpf ?? "",
+    document: patient?.document ?? emptyDocument(defaultCountry),
     rg: patient?.rg ?? "",
     mobilePhone: patient?.mobilePhone ?? "",
     secondaryPhone: patient?.secondaryPhone ?? "",
     email: patient?.email ?? "",
     address: {
-      cep: maskCep(patient?.address.cep),
+      country: patient?.address.country ?? defaultCountry,
+      postalCode: patient?.address.postalCode ?? "",
       street: patient?.address.street ?? "",
       number: patient?.address.number ?? "",
       complement: patient?.address.complement ?? "",
       district: patient?.address.district ?? "",
       city: patient?.address.city ?? "",
-      state: patient?.address.state ?? "",
+      region: patient?.address.region ?? "",
     },
     occupation: patient?.occupation ?? "",
     referralSourceId: patient?.referralSource?.id ?? null,
@@ -89,11 +95,23 @@ function defaultsFrom(patient: PatientDetails | undefined): Values {
     guardian: patient?.guardian
       ? {
           name: patient.guardian.name,
-          cpf: patient.guardian.cpf ?? "",
+          document: patient.guardian.document
+            ? {
+                country: countryProfile(defaultCountry).identityDocuments.some(
+                  (spec) => spec.type === patient.guardian?.document?.type,
+                )
+                  ? defaultCountry
+                  : (COUNTRY_LIST.find((item) =>
+                      item.identityDocuments.some((spec) => spec.type === patient.guardian?.document?.type),
+                    )?.code ?? defaultCountry),
+                type: patient.guardian.document.type,
+                number: patient.guardian.document.number,
+              }
+            : emptyDocument(defaultCountry),
           relationship: patient.guardian.relationship,
           phone: patient.guardian.phone,
         }
-      : { name: "", cpf: "", relationship: "MOTHER", phone: "" },
+      : { name: "", document: emptyDocument(defaultCountry), relationship: "MOTHER", phone: "" },
     confirmDuplicate: false,
   };
 }
@@ -112,6 +130,7 @@ export function PatientForm({
   patient,
   mode = "full",
   today,
+  defaultCountry,
   referralSources,
   tags,
   readOnly = false,
@@ -121,6 +140,8 @@ export function PatientForm({
   patient?: PatientDetails;
   mode?: "full" | "quick";
   today: string;
+  // The country of the selected unit: the first choice for document, phone and address (PRD F16).
+  defaultCountry: CountryCode;
   referralSources: ListItem[];
   tags: ListItem[];
   readOnly?: boolean;
@@ -136,7 +157,8 @@ export function PatientForm({
   const [candidates, setCandidates] = useState<DuplicateCandidate[] | null>(null);
   const [existingId, setExistingId] = useState<string | null>(null);
   const [conflict, setConflict] = useState<{ message: string; fields: string[] } | null>(null);
-  const defaults = defaultsFrom(patient);
+  const defaults = defaultsFrom(patient, defaultCountry);
+  const t = useTranslations();
   const form = useForm<Values, unknown, Parsed>({
     resolver: zodResolver(createPatientSchema),
     defaultValues: defaults,
@@ -144,6 +166,7 @@ export function PatientForm({
   const draft = useFormDraft(`patient-${patient?.id ?? mode}`, form);
   const { errors } = form.formState;
   const birthDate = useWatch({ control: form.control, name: "birthDate" });
+  const addressCountry = useWatch({ control: form.control, name: "address.country" });
   const selectedTags = useWatch({ control: form.control, name: "tagIds" }) ?? [];
   const showGuardian =
     !!patient?.guardian || (/^\d{4}-\d{2}-\d{2}$/.test(birthDate ?? "") && isMinor(birthDate ?? "", today));
@@ -159,8 +182,11 @@ export function PatientForm({
         ...(patient ? { patientId: patient.id, version: patient.version } : {}),
       };
       const result = await actions.save(input);
-      if (!result.ok && result.error.code === "PATIENTS_CPF_TAKEN") {
-        form.setError("cpf", { type: "server", message: result.error.fields?.cpf ?? result.error.message });
+      if (!result.ok && result.error.code === "PATIENTS_DOCUMENT_TAKEN") {
+        form.setError("document.number", {
+          type: "server",
+          message: result.error.fields?.["document.number"] ?? result.error.message,
+        });
         setExistingId(result.error.fields?.existingPatientId ?? null);
         return;
       }
@@ -244,21 +270,31 @@ export function PatientForm({
               <PhoneInput
                 id="guardian-phone"
                 readOnly={readOnly}
+                defaultCountry={defaultCountry}
                 value={field.value}
                 onChange={field.onChange}
               />
             )}
           />
         </Field>
-        <Field id="guardian-cpf" label="CPF do responsável (opcional)" error={errors.guardian?.cpf?.message}>
+        <div className="sm:col-span-2">
           <Controller
             control={form.control}
-            name="guardian.cpf"
+            name="guardian.document"
             render={({ field }) => (
-              <CpfInput id="guardian-cpf" readOnly={readOnly} value={field.value} onChange={field.onChange} />
+              <DocumentInput
+                idPrefix="guardian-document"
+                label="Documento do responsável (opcional)"
+                readOnly={readOnly}
+                defaultCountry={defaultCountry}
+                value={field.value}
+                onChange={field.onChange}
+                numberError={errors.guardian?.document?.number?.message}
+                typeError={errors.guardian?.document?.type?.message}
+              />
             )}
           />
-        </Field>
+        </div>
       </div>
     </fieldset>
   ) : null;
@@ -321,6 +357,7 @@ export function PatientForm({
                   <PhoneInput
                     id="patient-mobile"
                     readOnly={readOnly}
+                    defaultCountry={defaultCountry}
                     aria-invalid={!!errors.mobilePhone}
                     value={field.value}
                     onChange={field.onChange}
@@ -355,17 +392,20 @@ export function PatientForm({
                   )}
                 />
               </Field>
-              <Field id="patient-cpf" label="CPF (opcional)" error={errors.cpf?.message}>
+              <div className="sm:col-span-3">
                 <Controller
                   control={form.control}
-                  name="cpf"
+                  name="document"
                   render={({ field }) => (
-                    <CpfInput
-                      id="patient-cpf"
+                    <DocumentInput
+                      idPrefix="patient-document"
+                      label="Documento (opcional)"
                       readOnly={readOnly}
-                      aria-invalid={!!errors.cpf}
+                      defaultCountry={defaultCountry}
                       value={field.value}
                       onChange={field.onChange}
+                      numberError={errors.document?.number?.message}
+                      typeError={errors.document?.type?.message}
                     />
                   )}
                 />
@@ -374,7 +414,7 @@ export function PatientForm({
                     Abrir cadastro existente
                   </Link>
                 ) : null}
-              </Field>
+              </div>
               <Field id="patient-rg" label="RG (opcional)" error={errors.rg?.message}>
                 {text("rg", "patient-rg")}
               </Field>
@@ -401,7 +441,7 @@ export function PatientForm({
                       <PhoneInput
                         id="patient-secondary"
                         readOnly={readOnly}
-                        placeholder="(11) 3333-4444"
+                        defaultCountry={defaultCountry}
                         value={field.value}
                         onChange={field.onChange}
                       />
@@ -414,7 +454,44 @@ export function PatientForm({
               </div>
             </fieldset>
 
-            <AddressFields form={form} idPrefix="patient" defaults={defaults.address} readOnly={readOnly} />
+            <Field
+              id="patient-address-country"
+              label={t("units.country")}
+              error={errors.address?.country?.message}
+            >
+              <Controller
+                control={form.control}
+                name="address.country"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? defaultCountry}
+                    onValueChange={(next) => {
+                      field.onChange(next);
+                      form.setValue("address.region", "");
+                    }}
+                    disabled={readOnly}
+                  >
+                    <SelectTrigger id="patient-address-country" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRY_LIST.map((item) => (
+                        <SelectItem key={item.code} value={item.code}>
+                          {t(item.nameKey)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </Field>
+            <AddressFields
+              form={form}
+              idPrefix="patient"
+              country={(addressCountry ?? defaultCountry) as CountryCode}
+              defaults={defaults.address}
+              readOnly={readOnly}
+            />
 
             <fieldset className="grid gap-4">
               <legend className="mb-2 text-sm font-semibold">Outras informações</legend>

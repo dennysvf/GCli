@@ -100,6 +100,8 @@ describe("audit log", () => {
     await identity.updateOrganization(ctx, {
       legalName: "Nova Razão Social",
       tradeName: "Clínica Exemplo",
+      country: "BR",
+      defaultLocale: "pt-BR",
       timeZone: "America/Manaus",
       slotGranularityMinutes: 30,
       version: 1,
@@ -168,7 +170,7 @@ describe("setup:admin", () => {
       organizationName: "Clínica Nova",
       adminName: "Ana Lima",
       adminEmail: "ana@clinicanova.com.br",
-      cnpj: "11.222.333/0001-81",
+      taxId: "11.222.333/0001-81",
     });
     expect(result.ok).toBe(true);
     const invitation = await db().invitation.findFirstOrThrow({});

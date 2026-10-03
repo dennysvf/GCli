@@ -169,7 +169,7 @@ export function GlobalPatientSearch({ canRegister }: { canRegister: boolean }) {
                   >
                     <span className="truncate text-sm font-semibold">{item.displayName}</span>
                     <span className="text-muted-foreground truncate text-xs">
-                      {item.age} anos · {item.cpf ?? `cel. final ${item.mobilePhone.slice(-4)}`}
+                      {item.age} anos · {item.document?.display ?? `cel. final ${item.mobilePhone.slice(-4)}`}
                     </span>
                   </button>
                 </li>

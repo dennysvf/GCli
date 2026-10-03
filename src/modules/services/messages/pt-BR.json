@@ -1,0 +1,31 @@
+{
+  "errors": {
+    "SERVICES_NOT_FOUND": "Serviço não encontrado.",
+    "SERVICES_NAME_TAKEN": "Já existe um serviço com este nome.",
+    "SERVICES_SERVICE_LIMIT": "Limite de 500 serviços ativos atingido.",
+    "SERVICES_INVALID_ROOMS": "Selecione apenas salas ativas.",
+    "SERVICES_CATEGORY_NOT_FOUND": "Categoria não encontrada.",
+    "SERVICES_CATEGORY_NAME_TAKEN": "Já existe uma categoria com este nome.",
+    "SERVICES_CATEGORY_LIMIT": "Limite de 50 categorias atingido.",
+    "SERVICES_CATEGORY_IN_USE": "Esta categoria possui {count} serviços. Mova-os para outra categoria antes de excluí-la.",
+    "SERVICES_PRICE_REQUIRED": "Informe o preço em {currency}."
+  },
+  "validation": {
+    "duration": "A duração deve ser entre 5 e 480 minutos, em múltiplos de 5.",
+    "nameRequired": "Informe o nome do serviço.",
+    "nameTooLong": "O nome deve ter no máximo 100 caracteres.",
+    "categoryRequired": "Selecione uma categoria.",
+    "descriptionTooLong": "A descrição deve ter no máximo 500 caracteres.",
+    "colorRequired": "Selecione uma cor.",
+    "currencyInvalid": "Moeda inválida ou repetida.",
+    "priceInvalid": "Informe um preço válido.",
+    "priceRange": "O preço deve ser de 0 a {max, number} {currency}.",
+    "categoryNameRequired": "Informe o nome da categoria.",
+    "categoryNameTooLong": "O nome deve ter no máximo 50 caracteres."
+  },
+  "defaultCategories": {
+    "consultations": "Consultas",
+    "procedures": "Procedimentos",
+    "therapies": "Terapias"
+  }
+}

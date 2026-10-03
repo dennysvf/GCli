@@ -2,7 +2,8 @@ import { authorize } from "@/shared/authz/guard";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction } from "@/shared/db/transaction";
 import { fail, ok, type Result } from "@/shared/kernel/result";
-import { formatAddress } from "@/shared/kernel/address";
+import { formatCountryAddress, type CountryAddress } from "@/shared/kernel/address";
+import { currencyOf, isCountryCode, type CountryCode, type Currency } from "@/shared/kernel/countries/codes";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
 import type { Week } from "../domain/business-hours";
 import { readWeek } from "./business-hours";
@@ -14,6 +15,8 @@ import { UnitsErrors } from "./errors";
 export type UnitSchedule = {
   unitId: string;
   name: string;
+  country: CountryCode;
+  currency: Currency;
   timeZone: string;
   active: boolean;
   businessHours: Week;
@@ -32,7 +35,7 @@ export async function getUnitSchedule(
   return withTransaction(ctx, async (uow) => {
     const unit = await uow.tx.unit.findFirst({
       where: { id: unitId },
-      select: { id: true, name: true, timeZone: true, active: true },
+      select: { id: true, name: true, country: true, timeZone: true, active: true },
     });
     if (!unit) return fail(UnitsErrors.notFound());
     const today = toDbDate(dateInTimeZone(now, unit.timeZone));
@@ -51,6 +54,8 @@ export async function getUnitSchedule(
     return ok({
       unitId: unit.id,
       name: unit.name,
+      country: toCountry(unit.country),
+      currency: currencyOf(toCountry(unit.country)),
       timeZone: unit.timeZone,
       active: unit.active,
       businessHours,
@@ -64,19 +69,17 @@ export async function getUnitSchedule(
   });
 }
 
+function toCountry(value: string): CountryCode {
+  return isCountryCode(value) ? value : "BR";
+}
+
 export type UnitContact = {
   name: string;
+  country: CountryCode;
+  // E.164.
   phone: string | null;
   email: string | null;
-  address: {
-    street: string | null;
-    number: string | null;
-    complement: string | null;
-    district: string | null;
-    city: string | null;
-    state: string | null;
-    cep: string | null;
-  };
+  address: CountryAddress;
   formattedAddress: string;
 };
 
@@ -87,23 +90,26 @@ export async function getUnitContact(ctx: RequestContext, unitId: string): Promi
   return withTransaction(ctx, async (uow) => {
     const unit = await uow.tx.unit.findFirst({ where: { id: unitId } });
     if (!unit) return fail(UnitsErrors.notFound());
-    const address = {
+    const country = toCountry(unit.country);
+    const address: CountryAddress = {
+      country,
+      postalCode: unit.postalCode,
       street: unit.street,
       number: unit.number,
       complement: unit.complement,
       district: unit.district,
       city: unit.city,
-      state: unit.state,
-      cep: unit.cep,
+      region: unit.region,
     };
     return ok({
       name: unit.name,
+      country,
       phone: unit.phone,
       email: unit.email,
       address,
-      formattedAddress: formatAddress(address),
+      formattedAddress: formatCountryAddress(address),
     });
   });
 }
 
-export { formatAddress };
+export { formatCountryAddress as formatUnitAddress };

@@ -16,19 +16,16 @@ import { APPOINTMENT_STATUSES } from "../domain/status";
 
 // Zod schemas shared by the booking forms, the routes and the use cases (PRD F06 Capabilities).
 
-const id = z.uuid("Selecione uma opção.");
-const date = z.string().refine(isValidDate, "Informe uma data válida.");
-const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Informe um horário válido.");
+const id = z.uuid("scheduling.validation.optionRequired");
+const date = z.string().refine(isValidDate, "scheduling.validation.dateInvalid");
+const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "scheduling.validation.timeInvalid");
 
 const duration = z.coerce
   .number()
   .int()
-  .min(DURATION_MIN, "A duração deve ser de 5 a 480 minutos, em múltiplos de 5.")
-  .max(DURATION_MAX, "A duração deve ser de 5 a 480 minutos, em múltiplos de 5.")
-  .refine(
-    (value) => value % DURATION_STEP === 0,
-    "A duração deve ser de 5 a 480 minutos, em múltiplos de 5.",
-  );
+  .min(DURATION_MIN, "scheduling.validation.duration")
+  .max(DURATION_MAX, "scheduling.validation.duration")
+  .refine((value) => value % DURATION_STEP === 0, "scheduling.validation.duration");
 
 const optionalText = (max: number, message: string) =>
   z
@@ -45,7 +42,7 @@ const justification = z
   .transform((value) => value || null)
   .refine(
     (value) => value === null || (value.length >= JUSTIFICATION_MIN && value.length <= JUSTIFICATION_MAX),
-    "Escreva de 10 a 500 caracteres.",
+    "scheduling.validation.justificationLength",
   );
 
 const overrides = {
@@ -62,7 +59,7 @@ export const bookingSchema = z.object({
   date,
   startTime: time,
   durationMinutes: duration.optional(),
-  notes: optionalText(NOTES_MAX, "Use no máximo 500 caracteres."),
+  notes: optionalText(NOTES_MAX, "scheduling.validation.notesTooLong"),
   ...overrides,
 });
 export type BookingInput = z.infer<typeof bookingSchema>;
@@ -99,7 +96,7 @@ export const updateSchema = z.object({
   notes: z
     .string()
     .trim()
-    .max(NOTES_MAX, "Use no máximo 500 caracteres.")
+    .max(NOTES_MAX, "scheduling.validation.notesTooLong")
     .nullish()
     .transform((value) => (value === undefined ? undefined : value || null)),
   ...overrides,
@@ -131,9 +128,9 @@ export type SeriesScope = (typeof SERIES_SCOPES)[number];
 export const cancelSchema = z.object({
   appointmentId: id,
   version: z.number().int().min(1),
-  origin: z.enum(CANCELLATION_ORIGINS, "Informe a origem do cancelamento."),
-  reasonId: z.uuid("Informe o motivo do cancelamento."),
-  note: optionalText(CANCELLATION_NOTE_MAX, "Use no máximo 500 caracteres."),
+  origin: z.enum(CANCELLATION_ORIGINS, "scheduling.validation.originRequired"),
+  reasonId: z.uuid("scheduling.validation.reasonRequired"),
+  note: optionalText(CANCELLATION_NOTE_MAX, "scheduling.validation.notesTooLong"),
   scope: z.enum(SERIES_SCOPES).optional().default("THIS"),
 });
 
@@ -148,7 +145,7 @@ export const seriesEditSchema = z.object({
     notes: z
       .string()
       .trim()
-      .max(NOTES_MAX, "Use no máximo 500 caracteres.")
+      .max(NOTES_MAX, "scheduling.validation.notesTooLong")
       .nullish()
       .transform((value) => (value === undefined ? undefined : value || null)),
   }),
@@ -218,8 +215,8 @@ export const agendaPdfSchema = z.object({ unitId: id, date, professionalId: id }
 export const reasonNameSchema = z
   .string()
   .trim()
-  .min(1, "Informe o nome do motivo.")
-  .max(REASON_NAME_MAX, "Use no máximo 60 caracteres.");
+  .min(1, "scheduling.validation.reasonNameRequired")
+  .max(REASON_NAME_MAX, "scheduling.validation.reasonNameTooLong");
 export const createReasonSchema = z.object({ name: reasonNameSchema });
 export const renameReasonSchema = z.object({ id, name: reasonNameSchema });
 export const setReasonActiveSchema = z.object({ id, active: z.boolean() });

@@ -5,7 +5,6 @@ import { useState, useTransition } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import type { z } from "zod";
 import type { ActionResult } from "@/shared/kernel/action-result";
-import { formatCents } from "@/shared/kernel/money";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,16 +24,23 @@ import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import { MoneyInput } from "@/shared/ui/forms/money-input";
+import { useLocale } from "next-intl";
+import { formatLocale, formatMoney } from "@/shared/i18n/format";
+import type { Locale } from "@/shared/i18n/locales";
+import type { CountryCode, Currency } from "@/shared/kernel/countries";
 import { useFormDraft } from "@/shared/ui/forms/use-form-draft";
 import { createServiceSchema } from "../application/schemas";
 import type { SaveServiceResult, ServiceDetails } from "../application/services";
 import type { ServiceColor } from "../domain/palette";
 import { DURATION_OPTIONS, formatDuration } from "../domain/service-rules";
-import { SERVICES_PRICE_CHANGE_CONFIRMATION } from "../messages";
+import { SERVICES_PRICE_CHANGE_CONFIRMATION } from "../notices";
 import { ColorPicker } from "@/shared/ui/palette/color-picker";
 
 type Values = z.input<typeof createServiceSchema>;
 type Parsed = z.output<typeof createServiceSchema>;
+
+// A currency the service is priced in, with the country that decides its regional number format.
+export type PriceCurrency = { currency: Currency; country: CountryCode | null };
 
 export type SelectableRoom = { id: string; name: string; unitId: string; unitName: string };
 
@@ -50,11 +56,28 @@ function groupByUnit(rooms: SelectableRoom[]) {
   return [...units.entries()].map(([unitId, unit]) => ({ unitId, ...unit }));
 }
 
+// "R$ 250,00 → R$ 280,00; € 60,00 → € 65,00": only the prices that changed.
+function priceChangeSummary(
+  before: ServiceDetails["prices"],
+  after: ServiceDetails["prices"],
+  locale: Locale,
+): string {
+  return after
+    .flatMap((price) => {
+      const old = before.find((item) => item.currency === price.currency);
+      if (old?.amountMinor === price.amountMinor) return [];
+      const next = formatMoney(price, formatLocale(locale, null));
+      return [old ? `${formatMoney(old, formatLocale(locale, null))} → ${next}` : next];
+    })
+    .join("; ");
+}
+
 export function ServiceForm({
   service,
   categories,
   rooms,
   defaultColor,
+  currencies,
   readOnly = false,
   action,
   createCategoryAction,
@@ -64,6 +87,8 @@ export function ServiceForm({
   categories: { id: string; name: string }[];
   rooms: SelectableRoom[];
   defaultColor: ServiceColor;
+  // Currencies of the active units: each one needs a price (PRD F16).
+  currencies: PriceCurrency[];
   readOnly?: boolean;
   action: (
     input: Parsed & { serviceId?: string; version?: number },
@@ -77,12 +102,24 @@ export function ServiceForm({
   const [newCategory, setNewCategory] = useState<string | null>(null);
   const [newCategoryError, setNewCategoryError] = useState<string | undefined>();
 
+  // The currencies in use plus any other price the service already has, in a stable order.
+  const priceCurrencies: PriceCurrency[] = [
+    ...currencies,
+    ...(service?.prices ?? [])
+      .filter((price) => !currencies.some((item) => item.currency === price.currency))
+      .map((price) => ({ currency: price.currency, country: null })),
+  ];
+  const locale = useLocale() as Locale;
+
   const defaults: Values = {
     name: service?.name ?? "",
     categoryId: service?.categoryId ?? categories[0]?.id ?? "",
     description: service?.description ?? "",
     durationMinutes: service?.durationMinutes ?? 30,
-    priceCents: service?.priceCents ?? 0,
+    prices: priceCurrencies.map(({ currency }) => ({
+      currency,
+      amountMinor: service?.prices.find((price) => price.currency === currency)?.amountMinor ?? 0,
+    })),
     color: service?.color ?? defaultColor,
     requiresRoom: service?.requiresRoom ?? false,
     allowedRoomIds: service?.allowedRoomIds ?? [],
@@ -104,7 +141,13 @@ export function ServiceForm({
       const result = await action(
         service ? { ...values, serviceId: service.id, version: service.version } : values,
       );
-      if (handleActionResult(result, { setError: form.setError, successMessage: "Serviço salvo" })) {
+      // Server errors name a price by its currency ("prices.EUR"); the form lists them by position.
+      const setError: typeof form.setError = (name, error, options) => {
+        const currency = /^prices\.([A-Z]{3})$/.exec(name)?.[1];
+        const index = priceCurrencies.findIndex((item) => item.currency === currency);
+        form.setError(index >= 0 ? `prices.${index}.amountMinor` : name, error, options);
+      };
+      if (handleActionResult(result, { setError, successMessage: "Serviço salvo" })) {
         draft.clear();
         onSaved(result.data.serviceId);
       }
@@ -113,7 +156,13 @@ export function ServiceForm({
 
   // PRD F03: after a price change the user is told existing appointments keep their price.
   const onSubmit = form.handleSubmit((values) => {
-    if (service && values.priceCents !== service.priceCents) setConfirming(values);
+    const changed =
+      !!service &&
+      values.prices.some(
+        (price) =>
+          service.prices.find((old) => old.currency === price.currency)?.amountMinor !== price.amountMinor,
+      );
+    if (changed) setConfirming(values);
     else save(values);
   });
 
@@ -235,22 +284,36 @@ export function ServiceForm({
               )}
             />
           </Field>
-          <Field id="service-price" label="Preço" error={errors.priceCents?.message}>
-            <Controller
-              control={form.control}
-              name="priceCents"
-              render={({ field }) => (
-                <MoneyInput
-                  id="service-price"
-                  readOnly={readOnly}
-                  aria-invalid={!!errors.priceCents}
-                  value={field.value}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {priceCurrencies.map(({ currency, country }, index) => {
+            const message = errors.prices?.[index]?.amountMinor?.message;
+            return (
+              <Field
+                key={currency}
+                id={`service-price-${currency}`}
+                label={priceCurrencies.length > 1 ? `Preço (${currency})` : "Preço"}
+                error={message}
+              >
+                <Controller
+                  control={form.control}
+                  name={`prices.${index}.amountMinor`}
+                  render={({ field }) => (
+                    <MoneyInput
+                      id={`service-price-${currency}`}
+                      readOnly={readOnly}
+                      aria-invalid={!!message}
+                      currency={currency}
+                      country={country}
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                    />
+                  )}
                 />
-              )}
-            />
-          </Field>
+              </Field>
+            );
+          })}
         </div>
 
         <Field id="service-color" label="Cor na agenda" error={errors.color?.message}>
@@ -363,7 +426,7 @@ export function ServiceForm({
             <AlertDialogTitle>Alterar preço</AlertDialogTitle>
             <AlertDialogDescription>
               {service && confirming
-                ? `${formatCents(service.priceCents)} → ${formatCents(confirming.priceCents)}. `
+                ? `${priceChangeSummary(service.prices, confirming.prices, locale)}. `
                 : null}
               {SERVICES_PRICE_CHANGE_CONFIRMATION}
             </AlertDialogDescription>

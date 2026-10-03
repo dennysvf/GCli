@@ -1,15 +1,19 @@
 import { domainError } from "@/shared/kernel/errors";
 
-// Units error codes (spec F02 section 5). Messages live in ../messages.ts.
+// Units error codes (spec F02 section 5). Texts live in the catalog under units.errors.
 export const UnitsErrors = {
   notFound: () => domainError("UNITS_NOT_FOUND", 404),
-  nameTaken: () => domainError("UNITS_NAME_TAKEN", 409, { name: "Já existe uma unidade com este nome." }),
+  nameTaken: () => domainError("UNITS_NAME_TAKEN", 409, { name: "units.errors.UNITS_NAME_TAKEN" }),
   roomNameTaken: () =>
-    domainError("UNITS_ROOM_NAME_TAKEN", 409, { name: "Já existe uma sala com este nome." }),
+    domainError("UNITS_ROOM_NAME_TAKEN", 409, { name: "units.errors.UNITS_ROOM_NAME_TAKEN" }),
   unitLimit: () => domainError("UNITS_UNIT_LIMIT", 422),
   roomLimit: () => domainError("UNITS_ROOM_LIMIT", 422),
   closureLimit: () => domainError("UNITS_CLOSURE_LIMIT", 422),
-  invalidCnpj: () => domainError("UNITS_INVALID_CNPJ", 400, { cnpj: "CNPJ inválido." }),
+  // The type is the tax ID abbreviation of the unit's country, the same in every language.
+  invalidTaxId: (type: string) =>
+    domainError("TAX_ID_INVALID", 400, { taxId: "errors.TAX_ID_INVALID" }, { type }),
+  countryLocked: () =>
+    domainError("UNITS_COUNTRY_LOCKED", 409, { country: "units.errors.UNITS_COUNTRY_LOCKED" }),
   invalidHours: (fields: Record<string, string>) => domainError("UNITS_INVALID_HOURS", 400, fields),
   roomHasAppointments: (count: number) =>
     domainError("UNITS_ROOM_HAS_APPOINTMENTS", 409, undefined, { count }),

@@ -1,9 +1,8 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { professionals, professionalsMessages } from "@/modules/professionals";
+import { professionals } from "@/modules/professionals";
 import { units } from "@/modules/units";
 import { db } from "@/shared/db/client";
-import { interpolate } from "@/shared/kernel/action-result";
-import { auditEvents, closeHelpers, resetDatabase } from "../helpers";
+import { auditEvents, closeHelpers, errorText, resetDatabase } from "../helpers";
 import {
   createProfessionalOrThrow,
   createUnitWithHours,
@@ -28,8 +27,8 @@ function save(ctx: TestContext, input: Record<string, unknown>) {
   return professionals.saveSchedule(ctx, input);
 }
 
-function message(error: { code: string; params?: Record<string, string | number> }) {
-  return interpolate(professionalsMessages[error.code] ?? "", error.params);
+function message(error: { code: string; params?: Record<string, string | number> | undefined }) {
+  return errorText("professionals", error);
 }
 
 describe("working-hour schedules", () => {
@@ -49,7 +48,9 @@ describe("working-hour schedules", () => {
     const expected =
       "Conflito de horário: este profissional já atende na unidade Centro às terças, 08:00–12:00.";
     expect(message(result.error)).toBe(expected);
-    expect(result.error.fields?.["intervals.1"]).toBe(expected);
+    expect(result.error.fields?.["intervals.1"]).toBe(
+      "professionals.errors.PROFESSIONALS_CROSS_UNIT_CONFLICT",
+    );
     expect(await db().professionalSchedule.count()).toBe(0);
 
     // Different weekdays, or touching intervals, are fine.
@@ -85,7 +86,7 @@ describe("working-hour schedules", () => {
       intervals: [{ unitId: centro, weekday: 7, start: h(9), end: h(10) }],
     });
     expect(!sunday.ok && sunday.error.fields?.["intervals.0"]).toBe(
-      "O horário informado está fora do funcionamento da unidade (fechada às domingos).",
+      "professionals.errors.PROFESSIONALS_OUTSIDE_BUSINESS_HOURS?hours=fechada+%C3%A0s+domingos",
     );
   });
 

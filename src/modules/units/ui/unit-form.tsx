@@ -1,14 +1,16 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
+import { toast } from "sonner";
 import type { z } from "zod";
 import type { ActionResult } from "@/shared/kernel/action-result";
-import { maskCep } from "@/shared/kernel/address";
-import { formatCnpj } from "@/shared/kernel/cnpj";
-import { BRAZIL_TIME_ZONES, timeZoneLabel } from "@/shared/kernel/time-zones";
+import { COUNTRY_LIST, countryProfile, currencyOf, type CountryCode } from "@/shared/kernel/countries";
+import { formatTaxId, taxIdSpec } from "@/shared/kernel/tax-id";
+import { timeZoneLabel } from "@/shared/kernel/time-zones";
 import { Button } from "@/shared/ui/components/button";
 import { Input } from "@/shared/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
@@ -16,49 +18,49 @@ import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { AddressFields } from "@/shared/ui/forms/address-fields";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
+import { PhoneInput } from "@/shared/ui/forms/phone-input";
+import { TaxIdInput } from "@/shared/ui/forms/tax-id-input";
 import { useFormDraft } from "@/shared/ui/forms/use-form-draft";
+import { LegalBanner } from "@/shared/ui/i18n/legal-banner";
 import { createUnitSchema } from "../application/schemas";
-import type { UnitDetails } from "../application/units";
+import type { UnitDetails, UnitSaved } from "../application/units";
 
 type Values = z.input<typeof createUnitSchema>;
 type Parsed = z.output<typeof createUnitSchema>;
 
-function maskPhone(value: string | null | undefined): string {
-  const digits = (value ?? "").replace(/\D/g, "");
-  if (digits.length === 11) return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-  if (digits.length === 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-  return value ?? "";
-}
-
 export function UnitForm({
   unit,
+  defaultCountry,
   defaultTimeZone,
   readOnly = false,
   action,
 }: {
   unit?: UnitDetails;
+  // A new unit starts in the organization country and zone (ADR-019).
+  defaultCountry: CountryCode;
   defaultTimeZone: string;
   readOnly?: boolean;
-  action: (
-    input: Parsed & { unitId?: string; version?: number },
-  ) => Promise<ActionResult<{ unitId: string; version: number }>>;
+  action: (input: Parsed & { unitId?: string; version?: number }) => Promise<ActionResult<UnitSaved>>;
 }) {
   const router = useRouter();
+  const t = useTranslations();
   const [pending, startTransition] = useTransition();
+  const initialCountry = unit?.country ?? defaultCountry;
   const defaults: Values = {
     name: unit?.name ?? "",
-    cnpj: unit?.cnpj ? formatCnpj(unit.cnpj) : "",
-    timeZone: (unit?.timeZone ?? defaultTimeZone) as Values["timeZone"],
-    phone: maskPhone(unit?.phone),
+    country: initialCountry,
+    taxId: unit?.taxId ? formatTaxId(initialCountry, unit.taxId) : "",
+    timeZone: unit?.timeZone ?? defaultTimeZone,
+    phone: unit?.phone ?? "",
     email: unit?.email ?? "",
     address: {
-      cep: maskCep(unit?.address.cep),
+      postalCode: unit?.address.postalCode ?? "",
       street: unit?.address.street ?? "",
       number: unit?.address.number ?? "",
       complement: unit?.address.complement ?? "",
       district: unit?.address.district ?? "",
       city: unit?.address.city ?? "",
-      state: unit?.address.state ?? "",
+      region: unit?.address.region ?? "",
     },
   };
   const form = useForm<Values, unknown, Parsed>({
@@ -68,49 +70,101 @@ export function UnitForm({
   const draft = useFormDraft(`unit-${unit?.id ?? "new"}`, form);
   const { errors } = form.formState;
   const version = unit?.version;
+  const country = useWatch({ control: form.control, name: "country" }) as CountryCode;
+  const profile = countryProfile(country);
 
   const onSubmit = form.handleSubmit((values) =>
     startTransition(async () => {
       const result = await action(unit ? { ...values, unitId: unit.id, version } : values);
       if (handleActionResult(result, { setError: form.setError, successMessage: "Unidade salva" })) {
         draft.clear();
+        // A unit in a currency the catalog does not price yet: list the services to price (PRD F16).
+        const missing = result.data.servicesWithoutPrice;
+        if (missing.length > 0) {
+          toast.warning(
+            t("units.newCurrencyWarning", {
+              count: missing.length,
+              currency: result.data.currency,
+              names: missing.map((service) => service.name).join(", "),
+            }),
+            { duration: Infinity, closeButton: true },
+          );
+        }
         if (!unit) router.push(`/settings/units/${result.data.unitId}?tab=horario`);
         else router.refresh();
       }
     }),
   );
 
-  // defaultValue makes the server-rendered HTML already show the stored values (see F01).
-  const initial = (path: string): string => {
-    const value = path
-      .split(".")
-      .reduce<unknown>((node, key) => (node as Record<string, unknown>)?.[key], defaults);
-    return typeof value === "string" ? value : "";
-  };
-  const text = (
-    name: Parameters<typeof form.register>[0],
-    id: string,
-    props: Record<string, unknown> = {},
-  ) => (
-    <Input
-      id={id}
-      readOnly={readOnly}
-      defaultValue={initial(name)}
-      aria-invalid={!!form.getFieldState(name).error}
-      {...props}
-      {...form.register(name)}
-    />
-  );
+  const initial = (name: "name" | "email"): string => defaults[name] ?? "";
 
   return (
     <form onSubmit={onSubmit} className="grid max-w-2xl gap-4" noValidate>
       <HydratedFieldset disabled={readOnly}>
         <Field id="unit-name" label="Nome" error={errors.name?.message}>
-          {text("name", "unit-name")}
+          <Input
+            id="unit-name"
+            readOnly={readOnly}
+            defaultValue={initial("name")}
+            aria-invalid={!!errors.name}
+            {...form.register("name")}
+          />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="unit-cnpj" label="CNPJ (opcional)" error={errors.cnpj?.message}>
-            {text("cnpj", "unit-cnpj", { placeholder: "00.000.000/0000-00", maxLength: 18 })}
+          <Field id="unit-country" label={t("units.country")} error={errors.country?.message}>
+            <Controller
+              control={form.control}
+              name="country"
+              render={({ field }) => (
+                <Select
+                  value={field.value}
+                  disabled={readOnly}
+                  onValueChange={(next) => {
+                    field.onChange(next);
+                    // Zones, tax ID and address follow the country: restart them from its defaults.
+                    form.setValue("timeZone", countryProfile(next as CountryCode).defaultTimeZone);
+                    form.setValue("taxId", "");
+                    form.setValue("address.region", "");
+                  }}
+                >
+                  <SelectTrigger id="unit-country" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COUNTRY_LIST.map((item) => (
+                      <SelectItem key={item.code} value={item.code}>
+                        {t(item.nameKey)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </Field>
+          <Field id="unit-currency" label={t("units.currency")}>
+            <Input id="unit-currency" value={currencyOf(country)} readOnly disabled />
+          </Field>
+        </div>
+        <LegalBanner country={country} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            id="unit-taxId"
+            label={`${taxIdSpec(country).shortLabel} (opcional)`}
+            error={errors.taxId?.message}
+          >
+            <Controller
+              control={form.control}
+              name="taxId"
+              render={({ field }) => (
+                <TaxIdInput
+                  id="unit-taxId"
+                  country={country}
+                  readOnly={readOnly}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
+            />
           </Field>
           <Field id="unit-timezone" label="Fuso horário" error={errors.timeZone?.message}>
             <Controller
@@ -122,7 +176,7 @@ export function UnitForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {BRAZIL_TIME_ZONES.map((zone) => (
+                    {profile.timeZones.map((zone) => (
                       <SelectItem key={zone} value={zone}>
                         {timeZoneLabel(zone)}
                       </SelectItem>
@@ -133,13 +187,38 @@ export function UnitForm({
             />
           </Field>
           <Field id="unit-phone" label="Telefone" error={errors.phone?.message}>
-            {text("phone", "unit-phone", { placeholder: "(11) 3333-4444", inputMode: "tel" })}
+            <Controller
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <PhoneInput
+                  id="unit-phone"
+                  readOnly={readOnly}
+                  defaultCountry={country}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
+            />
           </Field>
           <Field id="unit-email" label="E-mail" error={errors.email?.message}>
-            {text("email", "unit-email", { type: "email" })}
+            <Input
+              id="unit-email"
+              type="email"
+              readOnly={readOnly}
+              defaultValue={initial("email")}
+              aria-invalid={!!errors.email}
+              {...form.register("email")}
+            />
           </Field>
         </div>
-        <AddressFields form={form} idPrefix="unit" defaults={defaults.address} readOnly={readOnly} />
+        <AddressFields
+          form={form}
+          idPrefix="unit"
+          country={country}
+          defaults={defaults.address}
+          readOnly={readOnly}
+        />
         {readOnly ? null : (
           <div>
             <Button type="submit" disabled={pending}>

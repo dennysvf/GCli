@@ -1,9 +1,8 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { scheduling, schedulingMessages } from "@/modules/scheduling";
+import { scheduling } from "@/modules/scheduling";
 import { db } from "@/shared/db/client";
-import { interpolate } from "@/shared/kernel/action-result";
 import { isoWeekday } from "@/shared/kernel/calendar-date";
-import { closeHelpers, resetDatabase } from "../helpers";
+import { closeHelpers, errorText, resetDatabase } from "../helpers";
 import { booking, bookOrThrow, day, firstReasonId, schedulingWorld, type World } from "./support";
 
 beforeEach(resetDatabase);
@@ -58,7 +57,7 @@ describe("recurring series", () => {
       params: { conflicts: 4, total: 20 },
     });
     expect(
-      interpolate(schedulingMessages.SCHEDULING_SERIES_CONFLICTS ?? "", { conflicts: 4, total: 20 }),
+      errorText("scheduling", { code: "SCHEDULING_SERIES_CONFLICTS", params: { conflicts: 4, total: 20 } }),
     ).toBe("4 de 20 sessões possuem conflito.");
     expect(await db().appointment.count({ where: { seriesId: { not: null } } })).toBe(0);
 

@@ -45,7 +45,8 @@ export type AppointmentEventPayload = {
   roomId: string | null;
   startsAt: string;
   endsAt: string;
-  priceCents: number;
+  priceMinor: number;
+  currency: string;
   actorUserId: string;
 };
 
@@ -65,7 +66,8 @@ export function appointmentEvent(
     roomId: props.roomId,
     startsAt: props.startsAt.toISOString(),
     endsAt: new Date(props.startsAt.getTime() + props.durationMinutes * 60_000).toISOString(),
-    priceCents: props.priceCents,
+    priceMinor: props.priceMinor,
+    currency: props.currency,
     actorUserId: context.actorUserId,
   };
   return { type, occurredAt: context.now, payload };

@@ -16,10 +16,12 @@ export const DURATION_MIN = 5;
 export const DURATION_MAX = 480;
 export const DURATION_STEP = 5;
 
-// PRD F03: price R$ 0,00–R$ 99.999,99 (zero allowed for free returns).
-export const PRICE_MAX_CENTS = 9_999_999;
+// PRD F03 and F16: price from 0 to 99,999.99 in the currency (zero allowed for free returns).
+export const PRICE_MAX_MAJOR = 99_999;
 
 // Upper bound for allowed rooms in one request: 20 units × 30 rooms (PRD F02 limits).
 export const ALLOWED_ROOMS_MAX = 600;
 
-export const DEFAULT_CATEGORIES = ["Consultas", "Procedimentos", "Terapias"] as const;
+// Default categories are catalog messages (services.defaultCategories.*), created in the language of
+// the organization; afterwards they are clinic data and are not translated (PRD F16).
+export const DEFAULT_CATEGORY_KEYS = ["consultations", "procedures", "therapies"] as const;

@@ -14,7 +14,6 @@
     "IDENTITY_INVITATION_NOT_PENDING": "Este convite não está mais pendente.",
     "IDENTITY_USER_LIMIT": "Limite de 100 usuários atingido.",
     "IDENTITY_USER_NOT_FOUND": "Usuário não encontrado.",
-    "ORG_INVALID_CNPJ": "CNPJ inválido.",
     "ORG_LOGO_INVALID": "Envie um logotipo PNG, JPG ou SVG de até 2 MB.",
     "SETUP_ALREADY_DONE": "Já existe uma organização cadastrada neste ambiente.",
     "NOT_FOUND": "Registro não encontrado.",
@@ -65,5 +64,24 @@
       "good": "Boa",
       "strong": "Forte"
     }
+  },
+  "validation": {
+    "emailRequired": "Informe o e-mail.",
+    "emailTooLong": "E-mail muito longo.",
+    "emailInvalid": "Informe um e-mail válido.",
+    "passwordRequired": "Informe a senha.",
+    "passwordTooShort": "A senha deve ter pelo menos 10 caracteres.",
+    "passwordTooLong": "A senha deve ter no máximo 128 caracteres.",
+    "passwordMissingLetter": "A senha deve conter pelo menos uma letra.",
+    "passwordMissingDigit": "A senha deve conter pelo menos um número.",
+    "passwordMismatch": "As senhas não conferem.",
+    "roleRequired": "Selecione um perfil.",
+    "nameRequired": "Informe o nome completo.",
+    "nameTooLong": "Nome muito longo.",
+    "legalNameRequired": "Informe a razão social.",
+    "legalNameTooLong": "Razão social muito longa.",
+    "tradeNameTooLong": "Nome fantasia muito longo.",
+    "timeZoneRequired": "Selecione um fuso horário do país.",
+    "slotInvalid": "Selecione 5, 10, 15 ou 30 minutos."
   }
 }

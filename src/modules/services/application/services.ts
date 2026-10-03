@@ -2,12 +2,14 @@ import { authorize } from "@/shared/authz/guard";
 import { diffChanges } from "@/shared/audit/diff";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
+import { isCurrency, type Currency } from "@/shared/kernel/countries/codes";
 import { CommonErrors } from "@/shared/kernel/errors";
 import { newId } from "@/shared/kernel/ids";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import { parseInput } from "@/shared/kernel/validation";
 import { MAX_ACTIVE_SERVICES } from "../domain/limits";
 import { nextDefaultColor, type ServiceColor } from "../domain/palette";
+import { priceIn } from "../domain/service-rules";
 import { isUniqueViolation } from "./categories";
 import { ServicesErrors } from "./errors";
 import type { ServicesDeps } from "./ports";
@@ -19,11 +21,23 @@ import {
   type ServiceStatusFilter,
 } from "./schemas";
 
+// One price of a service in a currency, in minor units (PRD F16).
+export type ServicePriceItem = { currency: Currency; amountMinor: number };
+
+// Prices as stored (bigint minor units) to the shape the rest of the system uses, ordered by currency.
+export function toPrices(rows: { currency: string; amountMinor: bigint }[]): ServicePriceItem[] {
+  return rows
+    .flatMap((row) =>
+      isCurrency(row.currency) ? [{ currency: row.currency, amountMinor: Number(row.amountMinor) }] : [],
+    )
+    .sort((a, b) => a.currency.localeCompare(b.currency));
+}
+
 export type ServiceListItem = {
   id: string;
   name: string;
   durationMinutes: number;
-  priceCents: number;
+  prices: ServicePriceItem[];
   color: ServiceColor;
   requiresRoom: boolean;
   enabledProfessionals: number;
@@ -44,7 +58,7 @@ export type ServiceDetails = {
   categoryName: string;
   description: string | null;
   durationMinutes: number;
-  priceCents: number;
+  prices: ServicePriceItem[];
   color: ServiceColor;
   requiresRoom: boolean;
   active: boolean;
@@ -55,8 +69,9 @@ export type ServiceDetails = {
 export type PriceChangeItem = {
   id: string;
   changedAt: Date;
-  previousPriceCents: number | null;
-  priceCents: number;
+  currency: Currency;
+  previousAmountMinor: number | null;
+  amountMinor: number;
   changedBy: { id: string; name: string } | null;
 };
 
@@ -90,8 +105,9 @@ async function recordPriceChange(
   uow: UnitOfWork,
   ctx: RequestContext,
   serviceId: string,
-  previousPriceCents: number | null,
-  priceCents: number,
+  currency: Currency,
+  previousAmountMinor: number | null,
+  amountMinor: number,
   at: Date,
 ): Promise<void> {
   await uow.tx.servicePriceChange.create({
@@ -99,12 +115,28 @@ async function recordPriceChange(
       id: newId(),
       organizationId: ctx.organizationId,
       serviceId,
-      previousPriceCents,
-      priceCents,
+      currency,
+      previousAmountMinor: previousAmountMinor === null ? null : BigInt(previousAmountMinor),
+      amountMinor: BigInt(amountMinor),
       changedAt: at,
       changedById: ctx.user.id,
     },
   });
+}
+
+// Every currency in use by the active units needs a price (PRD F16).
+async function missingCurrencies(
+  deps: ServicesDeps,
+  ctx: RequestContext,
+  prices: ServicePriceItem[],
+): Promise<Currency[]> {
+  const given = new Set(prices.map((price) => price.currency));
+  return (await deps.currencies.currenciesInUse(ctx)).filter((currency) => !given.has(currency));
+}
+
+// Prices as "BRL 250.00"-style text for the audit log, which keeps one line per currency.
+function pricesForAudit(prices: ServicePriceItem[]): string {
+  return prices.map((price) => `${price.currency} ${price.amountMinor}`).join(", ");
 }
 
 export async function listServices(
@@ -135,10 +167,10 @@ export async function listServices(
         categoryId: true,
         name: true,
         durationMinutes: true,
-        priceCents: true,
         color: true,
         requiresRoom: true,
         active: true,
+        prices: { select: { currency: true, amountMinor: true } },
       },
     });
     return ok({ categories, services });
@@ -161,7 +193,7 @@ export async function listServices(
           id: service.id,
           name: service.name,
           durationMinutes: service.durationMinutes,
-          priceCents: service.priceCents,
+          prices: toPrices(service.prices),
           color: service.color as ServiceColor,
           requiresRoom: service.requiresRoom,
           enabledProfessionals: professionals.get(service.id) ?? 0,
@@ -181,6 +213,7 @@ export async function getService(ctx: RequestContext, serviceId: string): Promis
       include: {
         category: { select: { name: true } },
         allowedRooms: { select: { roomId: true } },
+        prices: { select: { currency: true, amountMinor: true } },
       },
     });
     if (!service) return fail(ServicesErrors.notFound());
@@ -191,7 +224,7 @@ export async function getService(ctx: RequestContext, serviceId: string): Promis
       categoryName: service.category.name,
       description: service.description,
       durationMinutes: service.durationMinutes,
-      priceCents: service.priceCents,
+      prices: toPrices(service.prices),
       color: service.color as ServiceColor,
       requiresRoom: service.requiresRoom,
       active: service.active,
@@ -220,10 +253,12 @@ export async function createService(
   if (!allowed.ok) return allowed;
   const parsed = parseInput(createServiceSchema, input);
   if (!parsed.ok) return parsed;
-  const { allowedRoomIds, ...fields } = parsed.value;
+  const { allowedRoomIds, prices, ...fields } = parsed.value;
   // Rooms only matter when the service requires one (spec F03 assumptions).
   const roomIds = fields.requiresRoom ? allowedRoomIds : [];
   if (!(await roomsAreValid(deps, ctx, roomIds))) return fail(ServicesErrors.invalidRooms());
+  const missing = await missingCurrencies(deps, ctx, prices);
+  if (missing.length > 0) return fail(ServicesErrors.priceRequired(missing));
 
   try {
     return await withTransaction(ctx, async (uow) => {
@@ -246,15 +281,31 @@ export async function createService(
           data: roomIds.map((roomId) => ({ serviceId: id, roomId, organizationId: ctx.organizationId })),
         });
       }
-      await recordPriceChange(uow, ctx, id, null, fields.priceCents, deps.clock());
+      if (prices.length > 0) {
+        await uow.tx.servicePrice.createMany({
+          data: prices.map((price) => ({
+            serviceId: id,
+            organizationId: ctx.organizationId,
+            currency: price.currency,
+            amountMinor: BigInt(price.amountMinor),
+          })),
+        });
+      }
+      for (const price of prices) {
+        await recordPriceChange(uow, ctx, id, price.currency, null, price.amountMinor, deps.clock());
+      }
       await uow.audit.record({
         action: "CREATE",
         entityType: "service",
         entityId: id,
         summary: "Serviço criado",
-        changes: diffChanges(null, { ...fields, allowedRoomIds: [...roomIds].sort() }),
+        changes: diffChanges(null, {
+          ...fields,
+          prices: pricesForAudit(prices),
+          allowedRoomIds: [...roomIds].sort(),
+        }),
       });
-      return ok({ serviceId: id, version: 1, priceChanged: true });
+      return ok({ serviceId: id, version: 1, priceChanged: prices.length > 0 });
     });
   } catch (error) {
     if (isUniqueViolation(error)) return fail(ServicesErrors.nameTaken());
@@ -271,14 +322,19 @@ export async function updateService(
   if (!allowed.ok) return allowed;
   const parsed = parseInput(updateServiceSchema, input);
   if (!parsed.ok) return parsed;
-  const { serviceId, version, allowedRoomIds, ...fields } = parsed.value;
+  const { serviceId, version, allowedRoomIds, prices, ...fields } = parsed.value;
   const roomIds = fields.requiresRoom ? allowedRoomIds : [];
+  const missing = await missingCurrencies(deps, ctx, prices);
+  if (missing.length > 0) return fail(ServicesErrors.priceRequired(missing));
 
   try {
     return await withTransaction(ctx, async (uow) => {
       const before = await uow.tx.service.findFirst({
         where: { id: serviceId },
-        include: { allowedRooms: { select: { roomId: true } } },
+        include: {
+          allowedRooms: { select: { roomId: true } },
+          prices: { select: { currency: true, amountMinor: true } },
+        },
       });
       if (!before) return fail(ServicesErrors.notFound());
       const linked = new Set(before.allowedRooms.map((room) => room.roomId));
@@ -304,11 +360,26 @@ export async function updateService(
           data: roomIds.map((roomId) => ({ serviceId, roomId, organizationId: ctx.organizationId })),
         });
       }
-      // PRD F03: every price change is stored with its date and author; appointments keep the
-      // price they snapshotted, so nothing else changes here.
-      const priceChanged = before.priceCents !== fields.priceCents;
-      if (priceChanged) {
-        await recordPriceChange(uow, ctx, serviceId, before.priceCents, fields.priceCents, deps.clock());
+      // PRD F03 and F16: every price change is stored per currency with its date and author;
+      // appointments keep the price they snapshotted, so nothing else changes here.
+      const previous = toPrices(before.prices);
+      await uow.tx.servicePrice.deleteMany({ where: { serviceId } });
+      if (prices.length > 0) {
+        await uow.tx.servicePrice.createMany({
+          data: prices.map((price) => ({
+            serviceId,
+            organizationId: ctx.organizationId,
+            currency: price.currency,
+            amountMinor: BigInt(price.amountMinor),
+          })),
+        });
+      }
+      let priceChanged = false;
+      for (const price of prices) {
+        const old = priceIn(previous, price.currency);
+        if (old === price.amountMinor) continue;
+        priceChanged = true;
+        await recordPriceChange(uow, ctx, serviceId, price.currency, old, price.amountMinor, deps.clock());
       }
       await uow.audit.record({
         action: "UPDATE",
@@ -316,8 +387,8 @@ export async function updateService(
         entityId: serviceId,
         summary: priceChanged ? "Serviço alterado (novo preço)" : "Serviço alterado",
         changes: diffChanges(
-          { ...before, allowedRoomIds: [...linked].sort() },
-          { ...fields, allowedRoomIds: [...roomIds].sort() },
+          { ...before, prices: pricesForAudit(previous), allowedRoomIds: [...linked].sort() },
+          { ...fields, prices: pricesForAudit(prices), allowedRoomIds: [...roomIds].sort() },
         ),
       });
       return ok({ serviceId, version: version + 1, priceChanged });
@@ -384,7 +455,14 @@ export async function listPriceHistory(
         where: { serviceId },
         // UUIDv7 ids are time-ordered, so they break ties between changes in the same instant.
         orderBy: [{ changedAt: "desc" }, { id: "desc" }],
-        select: { id: true, changedAt: true, previousPriceCents: true, priceCents: true, changedById: true },
+        select: {
+          id: true,
+          changedAt: true,
+          currency: true,
+          previousAmountMinor: true,
+          amountMinor: true,
+          changedById: true,
+        },
       }),
     );
   });
@@ -393,9 +471,20 @@ export async function listPriceHistory(
   const authorIds = loaded.value.flatMap((change) => (change.changedById ? [change.changedById] : []));
   const names = await deps.users.namesOf(ctx, authorIds);
   return ok(
-    loaded.value.map(({ changedById, ...change }) => ({
-      ...change,
-      changedBy: changedById ? { id: changedById, name: names.get(changedById) ?? "Usuário removido" } : null,
-    })),
+    loaded.value.flatMap(({ changedById, currency, previousAmountMinor, amountMinor, ...change }) =>
+      !isCurrency(currency)
+        ? []
+        : [
+            {
+              ...change,
+              currency,
+              previousAmountMinor: previousAmountMinor === null ? null : Number(previousAmountMinor),
+              amountMinor: Number(amountMinor),
+              changedBy: changedById
+                ? { id: changedById, name: names.get(changedById) ?? "Usuário removido" }
+                : null,
+            },
+          ],
+    ),
   );
 }

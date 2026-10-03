@@ -14,7 +14,6 @@
     "IDENTITY_INVITATION_NOT_PENDING": "This invitation is no longer pending.",
     "IDENTITY_USER_LIMIT": "The limit of 100 users has been reached.",
     "IDENTITY_USER_NOT_FOUND": "User not found.",
-    "ORG_INVALID_CNPJ": "Invalid CNPJ.",
     "ORG_LOGO_INVALID": "Upload a PNG, JPG or SVG logo of up to 2 MB.",
     "SETUP_ALREADY_DONE": "An organization already exists in this environment.",
     "NOT_FOUND": "Record not found.",
@@ -65,5 +64,24 @@
       "good": "Good",
       "strong": "Strong"
     }
+  },
+  "validation": {
+    "emailRequired": "Enter the email.",
+    "emailTooLong": "The email is too long.",
+    "emailInvalid": "Enter a valid email.",
+    "passwordRequired": "Enter the password.",
+    "passwordTooShort": "The password must have at least 10 characters.",
+    "passwordTooLong": "The password must have at most 128 characters.",
+    "passwordMissingLetter": "The password must contain at least one letter.",
+    "passwordMissingDigit": "The password must contain at least one number.",
+    "passwordMismatch": "The passwords do not match.",
+    "roleRequired": "Select a role.",
+    "nameRequired": "Enter the full name.",
+    "nameTooLong": "The name is too long.",
+    "legalNameRequired": "Enter the legal name.",
+    "legalNameTooLong": "The legal name is too long.",
+    "tradeNameTooLong": "The trade name is too long.",
+    "timeZoneRequired": "Select a time zone of the country.",
+    "slotInvalid": "Select 5, 10, 15 or 30 minutes."
   }
 }

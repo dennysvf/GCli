@@ -81,6 +81,7 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
         </TabsList>
         <TabsContent value="data" className="grid gap-8 pt-4">
           <PatientForm
+            defaultCountry={ctx.organizationCountry}
             patient={details}
             today={today}
             referralSources={sources.ok ? sources.value : []}

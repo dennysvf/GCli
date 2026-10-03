@@ -2,7 +2,9 @@ import { authorize } from "@/shared/authz/guard";
 import { diffChanges } from "@/shared/audit/diff";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
-import { isValidCnpj } from "@/shared/kernel/cnpj";
+import type { CountryAddress } from "@/shared/kernel/address";
+import { isCountryCode, currencyOf, type CountryCode, type Currency } from "@/shared/kernel/countries/codes";
+import { taxIdSpec, normalizeTaxId, validateTaxId } from "@/shared/kernel/tax-id";
 import { CommonErrors } from "@/shared/kernel/errors";
 import { newId } from "@/shared/kernel/ids";
 import { fail, ok, type Result } from "@/shared/kernel/result";
@@ -16,6 +18,8 @@ export type UnitSummary = {
   id: string;
   name: string;
   city: string | null;
+  country: CountryCode;
+  currency: Currency;
   timeZone: string;
   active: boolean;
   activeRoomCount: number;
@@ -24,39 +28,108 @@ export type UnitSummary = {
 export type UnitDetails = {
   id: string;
   name: string;
-  cnpj: string | null;
+  country: CountryCode;
+  // Derived from the country and stored for queries (ADR-029); never edited directly.
+  currency: Currency;
+  // Normalized tax ID of the country.
+  taxId: string | null;
   timeZone: string;
+  // E.164.
   phone: string | null;
   email: string | null;
   address: {
-    cep: string | null;
+    country: CountryCode;
+    postalCode: string | null;
     street: string | null;
     number: string | null;
     complement: string | null;
     district: string | null;
     city: string | null;
-    state: string | null;
+    region: string | null;
   };
   active: boolean;
   version: number;
 };
 
-type UnitRow = Omit<UnitDetails, "address"> & UnitDetails["address"];
+type UnitRow = {
+  id: string;
+  name: string;
+  country: string;
+  currency: string;
+  taxId: string | null;
+  timeZone: string;
+  phone: string | null;
+  email: string | null;
+  postalCode: string | null;
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+  district: string | null;
+  city: string | null;
+  region: string | null;
+  active: boolean;
+  version: number;
+};
 
 export function toDetails(row: UnitRow): UnitDetails {
-  const { cep, street, number, complement, district, city, state, ...rest } = row;
+  const country: CountryCode = isCountryCode(row.country) ? row.country : "BR";
   return {
-    id: rest.id,
-    name: rest.name,
-    cnpj: rest.cnpj,
-    timeZone: rest.timeZone,
-    phone: rest.phone,
-    email: rest.email,
-    address: { cep, street, number, complement, district, city, state },
-    active: rest.active,
-    version: rest.version,
+    id: row.id,
+    name: row.name,
+    country,
+    currency: currencyOf(country),
+    taxId: row.taxId,
+    timeZone: row.timeZone,
+    phone: row.phone,
+    email: row.email,
+    address: {
+      country,
+      postalCode: row.postalCode,
+      street: row.street,
+      number: row.number,
+      complement: row.complement,
+      district: row.district,
+      city: row.city,
+      region: row.region,
+    },
+    active: row.active,
+    version: row.version,
   };
 }
+
+// Services without a price in a currency the organization did not use before: the unit form warns
+// about them so the Administrator prices them (PRD F16).
+async function servicesWithoutPrice(
+  deps: UnitsDeps,
+  uow: UnitOfWork,
+  organizationId: string,
+  unitId: string,
+  currency: Currency,
+): Promise<{ id: string; name: string }[]> {
+  const others = await uow.tx.unit.count({ where: { active: true, currency, id: { not: unitId } } });
+  if (others > 0) return [];
+  return deps.pricing().servicesWithoutPrice(organizationId, currency);
+}
+
+// The address columns of a unit: its country is the unit country, stored in the unit row.
+function addressColumns(address: CountryAddress) {
+  return {
+    postalCode: address.postalCode,
+    street: address.street,
+    number: address.number,
+    complement: address.complement,
+    district: address.district,
+    city: address.city,
+    region: address.region,
+  };
+}
+
+export type UnitSaved = {
+  unitId: string;
+  version: number;
+  currency: Currency;
+  servicesWithoutPrice: { id: string; name: string }[];
+};
 
 // Case-insensitive name check for a friendly message; the unique index is the guarantee.
 async function nameTaken(uow: UnitOfWork, name: string, exceptId?: string): Promise<boolean> {
@@ -85,12 +158,19 @@ export async function listUnits(
         id: true,
         name: true,
         city: true,
+        country: true,
+        currency: true,
         timeZone: true,
         active: true,
         _count: { select: { rooms: { where: { active: true } } } },
       },
     });
-    return ok(rows.map(({ _count, ...unit }) => ({ ...unit, activeRoomCount: _count.rooms })));
+    return ok(
+      rows.map(({ _count, country, ...unit }) => {
+        const code: CountryCode = isCountryCode(country) ? country : "BR";
+        return { ...unit, country: code, currency: currencyOf(code), activeRoomCount: _count.rooms };
+      }),
+    );
   });
 }
 
@@ -107,13 +187,17 @@ export async function createUnit(
   deps: UnitsDeps,
   ctx: RequestContext,
   input: unknown,
-): Promise<Result<{ unitId: string; version: number }>> {
+): Promise<Result<UnitSaved>> {
   const allowed = await authorize(ctx, "setup:manage");
   if (!allowed.ok) return allowed;
   const parsed = parseInput(createUnitSchema, input);
   if (!parsed.ok) return parsed;
-  const { address, ...fields } = parsed.value;
-  if (fields.cnpj && !isValidCnpj(fields.cnpj)) return fail(UnitsErrors.invalidCnpj());
+  const { address, taxId: rawTaxId, ...fields } = parsed.value;
+  if (rawTaxId && !validateTaxId(fields.country, rawTaxId)) {
+    return fail(UnitsErrors.invalidTaxId(taxIdSpec(fields.country).shortLabel));
+  }
+  const taxId = rawTaxId ? normalizeTaxId(fields.country, rawTaxId) : null;
+  const currency = currencyOf(fields.country);
 
   try {
     return await withTransaction(ctx, async (uow) => {
@@ -122,7 +206,7 @@ export async function createUnit(
       }
       if (await nameTaken(uow, fields.name)) return fail(UnitsErrors.nameTaken());
       const id = newId();
-      const data = { ...fields, ...address };
+      const data = { ...fields, taxId, currency, ...addressColumns(address) };
       await uow.tx.unit.create({
         data: {
           id,
@@ -139,7 +223,12 @@ export async function createUnit(
         summary: "Unidade criada",
         changes: diffChanges(null, data),
       });
-      return ok({ unitId: id, version: 1 });
+      return ok({
+        unitId: id,
+        version: 1,
+        currency,
+        servicesWithoutPrice: await servicesWithoutPrice(deps, uow, ctx.organizationId, id, currency),
+      });
     });
   } catch (error) {
     if (isUniqueViolation(error)) return fail(UnitsErrors.nameTaken());
@@ -151,20 +240,31 @@ export async function updateUnit(
   deps: UnitsDeps,
   ctx: RequestContext,
   input: unknown,
-): Promise<Result<{ unitId: string; version: number }>> {
+): Promise<Result<UnitSaved>> {
   const allowed = await authorize(ctx, "setup:manage");
   if (!allowed.ok) return allowed;
   const parsed = parseInput(updateUnitSchema, input);
   if (!parsed.ok) return parsed;
-  const { unitId, version, address, ...fields } = parsed.value;
-  if (fields.cnpj && !isValidCnpj(fields.cnpj)) return fail(UnitsErrors.invalidCnpj());
+  const { unitId, version, address, taxId: rawTaxId, ...fields } = parsed.value;
+  if (rawTaxId && !validateTaxId(fields.country, rawTaxId)) {
+    return fail(UnitsErrors.invalidTaxId(taxIdSpec(fields.country).shortLabel));
+  }
+  const taxId = rawTaxId ? normalizeTaxId(fields.country, rawTaxId) : null;
+  const currency = currencyOf(fields.country);
 
   try {
     return await withTransaction(ctx, async (uow) => {
       const before = await uow.tx.unit.findFirst({ where: { id: unitId } });
       if (!before) return fail(UnitsErrors.notFound());
       if (await nameTaken(uow, fields.name, unitId)) return fail(UnitsErrors.nameTaken());
-      const data = { ...fields, ...address };
+      // The country, and with it the currency, is fixed once the unit has appointments (PRD F16).
+      if (
+        before.country !== fields.country &&
+        (await deps.appointments().hasAnyInUnit(ctx.organizationId, unitId))
+      ) {
+        return fail(UnitsErrors.countryLocked());
+      }
+      const data = { ...fields, taxId, currency, ...addressColumns(address) };
       const updated = await uow.tx.unit.updateMany({
         where: { id: unitId, version },
         data: { ...data, version: { increment: 1 }, updatedById: ctx.user.id },
@@ -177,7 +277,15 @@ export async function updateUnit(
         summary: "Unidade alterada",
         changes: diffChanges(before, data),
       });
-      return ok({ unitId, version: version + 1 });
+      return ok({
+        unitId,
+        version: version + 1,
+        currency,
+        servicesWithoutPrice:
+          before.currency === currency
+            ? []
+            : await servicesWithoutPrice(deps, uow, ctx.organizationId, unitId, currency),
+      });
     });
   } catch (error) {
     if (isUniqueViolation(error)) return fail(UnitsErrors.nameTaken());

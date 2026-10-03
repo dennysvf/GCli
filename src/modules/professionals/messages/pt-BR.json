@@ -1,0 +1,58 @@
+{
+  "errors": {
+    "PROFESSIONALS_NOT_FOUND": "Profissional não encontrado.",
+    "PROFESSIONALS_LIMIT": "Limite de 100 profissionais ativos atingido.",
+    "PROFESSIONALS_INACTIVE": "Este profissional está desativado. Reative-o antes de alterá-lo.",
+    "PROFESSIONALS_DOCUMENT_TAKEN": "Este {type} já está cadastrado para outro profissional.",
+    "PROFESSIONALS_COUNCIL_TAKEN": "Este registro de conselho já está cadastrado para outro profissional.",
+    "PROFESSIONALS_REGISTRATION_DUPLICATE": "Use um registro por país.",
+    "PROFESSIONALS_REGISTRATION_REQUIRED": "Cadastre o registro profissional em {country} antes de definir horários na unidade {unit}.",
+    "PROFESSIONALS_USER_ALREADY_LINKED": "Este usuário já está vinculado a outro profissional.",
+    "PROFESSIONALS_USER_NOT_LINKABLE": "Selecione um usuário ativo com perfil Profissional, Gerente ou Administrador.",
+    "PROFESSIONALS_HAS_FUTURE_APPOINTMENTS": "Existem {count} agendamentos futuros. Reagende ou cancele antes de desativar.",
+    "PROFESSIONALS_INVALID_SERVICES": "Selecione apenas serviços ativos.",
+    "PROFESSIONALS_INVALID_UNITS": "Selecione apenas unidades ativas.",
+    "PROFESSIONALS_INVALID_INTERVALS": "Verifique os horários destacados.",
+    "PROFESSIONALS_CROSS_UNIT_CONFLICT": "Conflito de horário: este profissional já atende na unidade {unit} às {weekday, select, 1 {segundas} 2 {terças} 3 {quartas} 4 {quintas} 5 {sextas} 6 {sábados} other {domingos}}, {interval}.",
+    "PROFESSIONALS_OUTSIDE_BUSINESS_HOURS": "O horário informado está fora do funcionamento da unidade ({hours}).",
+    "PROFESSIONALS_SCHEDULE_OVERLAP": "Já existe um horário com vigência a partir de {date}. Edite-o ou escolha outra data.",
+    "PROFESSIONALS_SCHEDULE_ENDED": "Horários encerrados não podem ser alterados.",
+    "PROFESSIONALS_SCHEDULE_STARTED": "Horários já vigentes não podem ser excluídos. Defina uma data de término.",
+    "PROFESSIONALS_TIME_OFF_TOO_FAR": "A ausência deve terminar em até 1 ano a partir de hoje.",
+    "PROFESSIONALS_TIME_OFF_ENDED": "Ausências encerradas não podem ser excluídas."
+  },
+  "hours": {
+    "closedOn": "fechada às {weekday, select, 1 {segundas} 2 {terças} 3 {quartas} 4 {quintas} 5 {sextas} 6 {sábados} other {domingos}}"
+  },
+  "validation": {
+    "fullNameRequired": "Informe o nome completo.",
+    "fullNameTooLong": "O nome deve ter no máximo 150 caracteres.",
+    "displayNameTooLong": "O nome de exibição deve ter no máximo 60 caracteres.",
+    "specialtyTooLong": "A especialidade deve ter no máximo 100 caracteres.",
+    "councilRequired": "Selecione o conselho.",
+    "councilInvalid": "Selecione um conselho do país.",
+    "councilNameRequired": "Informe o nome do conselho.",
+    "councilNameTooLong": "O nome do conselho deve ter no máximo 40 caracteres.",
+    "numberRequired": "Informe o número do registro.",
+    "numberInvalid": "Use até 20 letras, números, ponto ou hífen no formato do conselho.",
+    "regionRequired": "Informe a UF ou região do registro.",
+    "regionInvalid": "Selecione um valor da lista.",
+    "npiInvalid": "Informe um NPI válido de 10 dígitos.",
+    "emailInvalid": "Informe um e-mail válido.",
+    "colorRequired": "Selecione uma cor.",
+    "oneRegistrationPerCountry": "Use um registro por país.",
+    "dateInvalid": "Informe uma data válida.",
+    "dateTimeRequired": "Informe data e hora.",
+    "timeOffTypeRequired": "Selecione o tipo de ausência.",
+    "startRequired": "Informe o início.",
+    "endRequired": "Informe o fim.",
+    "timeOffNoteTooLong": "A observação deve ter no máximo 200 caracteres.",
+    "intervals": {
+      "weekday": "Dia da semana inválido.",
+      "range": "Informe um horário entre 00:00 e 24:00, com início antes do término.",
+      "granularity": "Use horários em múltiplos de 5 minutos.",
+      "tooMany": "No máximo 4 intervalos por dia em cada unidade.",
+      "overlap": "Os intervalos de um mesmo dia não podem se sobrepor."
+    }
+  }
+}

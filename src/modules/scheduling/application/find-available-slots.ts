@@ -41,8 +41,8 @@ export async function findNextAvailableSlots(
     deps.directory.services(ctx, [data.serviceId]),
   ]);
   const service = services[0];
-  if (!unit || !unit.active) return fail(SchedulingErrors.inactiveResource("A unidade"));
-  if (!service || !service.active) return fail(SchedulingErrors.inactiveResource("O serviço"));
+  if (!unit || !unit.active) return fail(SchedulingErrors.inactiveResource("unit"));
+  if (!service || !service.active) return fail(SchedulingErrors.inactiveResource("service"));
 
   const bookable = await deps.directory.bookableProfessionals(ctx, {
     serviceId: service.id,

@@ -10,21 +10,24 @@ export const SchedulingErrors = {
   }),
   justificationRequired: (details?: Record<string, unknown>) => ({
     ...domainError("SCHEDULING_JUSTIFICATION_REQUIRED", 400, {
-      exceptionJustification: "Justifique a exceção para salvar.",
+      exceptionJustification: "scheduling.errors.SCHEDULING_JUSTIFICATION_REQUIRED",
     }),
     ...(details ? { details } : {}),
   }),
   slotTaken: () => domainError("SCHEDULING_SLOT_TAKEN", 409),
   serviceNotEnabled: () =>
     domainError("SCHEDULING_SERVICE_NOT_ENABLED", 400, {
-      professionalId: "Este profissional não realiza o serviço escolhido.",
+      professionalId: "scheduling.errors.SCHEDULING_SERVICE_NOT_ENABLED",
     }),
   roomRequired: () =>
-    domainError("SCHEDULING_ROOM_REQUIRED", 400, { roomId: "Este serviço exige uma sala." }),
+    domainError("SCHEDULING_ROOM_REQUIRED", 400, { roomId: "scheduling.errors.SCHEDULING_ROOM_REQUIRED" }),
   roomNotAllowed: () =>
     domainError("SCHEDULING_ROOM_NOT_ALLOWED", 400, {
-      roomId: "Esta sala não está liberada para o serviço nesta unidade.",
+      roomId: "scheduling.errors.SCHEDULING_ROOM_NOT_ALLOWED",
     }),
+  // The service has no price in the currency of the unit (PRD F16).
+  noPriceForCurrency: (currency: string) =>
+    domainError("SCHEDULING_NO_PRICE_FOR_CURRENCY", 409, undefined, { currency }),
   noRoomAvailable: () => domainError("SCHEDULING_NO_ROOM_AVAILABLE", 409),
   inactiveResource: (resource: string) =>
     domainError("SCHEDULING_INACTIVE_RESOURCE", 409, undefined, { resource }),
@@ -32,7 +35,7 @@ export const SchedulingErrors = {
     domainError(
       "SCHEDULING_INVALID_START",
       400,
-      { startTime: `Escolha um horário múltiplo de ${granularity} minutos.` },
+      { startTime: "scheduling.errors.SCHEDULING_INVALID_START" },
       { granularity },
     ),
   invalidTransition: (from: string, to: string) =>
@@ -41,8 +44,8 @@ export const SchedulingErrors = {
   undoExpired: () => domainError("SCHEDULING_UNDO_EXPIRED", 409),
   cancellationIncomplete: () =>
     domainError("SCHEDULING_CANCELLATION_INCOMPLETE", 400, {
-      origin: "Informe a origem do cancelamento.",
-      reasonId: "Informe o motivo do cancelamento.",
+      origin: "scheduling.validation.originRequired",
+      reasonId: "scheduling.validation.reasonRequired",
     }),
   notEditable: () => domainError("SCHEDULING_NOT_EDITABLE", 409),
   seriesConflicts: (conflicts: number, total: number, details: Record<string, unknown>) => ({
@@ -56,8 +59,10 @@ export const SchedulingErrors = {
     domainError("SCHEDULING_STALE_VERSION", 409, undefined, { author, time }),
   validation: (fields: Record<string, string>) => domainError("VALIDATION_FAILED", 400, fields),
   listNameTaken: () =>
-    domainError("SCHEDULING_LIST_NAME_TAKEN", 409, { name: "Já existe um motivo com este nome." }),
+    domainError("SCHEDULING_LIST_NAME_TAKEN", 409, { name: "scheduling.errors.SCHEDULING_LIST_NAME_TAKEN" }),
   listLimit: (max: number) => domainError("SCHEDULING_LIST_LIMIT", 422, undefined, { max }),
   invalidReason: () =>
-    domainError("SCHEDULING_INVALID_REASON", 400, { reasonId: "Selecione um motivo ativo da lista." }),
+    domainError("SCHEDULING_INVALID_REASON", 400, {
+      reasonId: "scheduling.errors.SCHEDULING_INVALID_REASON",
+    }),
 } satisfies Record<string, (...args: never[]) => DomainError>;

@@ -43,10 +43,11 @@ describe("F06 as provider of the appointment ports", () => {
   it("F02→F06: unit business hours and closures block bookings", async () => {
     const otherUnit = await units.createUnit(world.admin, {
       name: "Unidade Norte",
+      country: "BR",
       timeZone: "America/Sao_Paulo",
       phone: null,
       email: null,
-      address: { cep: "01310-100", street: "Rua A", number: "1", city: "São Paulo", state: "SP" },
+      address: { postalCode: "01310-100", street: "Rua A", number: "1", city: "São Paulo", region: "SP" },
     });
     if (!otherUnit.ok) throw new Error("unit");
     const room = await units.createRoom(world.admin, { unitId: otherUnit.value.unitId, name: "Sala Norte" });
@@ -69,7 +70,7 @@ describe("F06 as provider of the appointment ports", () => {
       categoryId: service.value.categoryId,
       description: null,
       durationMinutes: 50,
-      priceCents: 30_000,
+      prices: [{ currency: "BRL", amountMinor: 30_000 }],
       color: "blue",
       requiresRoom: true,
       allowedRoomIds: [],
@@ -77,9 +78,9 @@ describe("F06 as provider of the appointment ports", () => {
     });
     if (!updated.ok) throw new Error(updated.error.code);
     const after = await bookOrThrow(world.desk, booking(world, { startTime: "15:00" }));
-    expect(after.priceCents).toBe(30_000);
+    expect(after.price.amountMinor).toBe(30_000);
     const old = await db().appointment.findUniqueOrThrow({ where: { id: before.appointmentId } });
-    expect(old.priceCents).toBe(25_000);
+    expect(old.priceMinor).toBe(25_000n);
   });
 
   it("F03←F06 and F04←F06: services and professionals count future appointments and list affected ones", async () => {

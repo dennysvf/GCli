@@ -1,0 +1,39 @@
+{
+  "errors": {
+    "PATIENTS_NOT_FOUND": "Paciente não encontrado.",
+    "PATIENTS_DOCUMENT_TAKEN": "Este {type} já está cadastrado para {name}.",
+    "PATIENTS_GUARDIAN_REQUIRED": "Pacientes menores de 18 anos precisam de um responsável cadastrado.",
+    "PATIENTS_STALE_VERSION": "Este cadastro foi alterado por {author} às {time}. Revise as alterações antes de salvar.",
+    "PATIENTS_HAS_FUTURE_APPOINTMENTS": "O paciente possui {count} agendamentos futuros. Cancele-os antes de inativar.",
+    "PATIENTS_INACTIVE": "Este paciente está inativo. Reative o cadastro antes de alterá-lo.",
+    "PATIENTS_SEARCH_TOO_SHORT": "Digite pelo menos 3 caracteres para buscar.",
+    "PATIENTS_TAG_LIMIT": "Use no máximo 10 etiquetas por paciente.",
+    "PATIENTS_INVALID_OPTION": "Selecione uma opção ativa da lista.",
+    "PATIENTS_LIST_NAME_TAKEN": "Já existe um item com este nome.",
+    "PATIENTS_LIST_LIMIT": "Limite de {max} itens ativos atingido.",
+    "PATIENTS_NO_TERMS": "Publique os termos de privacidade antes de registrar consentimentos.",
+    "PATIENTS_INVALID_FILE": "Envie um arquivo PDF, JPG ou PNG de até 10 MB.",
+    "PATIENTS_UPLOAD_NOT_FOUND": "O arquivo enviado expirou. Envie-o novamente."
+  },
+  "validation": {
+    "birthDateInvalid": "Informe uma data de nascimento válida.",
+    "birthDateFuture": "A data de nascimento não pode ser futura.",
+    "nameRequired": "Informe o nome completo.",
+    "nameTooLong": "O nome deve ter no máximo 150 caracteres.",
+    "nameTwoWords": "Informe nome e sobrenome.",
+    "guardianNameTwoWords": "Informe nome e sobrenome do responsável.",
+    "relationshipRequired": "Selecione o parentesco.",
+    "socialNameTooLong": "O nome social deve ter no máximo 150 caracteres.",
+    "rgTooLong": "O RG deve ter no máximo 20 caracteres.",
+    "emailInvalid": "Informe um e-mail válido.",
+    "occupationTooLong": "A profissão deve ter no máximo 80 caracteres.",
+    "observationsTooLong": "As observações devem ter no máximo 2.000 caracteres.",
+    "noteTooLong": "A observação deve ter no máximo 200 caracteres.",
+    "reasonRequired": "Selecione o motivo.",
+    "listNameRequired": "Informe o nome.",
+    "listNameTooLong": "Use no máximo 40 caracteres.",
+    "termsTooShort": "O texto dos termos deve ter pelo menos 50 caracteres.",
+    "termsTooLong": "O texto dos termos deve ter no máximo 20.000 caracteres.",
+    "consentMethodRequired": "Selecione a forma do consentimento."
+  }
+}

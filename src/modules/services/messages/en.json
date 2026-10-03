@@ -1,0 +1,31 @@
+{
+  "errors": {
+    "SERVICES_NOT_FOUND": "Service not found.",
+    "SERVICES_NAME_TAKEN": "A service with this name already exists.",
+    "SERVICES_SERVICE_LIMIT": "The limit of 500 active services has been reached.",
+    "SERVICES_INVALID_ROOMS": "Select only active rooms.",
+    "SERVICES_CATEGORY_NOT_FOUND": "Category not found.",
+    "SERVICES_CATEGORY_NAME_TAKEN": "A category with this name already exists.",
+    "SERVICES_CATEGORY_LIMIT": "The limit of 50 categories has been reached.",
+    "SERVICES_CATEGORY_IN_USE": "This category has {count} services. Move them to another category before deleting it.",
+    "SERVICES_PRICE_REQUIRED": "Enter the price in {currency}."
+  },
+  "validation": {
+    "duration": "The duration must be between 5 and 480 minutes, in multiples of 5.",
+    "nameRequired": "Enter the service name.",
+    "nameTooLong": "The name must have at most 100 characters.",
+    "categoryRequired": "Select a category.",
+    "descriptionTooLong": "The description must have at most 500 characters.",
+    "colorRequired": "Select a color.",
+    "currencyInvalid": "Invalid or repeated currency.",
+    "priceInvalid": "Enter a valid price.",
+    "priceRange": "The price must be from 0 to {max, number} {currency}.",
+    "categoryNameRequired": "Enter the category name.",
+    "categoryNameTooLong": "The name must have at most 50 characters."
+  },
+  "defaultCategories": {
+    "consultations": "Appointments",
+    "procedures": "Procedures",
+    "therapies": "Therapies"
+  }
+}

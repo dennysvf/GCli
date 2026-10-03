@@ -1,10 +1,11 @@
+import type { Currency } from "@/shared/kernel/countries/codes";
 import { DateTimeRange } from "@/shared/kernel/date-time-range";
 import type { DomainError } from "@/shared/kernel/errors";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import { withinUndoWindow } from "./agenda-time";
 import { SchedulingErrors } from "./errors";
 import { DURATION_MAX, DURATION_MIN, DURATION_STEP, NOTES_MAX } from "./limits";
-import { isOpen, resolveTransition, STATUS_LABELS, type AppointmentStatus, type Transition } from "./status";
+import { isOpen, resolveTransition, type AppointmentStatus, type Transition } from "./status";
 
 // The appointment aggregate (architecture section 4: rich module). Every change goes through a
 // method that enforces the lifecycle of PRD F06; the repository persists the props together with
@@ -44,7 +45,9 @@ export type AppointmentProps = {
   roomId: string | null;
   startsAt: Date;
   durationMinutes: number;
-  priceCents: number;
+  // The price snapshot in the currency of the unit at booking (PRD F16).
+  priceMinor: number;
+  currency: Currency;
   status: AppointmentStatus;
   statusChangedAt: Date;
   isOverbooking: boolean;
@@ -94,13 +97,13 @@ export function validateDuration(minutes: number): DomainError | null {
   return valid
     ? null
     : SchedulingErrors.validation({
-        durationMinutes: "A duração deve ser de 5 a 480 minutos, em múltiplos de 5.",
+        durationMinutes: "scheduling.validation.duration",
       });
 }
 
 function validateNotes(notes: string | null): DomainError | null {
   return notes !== null && notes.length > NOTES_MAX
-    ? SchedulingErrors.validation({ notes: "Use no máximo 500 caracteres." })
+    ? SchedulingErrors.validation({ notes: "scheduling.validation.notesTooLong" })
     : null;
 }
 
@@ -193,7 +196,7 @@ export class Appointment {
   ): Result<Transition> {
     const transition = resolveTransition(this.props.status, to);
     if (!transition || transition === "CANCEL") {
-      return fail(SchedulingErrors.invalidTransition(STATUS_LABELS[this.props.status], STATUS_LABELS[to]));
+      return fail(SchedulingErrors.invalidTransition(this.props.status, to));
     }
     const { now, actor } = context;
     let justification: string | null = null;
@@ -215,7 +218,7 @@ export class Appointment {
         if (text.length === 0) {
           return fail({
             ...SchedulingErrors.justificationRequired(),
-            fields: { justification: "Justifique a reversão para salvar." },
+            fields: { justification: "scheduling.validation.reversalJustificationRequired" },
           });
         }
         justification = text;
@@ -236,9 +239,7 @@ export class Appointment {
     actorId: string;
   }): Result<void> {
     if (!isOpen(this.props.status)) {
-      return fail(
-        SchedulingErrors.invalidTransition(STATUS_LABELS[this.props.status], STATUS_LABELS.CANCELLED),
-      );
+      return fail(SchedulingErrors.invalidTransition(this.props.status, "CANCELLED"));
     }
     this.recordStatus("CANCELLED", input.now, input.actorId, null);
     this.props = {
@@ -289,7 +290,8 @@ export class Appointment {
   // a new price snapshot (passed by the use case); duration alone keeps the price.
   edit(input: {
     serviceId?: string;
-    priceCents?: number;
+    priceMinor?: number;
+    currency?: Currency;
     durationMinutes?: number;
     roomId?: string | null;
     notes?: string | null;
@@ -303,7 +305,8 @@ export class Appointment {
     this.props = {
       ...this.props,
       ...(input.serviceId !== undefined ? { serviceId: input.serviceId } : {}),
-      ...(input.priceCents !== undefined ? { priceCents: input.priceCents } : {}),
+      ...(input.priceMinor !== undefined ? { priceMinor: input.priceMinor } : {}),
+      ...(input.currency !== undefined ? { currency: input.currency } : {}),
       ...(input.durationMinutes !== undefined ? { durationMinutes: input.durationMinutes } : {}),
       ...(input.roomId !== undefined ? { roomId: input.roomId } : {}),
       ...(input.notes !== undefined ? { notes: input.notes } : {}),

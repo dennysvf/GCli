@@ -41,8 +41,8 @@ test("F05: front desk registers a patient, sees the duplicate warning and finds 
   await page.getByLabel("Nome completo").fill("Maria Silva Oliveira");
   await page.getByLabel("Data de nascimento").fill("1988-04-12");
   await page.getByLabel("Celular").fill("11988887777");
-  await page.getByLabel("CPF (opcional)").fill("52998224725");
-  await expect(page.getByLabel("CPF (opcional)")).toHaveValue("529.982.247-25");
+  await page.getByLabel("Documento (opcional)", { exact: true }).fill("52998224725");
+  await expect(page.getByLabel("Documento (opcional)", { exact: true })).toHaveValue("529.982.247-25");
   await page.getByLabel("Logradouro").fill("Avenida Paulista");
   await page.getByLabel("Cidade").fill("São Paulo");
   await page.getByRole("button", { name: "Cadastrar paciente" }).click();

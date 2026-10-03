@@ -24,6 +24,10 @@ export const unitsAppointments: ScheduledAppointments = {
   countFutureInUnit: (organizationId, unitId, now) =>
     forTenant(organizationId).appointment.count({ where: { unitId, ...future(now) } }),
 
+  // Any appointment at all, in any status: the country of the unit is locked afterwards (PRD F16).
+  hasAnyInUnit: async (organizationId, unitId) =>
+    (await forTenant(organizationId).appointment.count({ where: { unitId }, take: 1 })) > 0,
+
   countInDateRange: (organizationId, unitId, startsOn, endsOn, timeZone) =>
     forTenant(organizationId).appointment.count({
       where: {

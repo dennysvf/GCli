@@ -13,7 +13,8 @@ import {
 import { Button } from "@/shared/ui/components/button";
 import type { DuplicateCandidate } from "../application/patients";
 import { formatDateBR } from "./format";
-import { PATIENTS_POSSIBLE_DUPLICATE } from "../messages";
+import { DOCUMENT_SPECS } from "@/shared/kernel/documents";
+import { PATIENTS_POSSIBLE_DUPLICATE } from "../notices";
 
 // PRD F05: the candidate records side by side, with "Abrir cadastro existente" and "Criar mesmo
 // assim" (only name and birth date matches reach this dialog; a CPF match blocks the save).
@@ -47,8 +48,11 @@ export function DuplicateDialog({
                   {candidate.active ? "" : " (inativo)"}
                 </span>
                 <span className="text-muted-foreground text-xs tabular-nums">
-                  Nascimento {formatDateBR(candidate.birthDate)} · CPF{" "}
-                  {candidate.maskedCpf ?? "não informado"} · celular final {candidate.phoneEnd}
+                  Nascimento {formatDateBR(candidate.birthDate)} ·{" "}
+                  {candidate.maskedDocument
+                    ? `${DOCUMENT_SPECS[candidate.maskedDocument.type].shortLabel} ${candidate.maskedDocument.display}`
+                    : "documento não informado"}{" "}
+                  · celular final {candidate.phoneEnd}
                 </span>
               </span>
               <Button asChild variant="outline" size="sm">

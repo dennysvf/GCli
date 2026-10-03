@@ -36,7 +36,7 @@ import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import type { AffectedAppointment } from "../application/ports";
 import type { CreateTimeOffResult, TimeOffItem } from "../application/time-offs";
 import { TIME_OFF_TYPE_LABELS, TIME_OFF_TYPES, type TimeOffType } from "../domain/time-offs";
-import { PROFESSIONALS_TIME_OFF_AFFECTED_APPOINTMENTS } from "../messages";
+import { PROFESSIONALS_TIME_OFF_AFFECTED_APPOINTMENTS } from "../notices";
 
 type CreateInput = {
   professionalId: string;

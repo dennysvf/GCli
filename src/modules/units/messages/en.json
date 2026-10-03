@@ -1,0 +1,44 @@
+{
+  "errors": {
+    "UNITS_NOT_FOUND": "Unit or room not found.",
+    "UNITS_NAME_TAKEN": "A unit with this name already exists.",
+    "UNITS_ROOM_NAME_TAKEN": "A room with this name already exists.",
+    "UNITS_UNIT_LIMIT": "The limit of 20 active units has been reached.",
+    "UNITS_ROOM_LIMIT": "The limit of 30 active rooms in this unit has been reached.",
+    "UNITS_CLOSURE_LIMIT": "The limit of 100 future closures in this unit has been reached.",
+    "UNITS_INVALID_HOURS": "Check the highlighted hours.",
+    "UNITS_ROOM_HAS_APPOINTMENTS": "This room has {count} future appointments. Reassign them before deactivating.",
+    "UNITS_UNIT_HAS_APPOINTMENTS": "This unit has {count} future appointments. Reassign or cancel them before deactivating.",
+    "UNITS_CLOSURE_CONFIRMATION_REQUIRED": "There are {count} appointments in this period. They will not be cancelled automatically.",
+    "UNITS_CLOSURE_IN_PAST": "Past closures cannot be removed.",
+    "UNITS_UNIT_INACTIVE": "This unit is deactivated. Reactivate it before changing it.",
+    "UNITS_COUNTRY_LOCKED": "The country of a unit that already has appointments, charges or cash registers cannot be changed."
+  },
+  "validation": {
+    "nameRequired": "Enter the unit name.",
+    "nameTooLong": "The name is too long.",
+    "timeZoneRequired": "Select a time zone of the country.",
+    "emailInvalid": "Invalid email.",
+    "roomNameRequired": "Enter the room name.",
+    "descriptionTooLong": "The description is too long.",
+    "dateInvalid": "Invalid date.",
+    "reasonRequired": "Enter the reason.",
+    "reasonTooLong": "The reason is too long.",
+    "endBeforeStart": "The end date must be on or after the start date.",
+    "hours": {
+      "weekdayInvalid": "Invalid or repeated weekday.",
+      "sevenDays": "Provide all seven weekdays.",
+      "closedWithIntervals": "A closed day cannot have hours.",
+      "needsInterval": "Provide at least one interval for an open day.",
+      "maxIntervals": "At most two intervals per day.",
+      "outsideDay": "Time outside the day.",
+      "granularity": "Use times in multiples of 5 minutes.",
+      "startBeforeEnd": "The start time must be before the end time.",
+      "secondAfterFirst": "The second interval must start after the first one ends."
+    }
+  },
+  "legalBanner": "The legal rules of this country have not been validated yet. The system applies the Brazilian rules.",
+  "newCurrencyWarning": "{count, plural, one {# active service has no price in {currency}: {names}.} other {# active services have no price in {currency}: {names}.}}",
+  "country": "Country",
+  "currency": "Currency"
+}

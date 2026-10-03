@@ -3,7 +3,8 @@ import type { RequestContext } from "@/shared/context/types";
 import { withTransaction } from "@/shared/db/transaction";
 import type { PaletteColor } from "@/shared/kernel/palette";
 import { fail, ok, type Result } from "@/shared/kernel/result";
-import { councilLabel, formatRegistration, type CouncilType } from "../domain/council";
+import type { CountryCode } from "@/shared/kernel/countries/codes";
+import { toRegistrations, type RegistrationItem } from "./registrations";
 import { addDays, daysBetween, isoWeekday, isValidDate } from "../domain/dates";
 import { WORKING_CALENDAR_MAX_DAYS } from "../domain/limits";
 import { zonedTimeToUtc } from "../domain/time-zone-offsets";
@@ -223,39 +224,36 @@ export type ProfessionalCredentials = {
   fullName: string;
   displayName: string;
   specialty: string | null;
-  councilType: CouncilType;
-  councilLabel: string;
-  councilNumber: string | null;
-  councilState: string | null;
-  formattedRegistration: string;
+  registrations: RegistrationItem[];
+  // The registration of the requested country (the encounter's), else the first one (PRD F16).
+  registration: RegistrationItem | null;
 };
 
 // PRD F04 → F08: name and council registration for generated documents, also for inactive
-// professionals (documents about past care).
+// professionals (documents about past care). A document written in a country uses the
+// registration of that country.
 export async function getProfessionalCredentials(
   ctx: RequestContext,
   professionalId: string,
+  country?: CountryCode,
 ): Promise<Result<ProfessionalCredentials>> {
   const allowed = await authorize(ctx, "professional:read");
   if (!allowed.ok) return allowed;
   return withTransaction(ctx, async (uow) => {
-    const row = await uow.tx.professional.findFirst({ where: { id: professionalId } });
+    const row = await uow.tx.professional.findFirst({
+      where: { id: professionalId },
+      include: { registrations: true },
+    });
     if (!row) return fail(ProfessionalsErrors.notFound());
-    const registration = {
-      type: row.councilType as CouncilType,
-      otherName: row.councilOtherName,
-      number: row.councilNumber,
-      state: row.councilState,
-    };
+    const registrations = toRegistrations(row.registrations, ctx.locale).sort((a, b) =>
+      a.country.localeCompare(b.country),
+    );
     return ok({
       fullName: row.fullName,
       displayName: row.displayName ?? row.fullName,
       specialty: row.specialty,
-      councilType: registration.type,
-      councilLabel: councilLabel(registration),
-      councilNumber: row.councilNumber,
-      councilState: row.councilState,
-      formattedRegistration: formatRegistration(registration),
+      registrations,
+      registration: registrations.find((item) => item.country === country) ?? registrations[0] ?? null,
     });
   });
 }

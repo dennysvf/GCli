@@ -1,0 +1,39 @@
+{
+  "errors": {
+    "PATIENTS_NOT_FOUND": "Patient not found.",
+    "PATIENTS_DOCUMENT_TAKEN": "This {type} is already registered for {name}.",
+    "PATIENTS_GUARDIAN_REQUIRED": "Patients under 18 need a registered guardian.",
+    "PATIENTS_STALE_VERSION": "This record was changed by {author} at {time}. Review the changes before saving.",
+    "PATIENTS_HAS_FUTURE_APPOINTMENTS": "The patient has {count} future appointments. Cancel them before deactivating.",
+    "PATIENTS_INACTIVE": "This patient is inactive. Reactivate the record before changing it.",
+    "PATIENTS_SEARCH_TOO_SHORT": "Type at least 3 characters to search.",
+    "PATIENTS_TAG_LIMIT": "Use at most 10 tags per patient.",
+    "PATIENTS_INVALID_OPTION": "Select an active option from the list.",
+    "PATIENTS_LIST_NAME_TAKEN": "An item with this name already exists.",
+    "PATIENTS_LIST_LIMIT": "The limit of {max} active items has been reached.",
+    "PATIENTS_NO_TERMS": "Publish the privacy terms before recording consents.",
+    "PATIENTS_INVALID_FILE": "Upload a PDF, JPG or PNG file of up to 10 MB.",
+    "PATIENTS_UPLOAD_NOT_FOUND": "The uploaded file has expired. Upload it again."
+  },
+  "validation": {
+    "birthDateInvalid": "Enter a valid birth date.",
+    "birthDateFuture": "The birth date cannot be in the future.",
+    "nameRequired": "Enter the full name.",
+    "nameTooLong": "The name must have at most 150 characters.",
+    "nameTwoWords": "Enter first and last name.",
+    "guardianNameTwoWords": "Enter the guardian's first and last name.",
+    "relationshipRequired": "Select the relationship.",
+    "socialNameTooLong": "The social name must have at most 150 characters.",
+    "rgTooLong": "The RG must have at most 20 characters.",
+    "emailInvalid": "Enter a valid email.",
+    "occupationTooLong": "The occupation must have at most 80 characters.",
+    "observationsTooLong": "The observations must have at most 2,000 characters.",
+    "noteTooLong": "The note must have at most 200 characters.",
+    "reasonRequired": "Select the reason.",
+    "listNameRequired": "Enter the name.",
+    "listNameTooLong": "Use at most 40 characters.",
+    "termsTooShort": "The terms text must have at least 50 characters.",
+    "termsTooLong": "The terms text must have at most 20,000 characters.",
+    "consentMethodRequired": "Select the consent method."
+  }
+}

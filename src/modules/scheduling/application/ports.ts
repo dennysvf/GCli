@@ -1,3 +1,4 @@
+import type { CountryCode, Currency } from "@/shared/kernel/countries/codes";
 import type { RequestContext } from "@/shared/context/types";
 import type { UnitOfWork } from "@/shared/db/transaction";
 import type { Appointment, AppointmentProps } from "../domain/appointment";
@@ -113,6 +114,8 @@ export type LocalInterval = { start: number; end: number };
 export type UnitInfo = {
   id: string;
   name: string;
+  country: CountryCode;
+  currency: Currency;
   timeZone: string;
   active: boolean;
   businessHours: Map<number, LocalInterval[]>;
@@ -124,7 +127,7 @@ export type ServiceInfo = {
   id: string;
   name: string;
   durationMinutes: number;
-  priceCents: number;
+  prices: { currency: Currency; amountMinor: number }[];
   color: string;
   requiresRoom: boolean;
   active: boolean;

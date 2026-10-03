@@ -69,6 +69,7 @@ export default async function UnitPage({ params, searchParams }: PageProps<"/set
         <TabsContent value="dados" className="pt-4">
           <UnitForm
             unit={unit.value}
+            defaultCountry={unit.value.country}
             defaultTimeZone={unit.value.timeZone}
             readOnly={readOnly}
             action={updateUnitAction}

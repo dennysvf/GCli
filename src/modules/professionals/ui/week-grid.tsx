@@ -1,13 +1,14 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/shared/ui/components/button";
 import { Input } from "@/shared/ui/components/input";
 import { cn } from "@/shared/ui/utils";
 import type { UnitInfo } from "../application/ports";
 import { DAY_MINUTES, MAX_INTERVALS_PER_UNIT_DAY } from "../domain/limits";
 import { formatMinutes, type WorkingInterval } from "../domain/working-hours";
-import { formatBusinessDay } from "../domain/working-hours-text";
+import { businessDayHours } from "../domain/working-hours-text";
 
 const WEEKDAY_LABELS: Record<number, string> = {
   1: "Segunda",
@@ -49,12 +50,15 @@ export function WeekGrid({
   onRemove: (index: number) => void;
   onCopyToWeekdays: (weekday: number) => void;
 }) {
+  const t = useTranslations("professionals");
   return (
     <div className="divide-y border-y">
       {[1, 2, 3, 4, 5, 6, 7].map((weekday) => {
         const day = unit.businessHours.find((item) => item.weekday === weekday);
         const dayIntervals = intervals.filter((item) => item.interval.weekday === weekday);
-        const reference = day?.open ? `Funcionamento: ${formatBusinessDay(day, weekday)}` : "Unidade fechada";
+        const reference = day?.open
+          ? `Funcionamento: ${businessDayHours(day) ?? t("hours.closedOn", { weekday: String(weekday) })}`
+          : "Unidade fechada";
         return (
           <div
             key={weekday}

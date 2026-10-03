@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { addressSchema } from "@/shared/kernel/address";
+import { countryAddressSchema, isEmptyAddress } from "@/shared/kernel/address";
+import { documentInputSchema, phoneInputSchema } from "@/shared/kernel/person-schemas";
 import { CONSENT_METHODS } from "../domain/consent";
 import {
   EMAIL_MAX,
@@ -16,7 +17,8 @@ import {
 import { hasTwoWords } from "../domain/names";
 import { GUARDIAN_RELATIONSHIPS, INACTIVE_REASONS, SEXES } from "../domain/patient-fields";
 
-// Zod schemas shared by the patients forms and use cases. Messages are pt-BR (PRD F05).
+// Zod schemas shared by the patients forms and use cases. Messages are catalog keys
+// (patients.validation.*, ADR-028), translated where they are shown.
 export const PATIENT_STATUSES = ["active", "inactive", "all"] as const;
 export type PatientStatusFilter = (typeof PATIENT_STATUSES)[number];
 
@@ -28,27 +30,22 @@ const optionalText = (max: number, message: string) =>
     .nullish()
     .transform((value) => value || null);
 
-const digits = z
-  .string()
-  .nullish()
-  .transform((value) => (value ?? "").replace(/\D/g, "") || null);
-
 const isoDate = z
-  .string({ error: "Informe uma data de nascimento válida." })
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Informe uma data de nascimento válida.")
+  .string({ error: "patients.validation.birthDateInvalid" })
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "patients.validation.birthDateInvalid")
   .refine((value) => new Date(`${value}T00:00:00Z`).toISOString().startsWith(value), {
-    message: "Informe uma data de nascimento válida.",
+    message: "patients.validation.birthDateInvalid",
   });
 
 const nameField = z
-  .string({ error: "Informe o nome completo." })
+  .string({ error: "patients.validation.nameRequired" })
   .trim()
-  .min(NAME_MIN, "Informe o nome completo.")
-  .max(NAME_MAX, "O nome deve ter no máximo 150 caracteres.")
-  .refine(hasTwoWords, "Informe nome e sobrenome.");
+  .min(NAME_MIN, "patients.validation.nameRequired")
+  .max(NAME_MAX, "patients.validation.nameTooLong")
+  .refine(hasTwoWords, "patients.validation.nameTwoWords");
 
 // A guardian section left empty in the form arrives as empty strings: it is treated as absent.
-// When any of name, CPF or phone is filled, name, relationship and phone are required.
+// When any of name, document or phone is filled, name, relationship and phone are required.
 const guardianSchema = z
   .object({
     name: z
@@ -56,32 +53,36 @@ const guardianSchema = z
       .trim()
       .nullish()
       .transform((value) => value || null),
-    cpf: digits,
+    document: documentInputSchema,
     relationship: z.enum(GUARDIAN_RELATIONSHIPS).nullish(),
-    phone: digits,
+    phone: phoneInputSchema(),
   })
   .nullish()
   .superRefine((guardian, ctx) => {
-    if (!guardian || (!guardian.name && !guardian.cpf && !guardian.phone)) return;
+    if (!guardian || (!guardian.name && !guardian.document && !guardian.phone)) return;
     const name = guardian.name ?? "";
     if (name.length < NAME_MIN || !hasTwoWords(name)) {
-      ctx.addIssue({ code: "custom", path: ["name"], message: "Informe nome e sobrenome do responsável." });
+      ctx.addIssue({ code: "custom", path: ["name"], message: "patients.validation.guardianNameTwoWords" });
     } else if (name.length > NAME_MAX) {
-      ctx.addIssue({ code: "custom", path: ["name"], message: "O nome deve ter no máximo 150 caracteres." });
+      ctx.addIssue({ code: "custom", path: ["name"], message: "patients.validation.nameTooLong" });
     }
     if (!guardian.relationship) {
-      ctx.addIssue({ code: "custom", path: ["relationship"], message: "Selecione o parentesco." });
+      ctx.addIssue({
+        code: "custom",
+        path: ["relationship"],
+        message: "patients.validation.relationshipRequired",
+      });
     }
-    if (!guardian.phone || !/^\d{10,11}$/.test(guardian.phone)) {
-      ctx.addIssue({ code: "custom", path: ["phone"], message: "Informe o telefone com DDD." });
+    if (!guardian.phone) {
+      ctx.addIssue({ code: "custom", path: ["phone"], message: "validation.phoneInvalid" });
     }
   })
   .transform((guardian) =>
-    !guardian || (!guardian.name && !guardian.cpf && !guardian.phone)
+    !guardian || (!guardian.name && !guardian.document && !guardian.phone)
       ? null
       : {
           name: guardian.name ?? "",
-          cpf: guardian.cpf,
+          document: guardian.document,
           relationship: guardian.relationship ?? "OTHER",
           phone: guardian.phone ?? "",
         },
@@ -89,20 +90,18 @@ const guardianSchema = z
 
 const patientShape = {
   fullName: nameField,
-  socialName: optionalText(NAME_MAX, "O nome social deve ter no máximo 150 caracteres."),
+  socialName: optionalText(NAME_MAX, "patients.validation.socialNameTooLong"),
   birthDate: isoDate,
   sex: z.enum(SEXES).default("NOT_INFORMED"),
-  cpf: digits,
-  rg: optionalText(RG_MAX, "O RG deve ter no máximo 20 caracteres."),
-  // PRD F05: mobile phone required, Brazilian format with area code.
-  mobilePhone: digits.refine(
-    (value) => value !== null && /^\d{2}9\d{8}$/.test(value),
-    "Informe um celular com DDD.",
+  // PRD F16: country, type and number; valid for the type and unique per type in the organization.
+  document: documentInputSchema,
+  rg: optionalText(RG_MAX, "patients.validation.rgTooLong"),
+  // PRD F05 and F16: mobile phone required, E.164, mobile in the countries that tell them apart.
+  mobilePhone: phoneInputSchema({ mobile: true }).refine(
+    (value) => value !== null,
+    "validation.mobileInvalid",
   ),
-  secondaryPhone: digits.refine(
-    (value) => value === null || /^\d{10,11}$/.test(value),
-    "Telefone inválido (com DDD).",
-  ),
+  secondaryPhone: phoneInputSchema(),
   email: z
     .string()
     .trim()
@@ -110,15 +109,18 @@ const patientShape = {
     .nullish()
     .transform((value) => value || null)
     .refine((value) => value === null || (value.length <= EMAIL_MAX && z.email().safeParse(value).success), {
-      message: "Informe um e-mail válido.",
+      message: "patients.validation.emailInvalid",
     }),
-  address: addressSchema.prefault({}),
-  occupation: optionalText(OCCUPATION_MAX, "A profissão deve ter no máximo 80 caracteres."),
+  // Generic address of a country; one with nothing but the country counts as absent.
+  address: countryAddressSchema
+    .nullish()
+    .transform((address) => (address && !isEmptyAddress(address) ? address : null)),
+  occupation: optionalText(OCCUPATION_MAX, "patients.validation.occupationTooLong"),
   referralSourceId: z
     .uuid()
     .nullish()
     .transform((value) => value ?? null),
-  observations: optionalText(OBSERVATIONS_MAX, "As observações devem ter no máximo 2.000 caracteres."),
+  observations: optionalText(OBSERVATIONS_MAX, "patients.validation.observationsTooLong"),
   tagIds: z
     .array(z.uuid())
     .nullish()
@@ -142,9 +144,12 @@ export const setPatientActiveSchema = z
     patientId: z.uuid(),
     active: z.boolean(),
     reason: z.enum(INACTIVE_REASONS).nullish(),
-    note: optionalText(INACTIVE_NOTE_MAX, "A observação deve ter no máximo 200 caracteres."),
+    note: optionalText(INACTIVE_NOTE_MAX, "patients.validation.noteTooLong"),
   })
-  .refine((value) => value.active || !!value.reason, { path: ["reason"], message: "Selecione o motivo." });
+  .refine((value) => value.active || !!value.reason, {
+    path: ["reason"],
+    message: "patients.validation.reasonRequired",
+  });
 
 export const searchPatientsSchema = z.object({
   q: z.string().default(""),
@@ -159,8 +164,8 @@ export type ListKind = (typeof LIST_KINDS)[number];
 const listName = z
   .string()
   .trim()
-  .min(1, "Informe o nome.")
-  .max(LIST_ITEM_NAME_MAX, "Use no máximo 40 caracteres.");
+  .min(1, "patients.validation.listNameRequired")
+  .max(LIST_ITEM_NAME_MAX, "patients.validation.listNameTooLong");
 
 export const createListItemSchema = z.object({ list: z.enum(LIST_KINDS), name: listName });
 export const renameListItemSchema = z.object({ list: z.enum(LIST_KINDS), id: z.uuid(), name: listName });
@@ -174,13 +179,13 @@ export const publishTermsSchema = z.object({
   text: z
     .string()
     .trim()
-    .min(TERMS_TEXT_MIN, "O texto dos termos deve ter pelo menos 50 caracteres.")
-    .max(TERMS_TEXT_MAX, "O texto dos termos deve ter no máximo 20.000 caracteres."),
+    .min(TERMS_TEXT_MIN, "patients.validation.termsTooShort")
+    .max(TERMS_TEXT_MAX, "patients.validation.termsTooLong"),
 });
 
 export const recordConsentSchema = z.object({
   patientId: z.uuid(),
-  method: z.enum(CONSENT_METHODS, { error: "Selecione a forma do consentimento." }),
+  method: z.enum(CONSENT_METHODS, { error: "patients.validation.consentMethodRequired" }),
   uploadToken: z
     .uuid()
     .nullish()

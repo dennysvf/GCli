@@ -93,7 +93,7 @@ describe("password reset", () => {
       meta(),
     );
     expect(!result.ok && result.error.code).toBe("VALIDATION_FAILED");
-    expect(!result.ok && result.error.fields?.password).toContain("10 caracteres");
+    expect(!result.ok && result.error.fields?.password).toBe("identity.validation.passwordTooShort");
   });
 
   it("F01: a successful reset clears the account lock", async () => {

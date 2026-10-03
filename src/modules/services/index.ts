@@ -1,6 +1,7 @@
 // Public API of the services module (spec F03 section 5).
 import { getUserNames } from "@/modules/identity";
 import { units } from "@/modules/units";
+import { isCurrency, type Currency } from "@/shared/kernel/countries/codes";
 import type { RequestContext } from "@/shared/context/types";
 import { definePort } from "@/shared/ports/registry";
 import {
@@ -12,6 +13,7 @@ import {
 } from "./application/categories";
 import type { ScheduledServiceAppointments, ServiceProfessionals, ServicesDeps } from "./application/ports";
 import { getAllowedRooms, getServiceSummaries, listActiveServices } from "./application/provided";
+import { servicesWithoutPrice } from "./application/pricing";
 import {
   createService,
   getService,
@@ -33,6 +35,16 @@ const serviceProfessionals = definePort<ServiceProfessionals>(
 );
 
 const deps: ServicesDeps = {
+  currencies: {
+    // Distinct currencies of the active units: the prices every service needs (PRD F16).
+    currenciesInUse: async (ctx) => {
+      const list = await units.listUnits(ctx, { activeOnly: true });
+      if (!list.ok) return [];
+      return [...new Set(list.value.map((unit) => unit.currency))].filter((currency): currency is Currency =>
+        isCurrency(currency),
+      );
+    },
+  },
   rooms: {
     findRooms: async (ctx, roomIds) => {
       const rooms = await units.getRooms(ctx, { roomIds });
@@ -75,9 +87,16 @@ export const services = {
 };
 
 export { subscribeServicesEvents } from "./events";
+
+// Registers what services provides to units (active services without a price in a currency).
+export function registerServicesPorts(): void {
+  units.registerServicePricing({ servicesWithoutPrice });
+}
 export type { ScheduledServiceAppointments, ServiceProfessionals } from "./application/ports";
 export type { CategoryItem } from "./application/categories";
 export type { ActiveService, AllowedRooms, ServiceSummary } from "./application/provided";
+export { priceIn } from "./domain/service-rules";
+export type { ServicePriceItem } from "./application/services";
 export type {
   PriceChangeItem,
   SaveServiceResult,
@@ -89,11 +108,8 @@ export type {
 export { SERVICE_STATUSES, type ServiceStatusFilter } from "./application/schemas";
 export { SERVICE_COLORS, type ServiceColor } from "./domain/palette";
 export { formatDuration } from "./domain/service-rules";
-export {
-  servicesMessages,
-  SERVICES_DEACTIVATED_WITH_APPOINTMENTS,
-  SERVICES_PRICE_CHANGE_CONFIRMATION,
-} from "./messages";
+export { servicesCatalog } from "./messages/catalog";
+export { SERVICES_DEACTIVATED_WITH_APPOINTMENTS, SERVICES_PRICE_CHANGE_CONFIRMATION } from "./notices";
 export { CategoriesDialog } from "./ui/categories-dialog";
 export { ServicesFilters } from "./ui/services-filters";
 export { ServiceSheet } from "./ui/service-sheet";

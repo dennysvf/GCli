@@ -13,6 +13,7 @@ export default async function NewUnitPage() {
   const profile = await getOrganizationProfile(ctx);
   // ADR-019: a new unit starts with the organization's time zone.
   const defaultTimeZone = profile.ok ? profile.value.timeZone : "America/Sao_Paulo";
+  const defaultCountry = profile.ok ? profile.value.country : ctx.organizationCountry;
 
   return (
     <div className="grid gap-6">
@@ -24,7 +25,7 @@ export default async function NewUnitPage() {
           </Link>
         }
       />
-      <UnitForm defaultTimeZone={defaultTimeZone} action={createUnitAction} />
+      <UnitForm defaultCountry={defaultCountry} defaultTimeZone={defaultTimeZone} action={createUnitAction} />
     </div>
   );
 }

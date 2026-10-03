@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
+import { LOCALE_NAMES, SUPPORTED_LOCALES, type Locale } from "@/shared/i18n/locales";
 import type { ActionResult } from "@/shared/kernel/action-result";
 import type { Role } from "@/shared/kernel/roles";
 import { Stamp, type StampVariant } from "@/shared/ui/components/stamp";
@@ -56,15 +57,17 @@ type InviteValues = z.input<typeof inviteUserSchema>;
 
 export function InviteUserDialog({
   action,
+  defaultLocale,
 }: {
   action: (input: InviteValues) => Promise<ActionResult<unknown>>;
+  defaultLocale: Locale;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const form = useForm<InviteValues>({
     resolver: zodResolver(inviteUserSchema),
-    defaultValues: { name: "", email: "", role: "FRONT_DESK" },
+    defaultValues: { name: "", email: "", role: "FRONT_DESK", locale: defaultLocale },
   });
   const { errors } = form.formState;
 
@@ -113,6 +116,26 @@ export function InviteUserDialog({
                       {Object.entries(ROLE_LABELS).map(([value, label]) => (
                         <SelectItem key={value} value={value}>
                           {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </Field>
+            <Field id="invite-locale" label="Idioma do convite" error={errors.locale?.message}>
+              <Controller
+                control={form.control}
+                name="locale"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="invite-locale" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUPPORTED_LOCALES.map((locale) => (
+                        <SelectItem key={locale} value={locale}>
+                          {LOCALE_NAMES[locale]}
                         </SelectItem>
                       ))}
                     </SelectContent>

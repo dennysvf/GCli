@@ -8,7 +8,10 @@ import {
   type SavePatientResult,
 } from "@/modules/patients/client";
 import { toast } from "sonner";
-import { formatCents } from "@/shared/kernel/money";
+import { useLocale } from "next-intl";
+import { formatLocale, formatMoney } from "@/shared/i18n/format";
+import type { Locale } from "@/shared/i18n/locales";
+import type { CountryCode, Currency } from "@/shared/kernel/countries/codes";
 import { interpolate, type ActionResult } from "@/shared/kernel/action-result";
 import type { PaletteColor } from "@/shared/kernel/palette";
 import { Button } from "@/shared/ui/components/button";
@@ -41,7 +44,7 @@ import type { BookingOptions } from "../application/booking-options";
 import type { FindingDto } from "../application/booking";
 import type { BookSeriesResult, SeriesPreview } from "../application/series";
 import { formatMinute, parseTime } from "@/shared/kernel/calendar-date";
-import { SCHEDULING_TOASTS } from "../messages";
+import { SCHEDULING_TOASTS } from "../notices";
 import { ConflictFindings, hasBlocking, needsOverbooking } from "./conflict-findings";
 import { longDate, slotTimes } from "./format";
 import { PatientPicker } from "./patient-picker";
@@ -53,7 +56,7 @@ export type ServiceOption = {
   name: string;
   categoryName: string;
   durationMinutes: number;
-  priceCents: number;
+  prices: { currency: string; amountMinor: number }[];
   color: string;
 };
 
@@ -89,6 +92,8 @@ const NO_ROOM = "__none__";
 export function BookingPanel({
   draft,
   unitId,
+  currency,
+  country,
   granularity,
   services,
   canRegisterPatient,
@@ -99,6 +104,9 @@ export function BookingPanel({
 }: {
   draft: BookingDraft;
   unitId: string;
+  // Currency and country of the unit: the price shown is the service price in that currency.
+  currency: Currency;
+  country: CountryCode;
   granularity: number;
   services: ServiceOption[];
   canRegisterPatient: boolean;
@@ -133,6 +141,13 @@ export function BookingPanel({
   const [series, setSeries] = useState<SeriesPreview | null>(null);
   const [resolutions, setResolutions] = useState<Resolution[]>([]);
 
+  const locale = useLocale() as Locale;
+  const priceText = (item: ServiceOption) => {
+    const price = item.prices.find((entry) => entry.currency === currency);
+    return price
+      ? formatMoney({ amountMinor: price.amountMinor, currency }, formatLocale(locale, country))
+      : "—";
+  };
   const service = services.find((item) => item.id === serviceId);
   const grouped = useMemo(() => {
     const groups = new Map<string, ServiceOption[]>();
@@ -276,6 +291,7 @@ export function BookingPanel({
             {newPatient ? (
               <div className="grid gap-2 rounded-md border p-3">
                 <QuickPatientForm
+                  defaultCountry={country}
                   today={patientForm.today}
                   referralSources={patientForm.referralSources}
                   tags={patientForm.tags}
@@ -339,7 +355,7 @@ export function BookingPanel({
                             PALETTE[(item.color in PALETTE ? item.color : "slate") as PaletteColor].swatch,
                           )}
                         />
-                        {item.name} · {item.durationMinutes} min · {formatCents(item.priceCents)}
+                        {item.name} · {item.durationMinutes} min · {priceText(item)}
                       </SelectItem>
                     ))}
                   </SelectGroup>
@@ -440,7 +456,7 @@ export function BookingPanel({
           </div>
           {service ? (
             <p className="text-muted-foreground text-sm tabular-nums">
-              {startTime}–{endTime} · {formatCents(service.priceCents)}
+              {startTime}–{endTime} · {priceText(service)}
             </p>
           ) : null}
 

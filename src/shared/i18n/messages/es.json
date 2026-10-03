@@ -33,7 +33,9 @@
       "cityTooLong": "La ciudad es demasiado larga.",
       "regionTooLong": "El estado o región es demasiado largo.",
       "regionInvalid": "Elija un estado o región de la lista."
-    }
+    },
+    "required": "Complete este campo.",
+    "documentTypeInvalid": "Elija un tipo de documento del país."
   },
   "shell": {
     "tagline": "Gestión para clínicas",
@@ -161,7 +163,12 @@
         "CL": "Región",
         "CO": "Departamento",
         "US": "Estado"
-      }
+      },
+      "title": "Dirección",
+      "cepHint": "La dirección se completa a partir del CEP.",
+      "cepLooking": "Consultando el CEP...",
+      "cepNotFound": "CEP no encontrado. Complete la dirección manualmente.",
+      "cepUnavailable": "No se pudo consultar el CEP ahora. Complete la dirección manualmente."
     },
     "paymentMethods": {
       "CASH": "Efectivo",
@@ -179,6 +186,47 @@
       "PSE": "PSE",
       "CHECK": "Cheque",
       "ZELLE": "Zelle"
+    },
+    "fields": {
+      "documentCountry": "País del documento",
+      "documentType": "Tipo de documento",
+      "phoneCountry": "Código de país"
+    }
+  },
+  "errors": {
+    "GENERIC": "No se pudo completar la operación. Inténtelo de nuevo.",
+    "VALIDATION_FAILED": "Revise los campos resaltados.",
+    "AUTH_UNAUTHENTICATED": "Su sesión expiró. Inicie sesión de nuevo para continuar.",
+    "AUTHZ_FORBIDDEN": "No tiene permiso para acceder a esta página.",
+    "CONFLICT_STALE_VERSION": "Estos datos fueron modificados por otra persona. Recargue la página e inténtelo de nuevo.",
+    "NOT_FOUND": "Registro no encontrado.",
+    "DOCUMENT_INVALID": "{type} no válido.",
+    "TAX_ID_INVALID": "{type} no válido.",
+    "PHONE_INVALID": "Ingrese un teléfono válido.",
+    "POSTAL_CODE_INVALID": "Código postal no válido.",
+    "LOCALE_INVALID": "Elija un idioma de la lista.",
+    "MONEY_INVALID": "Ingrese un valor válido."
+  },
+  "email": {
+    "footer": "Si no esperaba este correo, ignórelo.",
+    "copyLink": "O copie y pegue esto en el navegador: {url}",
+    "invitation": {
+      "subject": "Invitación para acceder a GCli — {organization}",
+      "title": "Lo invitaron a GCli",
+      "greeting": "Hola, {name}.",
+      "body": "Lo invitaron a acceder al sistema de {organization}. Defina su contraseña para comenzar.",
+      "button": "Definir contraseña e iniciar sesión",
+      "link": "Defina su contraseña en: {url}",
+      "validity": "Este enlace es válido hasta el {expires} y solo puede usarse una vez."
+    },
+    "passwordReset": {
+      "subject": "Restablecimiento de contraseña de GCli",
+      "title": "Restablezca su contraseña",
+      "greeting": "Hola, {name}.",
+      "body": "Recibimos una solicitud para restablecer la contraseña de su cuenta.",
+      "button": "Restablecer contraseña",
+      "link": "Restablézcala en: {url}",
+      "validity": "Este enlace es válido por 60 minutos y solo puede usarse una vez."
     }
   }
 }

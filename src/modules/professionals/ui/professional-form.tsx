@@ -1,29 +1,28 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Plus, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import type { z } from "zod";
 import type { ActionResult } from "@/shared/kernel/action-result";
+import { COUNTRY_LIST, councilSpec, countryProfile, type CountryCode } from "@/shared/kernel/countries";
 import type { PaletteColor } from "@/shared/kernel/palette";
 import { Button } from "@/shared/ui/components/button";
+import { Checkbox } from "@/shared/ui/components/checkbox";
 import { Input } from "@/shared/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
-import { CpfInput } from "@/shared/ui/forms/cpf-input";
+import { DocumentInput } from "@/shared/ui/forms/document-input";
 import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
+import { PhoneInput } from "@/shared/ui/forms/phone-input";
 import { useFormDraft } from "@/shared/ui/forms/use-form-draft";
 import { ColorPicker } from "@/shared/ui/palette/color-picker";
 import type { ProfessionalDetails } from "../application/professionals";
-import { BRAZIL_STATES, createProfessionalSchema } from "../application/schemas";
-import {
-  COUNCIL_TYPE_LABELS,
-  COUNCIL_TYPES,
-  requiresOtherName,
-  requiresRegistration,
-} from "../domain/council";
+import { createProfessionalSchema } from "../application/schemas";
 
 type Values = z.input<typeof createProfessionalSchema>;
 type Parsed = z.output<typeof createProfessionalSchema>;
@@ -32,24 +31,20 @@ export type LinkableUserOption = { id: string; name: string; email: string; role
 
 const NO_USER = "none";
 
-function maskPhone(value: string | null | undefined): string {
-  const digits = (value ?? "").replace(/\D/g, "");
-  if (digits.length === 11) return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-  if (digits.length === 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-  return value ?? "";
-}
-
-// Dados tab (PRD F04 Capabilities): identification, council registration, contact, agenda color and
-// the optional linked user.
+// Dados tab (PRD F04 and F16): identification, one council registration per country, document,
+// contact, agenda color and the optional linked user.
 export function ProfessionalForm({
   professional,
   defaultColor,
+  defaultCountry,
   linkableUsers,
   readOnly = false,
   action,
 }: {
   professional?: ProfessionalDetails;
   defaultColor: PaletteColor;
+  // The country offered first for the document and the first registration.
+  defaultCountry: CountryCode;
   linkableUsers: LinkableUserOption[];
   readOnly?: boolean;
   action: (
@@ -57,17 +52,38 @@ export function ProfessionalForm({
   ) => Promise<ActionResult<{ professionalId: string; version: number }>>;
 }) {
   const router = useRouter();
+  const t = useTranslations();
   const [pending, startTransition] = useTransition();
   const defaults: Values = {
     fullName: professional?.fullName ?? "",
     displayName: professional?.displayName ?? "",
     specialty: professional?.specialty ?? "",
-    councilType: professional?.councilType ?? "CRM",
-    councilOtherName: professional?.councilOtherName ?? "",
-    councilNumber: professional?.councilNumber ?? "",
-    councilState: professional?.councilState ?? "",
-    cpf: professional?.cpf ?? "",
-    phone: maskPhone(professional?.phone),
+    hasNoCouncil: professional?.hasNoCouncil ?? false,
+    registrations: professional
+      ? professional.registrations.map((item) => ({
+          country: item.country,
+          councilType: item.councilType,
+          councilOtherName: item.councilOtherName ?? "",
+          number: item.number ?? "",
+          region: item.region ?? "",
+          npi: item.npi ?? "",
+        }))
+      : [
+          {
+            country: defaultCountry,
+            councilType: countryProfile(defaultCountry).councils[0]?.type ?? "OTHER",
+            councilOtherName: "",
+            number: "",
+            region: "",
+            npi: "",
+          },
+        ],
+    document: professional?.document ?? {
+      country: defaultCountry,
+      type: countryProfile(defaultCountry).identityDocuments[0]?.type ?? "CPF",
+      number: "",
+    },
+    phone: professional?.phone ?? "",
     email: professional?.email ?? "",
     color: professional?.color ?? defaultColor,
     linkedUserId: professional?.linkedUser?.id ?? null,
@@ -78,7 +94,11 @@ export function ProfessionalForm({
   });
   const draft = useFormDraft(`professional-${professional?.id ?? "new"}`, form);
   const { errors } = form.formState;
-  const councilType = useWatch({ control: form.control, name: "councilType" });
+  const hasNoCouncil = useWatch({ control: form.control, name: "hasNoCouncil" });
+  const registrations = useFieldArray({ control: form.control, name: "registrations" });
+  const watched = useWatch({ control: form.control, name: "registrations" }) ?? [];
+  const usedCountries = new Set(watched.map((registration) => registration.country));
+  const freeCountry = COUNTRY_LIST.find((item) => !usedCountries.has(item.code));
 
   // The current link stays selectable even when the user no longer qualifies (spec F04).
   const current = professional?.linkedUser;
@@ -109,7 +129,7 @@ export function ProfessionalForm({
   );
 
   const text = (
-    name: "fullName" | "displayName" | "specialty" | "councilOtherName" | "councilNumber" | "phone" | "email",
+    name: "fullName" | "displayName" | "specialty" | "email",
     id: string,
     props: Record<string, unknown> = {},
   ) => (
@@ -150,92 +170,251 @@ export function ProfessionalForm({
 
         <fieldset className="grid gap-4 rounded-lg border p-4">
           <legend className="px-1 text-sm font-semibold">Registro no conselho</legend>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field id="professional-council-type" label="Conselho" error={errors.councilType?.message}>
-              <Controller
-                control={form.control}
-                name="councilType"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                    <SelectTrigger id="professional-council-type" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COUNCIL_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {COUNCIL_TYPE_LABELS[type]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </Field>
-            {councilType && requiresOtherName(councilType) ? (
-              <Field
-                id="professional-council-other"
-                label="Nome do conselho"
-                error={errors.councilOtherName?.message}
-              >
-                {text("councilOtherName", "professional-council-other", {
-                  placeholder: "Ex.: CRFa",
-                  maxLength: 20,
-                })}
-              </Field>
-            ) : null}
-            {councilType && requiresRegistration(councilType) ? (
-              <>
-                <Field id="professional-council-number" label="Número" error={errors.councilNumber?.message}>
-                  {text("councilNumber", "professional-council-number", { maxLength: 15 })}
-                </Field>
-                <Field id="professional-council-state" label="UF" error={errors.councilState?.message}>
-                  <Controller
-                    control={form.control}
-                    name="councilState"
-                    render={({ field }) => (
-                      <Select value={field.value ?? ""} onValueChange={field.onChange} disabled={readOnly}>
-                        <SelectTrigger
-                          id="professional-council-state"
-                          className="w-full"
-                          aria-invalid={!!errors.councilState}
-                        >
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {BRAZIL_STATES.map((state) => (
-                            <SelectItem key={state} value={state}>
-                              {state}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </Field>
-              </>
-            ) : null}
-          </div>
-        </fieldset>
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field id="professional-cpf" label="CPF (opcional)" error={errors.cpf?.message}>
+          <label className="flex items-center gap-2 text-sm">
             <Controller
               control={form.control}
-              name="cpf"
+              name="hasNoCouncil"
               render={({ field }) => (
-                <CpfInput
-                  id="professional-cpf"
-                  readOnly={readOnly}
-                  aria-invalid={!!errors.cpf}
-                  value={field.value}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={(checked) => field.onChange(checked === true)}
+                  disabled={readOnly}
                 />
               )}
             />
-          </Field>
+            Este profissional não tem conselho
+          </label>
+          {hasNoCouncil ? null : (
+            <div className="grid gap-4">
+              {registrations.fields.map((row, index) => {
+                const registration = watched[index];
+                const country = (registration?.country ?? defaultCountry) as CountryCode;
+                const spec = registration ? councilSpec(country, registration.councilType) : undefined;
+                const rowErrors = errors.registrations?.[index];
+                const npiOnly = !!spec?.hasNpi && spec.type === "NPI";
+                return (
+                  <div key={row.id} className="grid gap-3 rounded-md border p-3 sm:grid-cols-3">
+                    <Field
+                      id={`registration-${index}-country`}
+                      label="País"
+                      error={rowErrors?.country?.message}
+                    >
+                      <Controller
+                        control={form.control}
+                        name={`registrations.${index}.country`}
+                        render={({ field }) => (
+                          <Select
+                            value={field.value}
+                            disabled={readOnly}
+                            onValueChange={(next) => {
+                              field.onChange(next);
+                              // The council types and regions belong to the country.
+                              form.setValue(
+                                `registrations.${index}.councilType`,
+                                countryProfile(next as CountryCode).councils[0]?.type ?? "OTHER",
+                              );
+                              form.setValue(`registrations.${index}.region`, "");
+                            }}
+                          >
+                            <SelectTrigger id={`registration-${index}-country`} className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {COUNTRY_LIST.filter(
+                                (item) => item.code === field.value || !usedCountries.has(item.code),
+                              ).map((item) => (
+                                <SelectItem key={item.code} value={item.code}>
+                                  {t(item.nameKey)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </Field>
+                    <Field
+                      id={`registration-${index}-type`}
+                      label="Conselho"
+                      error={rowErrors?.councilType?.message}
+                    >
+                      <Controller
+                        control={form.control}
+                        name={`registrations.${index}.councilType`}
+                        render={({ field }) => (
+                          <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                            <SelectTrigger id={`registration-${index}-type`} className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {countryProfile(country).councils.map((council) => (
+                                <SelectItem key={council.type} value={council.type}>
+                                  {t(council.labelKey)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </Field>
+                    {spec?.needsName ? (
+                      <Field
+                        id={`registration-${index}-other`}
+                        label="Nome do conselho"
+                        error={rowErrors?.councilOtherName?.message}
+                      >
+                        <Input
+                          id={`registration-${index}-other`}
+                          readOnly={readOnly}
+                          maxLength={40}
+                          defaultValue={row.councilOtherName ?? ""}
+                          {...form.register(`registrations.${index}.councilOtherName`)}
+                        />
+                      </Field>
+                    ) : null}
+                    {npiOnly ? null : (
+                      <Field
+                        id={`registration-${index}-number`}
+                        label="Número"
+                        error={rowErrors?.number?.message}
+                      >
+                        <Input
+                          id={`registration-${index}-number`}
+                          readOnly={readOnly}
+                          maxLength={20}
+                          defaultValue={row.number ?? ""}
+                          {...form.register(`registrations.${index}.number`)}
+                        />
+                      </Field>
+                    )}
+                    {spec?.regionRequired ? (
+                      <Field
+                        id={`registration-${index}-region`}
+                        label={t(countryProfile(country).address.region.labelKey)}
+                        error={rowErrors?.region?.message}
+                      >
+                        {spec.regions ? (
+                          <Controller
+                            control={form.control}
+                            name={`registrations.${index}.region`}
+                            render={({ field }) => (
+                              <Select
+                                value={field.value ?? ""}
+                                onValueChange={field.onChange}
+                                disabled={readOnly}
+                              >
+                                <SelectTrigger id={`registration-${index}-region`} className="w-full">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {spec.regions?.map((region) => (
+                                    <SelectItem key={region.code} value={region.code}>
+                                      {region.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                        ) : (
+                          <Input
+                            id={`registration-${index}-region`}
+                            readOnly={readOnly}
+                            defaultValue={row.region ?? ""}
+                            {...form.register(`registrations.${index}.region`)}
+                          />
+                        )}
+                      </Field>
+                    ) : null}
+                    {spec?.hasNpi ? (
+                      <Field id={`registration-${index}-npi`} label="NPI" error={rowErrors?.npi?.message}>
+                        <Input
+                          id={`registration-${index}-npi`}
+                          readOnly={readOnly}
+                          inputMode="numeric"
+                          maxLength={10}
+                          defaultValue={row.npi ?? ""}
+                          {...form.register(`registrations.${index}.npi`)}
+                        />
+                      </Field>
+                    ) : null}
+                    {readOnly ? null : (
+                      <div className="flex items-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => registrations.remove(index)}
+                          aria-label="Remover registro"
+                        >
+                          <Trash2 />
+                          Remover registro
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {errors.registrations?.message ? (
+                <p role="alert" className="text-destructive text-sm">
+                  {t(errors.registrations.message as string)}
+                </p>
+              ) : null}
+              {readOnly || !freeCountry ? null : (
+                <div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      registrations.append({
+                        country: freeCountry.code,
+                        councilType: freeCountry.councils[0]?.type ?? "OTHER",
+                        councilOtherName: "",
+                        number: "",
+                        region: "",
+                        npi: "",
+                      })
+                    }
+                  >
+                    <Plus />
+                    Adicionar registro
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </fieldset>
+
+        <Controller
+          control={form.control}
+          name="document"
+          render={({ field }) => (
+            <DocumentInput
+              idPrefix="professional-document"
+              label="Documento (opcional)"
+              readOnly={readOnly}
+              defaultCountry={defaultCountry}
+              value={field.value}
+              onChange={field.onChange}
+              numberError={errors.document?.number?.message}
+              typeError={errors.document?.type?.message}
+            />
+          )}
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field id="professional-phone" label="Telefone (opcional)" error={errors.phone?.message}>
-            {text("phone", "professional-phone", { placeholder: "(11) 98888-7777", inputMode: "tel" })}
+            <Controller
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <PhoneInput
+                  id="professional-phone"
+                  readOnly={readOnly}
+                  defaultCountry={defaultCountry}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
+            />
           </Field>
           <Field id="professional-email" label="E-mail (opcional)" error={errors.email?.message}>
             {text("email", "professional-email", { type: "email" })}

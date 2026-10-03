@@ -10,7 +10,7 @@ import type { AvailabilityDecision } from "../domain/appointment";
 import type { Resolution } from "../domain/conflicts/check";
 import type { Finding } from "../domain/conflicts/types";
 import { SchedulingErrors } from "../domain/errors";
-import { findingMessages } from "../messages";
+import { findingMessages } from "../notices";
 import type {
   OrganizationInfo,
   PatientInfo,
@@ -31,6 +31,8 @@ export type BookingRefs = {
   professional: ProfessionalInfo;
   room: { id: string; name: string } | null;
   patient: PatientInfo | null;
+  // The price of the service in the currency of the unit (PRD F16).
+  priceMinor: number;
 };
 
 export async function resolveRefs(
@@ -54,24 +56,31 @@ export async function resolveRefs(
   const service = services[0];
   const professional = professionals[0];
   const patient = patients[0] ?? null;
-  if (!unit) return fail(SchedulingErrors.validation({ unitId: "Unidade não encontrada." }));
-  if (!unit.active) return fail(SchedulingErrors.inactiveResource("A unidade"));
-  if (!service) return fail(SchedulingErrors.validation({ serviceId: "Serviço não encontrado." }));
-  if (!service.active) return fail(SchedulingErrors.inactiveResource("O serviço"));
+  if (!unit) return fail(SchedulingErrors.validation({ unitId: "scheduling.validation.unitNotFound" }));
+  if (!unit.active) return fail(SchedulingErrors.inactiveResource("unit"));
+  if (!service)
+    return fail(SchedulingErrors.validation({ serviceId: "scheduling.validation.serviceNotFound" }));
+  if (!service.active) return fail(SchedulingErrors.inactiveResource("service"));
   if (!professional)
-    return fail(SchedulingErrors.validation({ professionalId: "Profissional não encontrado." }));
-  if (!professional.active) return fail(SchedulingErrors.inactiveResource("O profissional"));
+    return fail(
+      SchedulingErrors.validation({ professionalId: "scheduling.validation.professionalNotFound" }),
+    );
+  if (!professional.active) return fail(SchedulingErrors.inactiveResource("professional"));
   if (input.patientId) {
-    if (!patient) return fail(SchedulingErrors.validation({ patientId: "Paciente não encontrado." }));
-    if (!patient.active) return fail(SchedulingErrors.inactiveResource("O paciente"));
+    if (!patient)
+      return fail(SchedulingErrors.validation({ patientId: "scheduling.validation.patientNotFound" }));
+    if (!patient.active) return fail(SchedulingErrors.inactiveResource("patient"));
   }
   // PRD F06: the professional must have the service enabled (F04).
   if (!(await deps.directory.isServiceEnabled(ctx, professional.id, service.id))) {
     return fail(SchedulingErrors.serviceNotEnabled());
   }
+  // PRD F16: the price snapshot is the service price in the currency of the unit.
+  const price = priceIn(service.prices, unit.currency);
+  if (price === null) return fail(SchedulingErrors.noPriceForCurrency(unit.currency));
   const room = await resolveRoom(deps, ctx, unit, service, input.roomId);
   if (!room.ok) return room;
-  return ok({ organization, unit, service, professional, room: room.value, patient });
+  return ok({ organization, unit, service, professional, room: room.value, patient, priceMinor: price });
 }
 
 // PRD F06: room required when the service requires one, restricted to its allowed rooms (F03,
@@ -117,7 +126,8 @@ export function startInstant(
   startTime: string,
 ): Result<{ startsAt: Date; minute: number }> {
   const minute = parseTime(startTime);
-  if (minute === null) return fail(SchedulingErrors.validation({ startTime: "Informe um horário válido." }));
+  if (minute === null)
+    return fail(SchedulingErrors.validation({ startTime: "scheduling.validation.timeInvalid" }));
   if (!isAlignedStart(minute, refs.organization.granularity)) {
     return fail(SchedulingErrors.invalidStart(refs.organization.granularity));
   }
@@ -177,4 +187,12 @@ export async function staleVersionError(
     (current.updatedById ? names.get(current.updatedById) : undefined) ?? "outra pessoa",
     localTime(current.updatedAt, timeZone),
   );
+}
+
+// The price of a currency among the prices of a service, or null when it has none.
+export function priceIn(
+  prices: { currency: string; amountMinor: number }[],
+  currency: string,
+): number | null {
+  return prices.find((price) => price.currency === currency)?.amountMinor ?? null;
 }

@@ -50,7 +50,9 @@ describe("expandSeries", () => {
     const tooMany = expandSeries(
       rule({ weekdays: [1, 2, 3, 4, 5, 6], endsAfter: null, endsOn: "2027-10-06" }),
     );
-    expect(tooMany.ok ? null : tooMany.error).toEqual({ "recurrence.endsOn": "Use no máximo 52 sessões." });
+    expect(tooMany.ok ? null : tooMany.error).toEqual({
+      "recurrence.endsOn": "scheduling.validation.recurrenceMaxSessions",
+    });
     expect(expandSeries(rule({ endsAfter: 20, endsOn: "2026-12-01" })).ok).toBe(false);
   });
 });

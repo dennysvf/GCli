@@ -1,9 +1,9 @@
-import { formatPhone } from "@/shared/kernel/phone";
+import { formatPhoneNumber } from "@/shared/kernel/phone";
 import { Alert, AlertDescription } from "@/shared/ui/components/alert";
 import { Stamp, type StampVariant } from "@/shared/ui/components/stamp";
 import type { PatientDetails } from "../application/patients";
 import { CONSENT_STATUS_LABELS, type ConsentStatus } from "../domain/consent";
-import { PATIENTS_INCOMPLETE_RECORD } from "../messages";
+import { PATIENTS_INCOMPLETE_RECORD } from "../notices";
 
 const CONSENT_VARIANT: Record<ConsentStatus, StampVariant> = {
   OK: "success",
@@ -18,7 +18,7 @@ export function PatientHeaderMeta({ patient }: { patient: PatientDetails }) {
   return (
     <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <span>{patient.age} anos</span>
-      <span className="tabular-nums">{formatPhone(patient.mobilePhone)}</span>
+      <span className="tabular-nums">{formatPhoneNumber(patient.mobilePhone)}</span>
       {patient.tags.map((tag) => (
         <Stamp key={tag.id} variant="neutral">
           {tag.name}

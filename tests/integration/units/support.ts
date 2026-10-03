@@ -3,17 +3,18 @@ import { createOrganization, createUser, signedInContext } from "../helpers";
 
 export const BASE_UNIT = {
   name: "Unidade Centro",
+  country: "BR",
   timeZone: "America/Sao_Paulo",
   phone: "(11) 3333-4444",
   email: "centro@clinicaexemplo.com.br",
   address: {
-    cep: "01310-100",
+    postalCode: "01310-100",
     street: "Avenida Paulista",
     number: "1000",
     complement: "Sala 12",
     district: "Bela Vista",
     city: "São Paulo",
-    state: "SP",
+    region: "SP",
   },
 };
 
@@ -34,13 +35,16 @@ export async function createUnitOrThrow(
 
 // Fake scheduling (F06) that answers fixed counts.
 export function fakeAppointments(
-  counts: Partial<Record<keyof ScheduledAppointments, number>>,
+  counts: Partial<Record<Exclude<keyof ScheduledAppointments, "hasAnyInUnit">, number>> & {
+    hasAnyInUnit?: boolean;
+  },
 ): ScheduledAppointments {
   return {
     countFutureInRoom: async () => counts.countFutureInRoom ?? 0,
     countFutureInUnit: async () => counts.countFutureInUnit ?? 0,
     countInDateRange: async () => counts.countInDateRange ?? 0,
     countFutureOutsideHours: async () => counts.countFutureOutsideHours ?? 0,
+    hasAnyInUnit: async () => counts.hasAnyInUnit ?? false,
   };
 }
 

@@ -28,6 +28,7 @@ export default async function NewProfessionalPage() {
       />
       <ProfessionalForm
         defaultColor={color.ok ? color.value : "blue"}
+        defaultCountry={ctx.organizationCountry}
         linkableUsers={users.map((user) => ({
           id: user.id,
           name: user.name,

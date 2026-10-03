@@ -11,7 +11,7 @@ import { Label } from "@/shared/ui/components/label";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import type { ReplaceEnabledServicesResult } from "../application/enabled-services";
-import { PROFESSIONALS_SERVICES_REMOVED_WITH_APPOINTMENTS } from "../messages";
+import { PROFESSIONALS_SERVICES_REMOVED_WITH_APPOINTMENTS } from "../notices";
 import { ColorDot } from "./professional-avatar";
 
 export type ServiceOption = {

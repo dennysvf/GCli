@@ -13,7 +13,7 @@ import {
 } from "@/modules/professionals";
 import { formatDuration, services } from "@/modules/services";
 import { can } from "@/shared/authz/permissions";
-import { formatCents } from "@/shared/kernel/money";
+import { formatLocale, formatMoney } from "@/shared/i18n/format";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
 import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import { Stamp } from "@/shared/ui/components/stamp";
@@ -100,6 +100,7 @@ export default async function ProfessionalPage({
           <ProfessionalForm
             professional={details}
             defaultColor={details.color}
+            defaultCountry={ctx.organizationCountry}
             linkableUsers={users.map((user) => ({
               id: user.id,
               name: user.name,
@@ -119,7 +120,12 @@ export default async function ProfessionalPage({
               name: service.name,
               categoryName: service.categoryName,
               color: service.color,
-              details: `${formatDuration(service.durationMinutes)} · ${formatCents(service.priceCents)}`,
+              details: [
+                formatDuration(service.durationMinutes),
+                service.prices.map((price) => formatMoney(price, formatLocale(ctx.locale, null))).join(" / "),
+              ]
+                .filter(Boolean)
+                .join(" · "),
             }))}
             enabledIds={enabled.ok ? enabled.value.serviceIds : []}
             inactiveServices={enabled.ok ? enabled.value.inactiveServices : []}

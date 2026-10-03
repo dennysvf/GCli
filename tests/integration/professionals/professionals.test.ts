@@ -1,15 +1,23 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Pool } from "pg";
-import { professionals, professionalsMessages } from "@/modules/professionals";
+import { professionals } from "@/modules/professionals";
 import { db } from "@/shared/db/client";
-import { interpolate } from "@/shared/kernel/action-result";
 import { newId } from "@/shared/kernel/ids";
-import { auditEvents, closeHelpers, createOrganization, createUser, resetDatabase } from "../helpers";
+import {
+  auditEvents,
+  closeHelpers,
+  createOrganization,
+  createUser,
+  errorText,
+  resetDatabase,
+} from "../helpers";
 import {
   createProfessionalOrThrow,
   createServiceOrThrow,
   fakeAppointments,
+  cpfDocument,
   OTHER_CPF,
+  registration,
   professionalInput,
   professionalsContext,
   VALID_CPF,
@@ -20,59 +28,76 @@ afterEach(() => professionals.registerProfessionalAppointments(null));
 afterAll(closeHelpers);
 
 describe("professional profiles", () => {
-  it("F04: professional with a council type other than none cannot be saved without number and state", async () => {
+  it("F04: a registration needs number and region, and Outro needs the council name", async () => {
     const ctx = await professionalsContext();
-    const noNumber = await professionals.createProfessional(ctx, professionalInput({ councilNumber: "" }));
+    const withRegistration = (overrides: Record<string, unknown>) =>
+      professionalInput({ registrations: [registration(overrides)] });
+    const noNumber = await professionals.createProfessional(ctx, withRegistration({ number: "" }));
     expect(noNumber.ok).toBe(false);
     if (!noNumber.ok) {
       expect(noNumber.error.code).toBe("VALIDATION_FAILED");
-      expect(noNumber.error.fields?.councilNumber).toBe("Informe o número do conselho.");
+      expect(noNumber.error.fields?.["registrations.0.number"]).toBe(
+        "professionals.validation.numberRequired",
+      );
     }
-    const noState = await professionals.createProfessional(ctx, professionalInput({ councilState: null }));
-    expect(!noState.ok && noState.error.fields?.councilState).toBe("Informe a UF do conselho.");
+    const noState = await professionals.createProfessional(ctx, withRegistration({ region: null }));
+    expect(!noState.ok && noState.error.fields?.["registrations.0.region"]).toBe(
+      "professionals.validation.regionRequired",
+    );
     const other = await professionals.createProfessional(
       ctx,
-      professionalInput({ councilType: "OTHER", councilOtherName: "" }),
+      withRegistration({ councilType: "OTHER", councilOtherName: "" }),
     );
-    expect(!other.ok && other.error.fields?.councilOtherName).toBe("Informe o nome do conselho.");
+    expect(!other.ok && other.error.fields?.["registrations.0.councilOtherName"]).toBe(
+      "professionals.validation.councilNameRequired",
+    );
 
+    // A professional without a council keeps no registration.
     const none = await professionals.createProfessional(
       ctx,
-      professionalInput({ councilType: "NONE", councilNumber: "999", councilState: "RJ" }),
+      professionalInput({
+        hasNoCouncil: true,
+        registrations: [registration({ number: "999", region: "RJ" })],
+      }),
     );
     expect(none.ok).toBe(true);
     if (none.ok) {
       const row = await db().professional.findUniqueOrThrow({ where: { id: none.value.professionalId } });
-      // Fields that do not apply to "Nenhum" are cleared.
-      expect(row.councilNumber).toBeNull();
-      expect(row.councilState).toBeNull();
+      expect(row.hasNoCouncil).toBe(true);
+      expect(await db().professionalRegistration.count({ where: { professionalId: row.id } })).toBe(0);
     }
 
-    // The database enforces the rule too (ck_professional_council).
+    // The database enforces the rules too: one registration per country and a valid country.
+    const id = await createProfessionalOrThrow(ctx, {
+      fullName: "Com Registro",
+      registrations: [registration({ number: "55" })],
+    });
+    const duplicate = {
+      id: newId(),
+      organizationId: ctx.organizationId,
+      professionalId: id,
+      country: "BR",
+      councilType: "CRO",
+      number: "77",
+      region: "SP",
+    };
+    await expect(db().professionalRegistration.create({ data: duplicate })).rejects.toThrow();
     await expect(
-      db().professional.create({
-        data: {
-          id: newId(),
-          organizationId: ctx.organizationId,
-          fullName: "Sem Registro",
-          councilType: "CRM",
-          color: "blue",
-        },
-      }),
+      db().professionalRegistration.create({ data: { ...duplicate, country: "XX" } }),
     ).rejects.toThrow();
   });
 
   it("F04: administrator creates a professional with registration and audit", async () => {
     const ctx = await professionalsContext();
-    const id = await createProfessionalOrThrow(ctx, { cpf: "529.982.247-25" });
+    const id = await createProfessionalOrThrow(ctx, { document: cpfDocument("529.982.247-25") });
     const details = await professionals.getProfessional(ctx, id);
     expect(details.ok).toBe(true);
     if (!details.ok) return;
     expect(details.value).toMatchObject({
       fullName: "Ana Paula Lima",
       registration: "CRM 123456/SP",
-      cpf: VALID_CPF,
-      phone: "11988887777",
+      document: { country: "BR", type: "CPF", number: VALID_CPF },
+      phone: "+5511988887777",
       active: true,
       version: 1,
     });
@@ -86,24 +111,41 @@ describe("professional profiles", () => {
     ]);
   });
 
-  it("F04: invalid or duplicate CPF and duplicate council registration are rejected", async () => {
+  it("F04: invalid or duplicate document and duplicate council registration are rejected", async () => {
     const ctx = await professionalsContext();
-    const invalid = await professionals.createProfessional(ctx, professionalInput({ cpf: "529.982.247-24" }));
-    expect(!invalid.ok && invalid.error.code).toBe("PROFESSIONALS_INVALID_CPF");
+    const invalid = await professionals.createProfessional(
+      ctx,
+      professionalInput({ document: cpfDocument("529.982.247-24") }),
+    );
+    expect(!invalid.ok && invalid.error.code).toBe("VALIDATION_FAILED");
+    expect(!invalid.ok && invalid.error.fields?.["document.number"]).toBe(
+      "validation.documentInvalid?type=CPF",
+    );
 
-    await createProfessionalOrThrow(ctx, { cpf: VALID_CPF });
+    await createProfessionalOrThrow(ctx, { document: cpfDocument(VALID_CPF) });
     const sameCpf = await professionals.createProfessional(
       ctx,
-      professionalInput({ cpf: VALID_CPF, councilNumber: "777" }),
+      professionalInput({
+        document: cpfDocument(VALID_CPF),
+        registrations: [registration({ number: "777" })],
+      }),
     );
-    expect(!sameCpf.ok && sameCpf.error.code).toBe("PROFESSIONALS_CPF_TAKEN");
+    expect(!sameCpf.ok && sameCpf.error.code).toBe("PROFESSIONALS_DOCUMENT_TAKEN");
 
-    const sameCouncil = await professionals.createProfessional(ctx, professionalInput({ cpf: OTHER_CPF }));
+    const sameCouncil = await professionals.createProfessional(
+      ctx,
+      professionalInput({ document: cpfDocument(OTHER_CPF) }),
+    );
     expect(!sameCouncil.ok && sameCouncil.error.code).toBe("PROFESSIONALS_COUNCIL_TAKEN");
     // The same number in another state is a different registration.
-    expect((await professionals.createProfessional(ctx, professionalInput({ councilState: "RJ" }))).ok).toBe(
-      true,
-    );
+    expect(
+      (
+        await professionals.createProfessional(
+          ctx,
+          professionalInput({ registrations: [registration({ region: "RJ" })] }),
+        )
+      ).ok,
+    ).toBe(true);
   });
 
   it("F04: a user cannot be linked to two professionals", async () => {
@@ -112,18 +154,24 @@ describe("professional profiles", () => {
     await createProfessionalOrThrow(ctx, { linkedUserId: user.id });
     const second = await professionals.createProfessional(
       ctx,
-      professionalInput({ councilNumber: "654321", linkedUserId: user.id }),
+      professionalInput({ registrations: [registration({ number: "654321" })], linkedUserId: user.id }),
     );
     expect(!second.ok && second.error.code).toBe("PROFESSIONALS_USER_ALREADY_LINKED");
     expect(!second.ok && second.error.fields?.linkedUserId).toBe(
-      "Este usuário já está vinculado a outro profissional.",
+      "professionals.errors.PROFESSIONALS_USER_ALREADY_LINKED",
     );
 
     // Concurrent links are settled by the unique index: exactly one succeeds.
     const other = await createUser({ organizationId: ctx.organizationId, role: "PROFESSIONAL" });
     const results = await Promise.all(
       ["111", "222", "333"].map((councilNumber) =>
-        professionals.createProfessional(ctx, professionalInput({ councilNumber, linkedUserId: other.id })),
+        professionals.createProfessional(
+          ctx,
+          professionalInput({
+            registrations: [registration({ number: councilNumber })],
+            linkedUserId: other.id,
+          }),
+        ),
       ),
     );
     expect(results.filter((result) => result.ok)).toHaveLength(1);
@@ -162,7 +210,7 @@ describe("professional profiles", () => {
     expect(blocked.ok).toBe(false);
     if (!blocked.ok) {
       expect(blocked.error.code).toBe("PROFESSIONALS_HAS_FUTURE_APPOINTMENTS");
-      expect(interpolate(professionalsMessages[blocked.error.code] ?? "", blocked.error.params)).toBe(
+      expect(errorText("professionals", blocked.error)).toBe(
         "Existem 23 agendamentos futuros. Reagende ou cancele antes de desativar.",
       );
     }
@@ -294,7 +342,7 @@ describe("professional profiles", () => {
     expect((await professionals.getProfessional(frontDesk, id)).ok).toBe(true);
     const create = await professionals.createProfessional(
       frontDesk,
-      professionalInput({ councilNumber: "1" }),
+      professionalInput({ registrations: [registration({ number: "1" })] }),
     );
     expect(!create.ok && create.error.code).toBe("AUTHZ_FORBIDDEN");
     const deactivate = await professionals.setProfessionalActive(frontDesk, {

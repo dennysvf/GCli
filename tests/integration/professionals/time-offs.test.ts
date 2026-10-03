@@ -5,6 +5,7 @@ import { auditEvents, closeHelpers, createUser, resetDatabase } from "../helpers
 import {
   contextFor,
   createProfessionalOrThrow,
+  registration,
   fakeAppointments,
   orgDate,
   professionalsContext,
@@ -29,7 +30,9 @@ describe("time-offs", () => {
     const admin = await professionalsContext();
     const user = await createUser({ organizationId: admin.organizationId, role: "PROFESSIONAL" });
     const own = await createProfessionalOrThrow(admin, { linkedUserId: user.id });
-    const other = await createProfessionalOrThrow(admin, { councilNumber: "654321" });
+    const other = await createProfessionalOrThrow(admin, {
+      registrations: [registration({ number: "654321" })],
+    });
     const professional = await contextFor(user);
     expect(professional.linkedProfessionalId).toBe(own);
 

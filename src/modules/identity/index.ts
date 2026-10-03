@@ -95,9 +95,7 @@ export type { LinkableUser, UserList, UserListItem } from "./application/users";
 export type { InvitationPreview } from "./application/invitations";
 
 export { homeFor } from "./application/sign-in";
-export { BRAZIL_TIME_ZONES, SLOT_GRANULARITIES } from "./domain/policies";
-export { formatCnpj } from "@/shared/kernel/cnpj";
-export { identityMessages, PASSWORD_RESET_REQUESTED_MESSAGE } from "./messages";
+export { SLOT_GRANULARITIES } from "./domain/policies";
 export { identityCatalog } from "./messages/catalog";
 export type { ProfessionalLinks, RequestMeta } from "./application/ports";
 export { isLinkableRole, LINKABLE_ROLES } from "./domain/policies";

@@ -1,13 +1,12 @@
 import { authorize } from "@/shared/authz/guard";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
-import { formatCpf } from "@/shared/kernel/cpf";
-import { formatPhone } from "@/shared/kernel/phone";
+import { formatDocument, maskDocument, type DocumentType } from "@/shared/kernel/documents";
+import { formatPhoneNumber } from "@/shared/kernel/phone";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
 import { parseInput } from "@/shared/kernel/validation";
 import { ageOn } from "../domain/age";
-import { maskCpf } from "../domain/masking";
 import { displayName } from "../domain/names";
 import { classifySearchTerm, type SearchTerm } from "../domain/search-term";
 import { PatientsErrors } from "./errors";
@@ -19,7 +18,8 @@ export type PatientSearchItem = {
   id: string;
   displayName: string;
   age: number;
-  cpf: string | null;
+  // The identity document, masked for Front Desk (PRD F05, F16): "display" is what to show.
+  document: { type: DocumentType; display: string } | null;
   mobilePhone: string;
   lastAppointmentAt: string | null;
   active: boolean;
@@ -37,7 +37,8 @@ type Row = {
   full_name: string;
   social_name: string | null;
   birth_date: Date;
-  cpf: string | null;
+  document_type: string | null;
+  document_number: string | null;
   mobile_phone: string;
   active: boolean;
   total: bigint;
@@ -66,7 +67,7 @@ function runQuery(uow: UnitOfWork, term: Exclude<SearchTerm, { kind: "too-short"
   const ids = restrictIds ?? [];
   if (term.kind === "name") {
     return uow.tx.$queryRaw<Row[]>`
-      SELECT id, full_name, social_name, birth_date, cpf, mobile_phone, active, count(*) OVER () AS total
+      SELECT id, full_name, social_name, birth_date, document_type, document_number, mobile_phone, active, count(*) OVER () AS total
       FROM patient
       WHERE organization_id = ${organizationId}::uuid
         AND (${status} = 'all' OR active = (${status} = 'active'))
@@ -75,19 +76,30 @@ function runQuery(uow: UnitOfWork, term: Exclude<SearchTerm, { kind: "too-short"
       ORDER BY (normalized_name LIKE ${prefix}) DESC, normalized_name, id
       LIMIT ${limit} OFFSET ${offset}`;
   }
-  if (term.kind === "cpf-or-phone") {
+  if (term.kind === "document-or-phone") {
     return uow.tx.$queryRaw<Row[]>`
-      SELECT id, full_name, social_name, birth_date, cpf, mobile_phone, active, count(*) OVER () AS total
+      SELECT id, full_name, social_name, birth_date, document_type, document_number, mobile_phone, active, count(*) OVER () AS total
       FROM patient
       WHERE organization_id = ${organizationId}::uuid
         AND (${status} = 'all' OR active = (${status} = 'active'))
         AND (NOT ${restricted} OR id = ANY(${ids}::uuid[]))
-        AND (cpf = ${term.value} OR phone_digits LIKE ${contains})
+        AND (document_number = ${term.value} OR phone_digits LIKE ${contains})
+      ORDER BY normalized_name, id
+      LIMIT ${limit} OFFSET ${offset}`;
+  }
+  if (term.kind === "document") {
+    return uow.tx.$queryRaw<Row[]>`
+      SELECT id, full_name, social_name, birth_date, document_type, document_number, mobile_phone, active, count(*) OVER () AS total
+      FROM patient
+      WHERE organization_id = ${organizationId}::uuid
+        AND (${status} = 'all' OR active = (${status} = 'active'))
+        AND (NOT ${restricted} OR id = ANY(${ids}::uuid[]))
+        AND document_number = ${term.value}
       ORDER BY normalized_name, id
       LIMIT ${limit} OFFSET ${offset}`;
   }
   return uow.tx.$queryRaw<Row[]>`
-    SELECT id, full_name, social_name, birth_date, cpf, mobile_phone, active, count(*) OVER () AS total
+    SELECT id, full_name, social_name, birth_date, document_type, document_number, mobile_phone, active, count(*) OVER () AS total
     FROM patient
     WHERE organization_id = ${organizationId}::uuid
       AND (${status} = 'all' OR active = (${status} = 'active'))
@@ -142,8 +154,16 @@ export async function searchPatients(
       id: row.id,
       displayName: displayName(row.full_name, row.social_name),
       age: ageOn(row.birth_date.toISOString().slice(0, 10), today),
-      cpf: row.cpf ? (masked ? maskCpf(row.cpf) : formatCpf(row.cpf)) : null,
-      mobilePhone: formatPhone(row.mobile_phone),
+      document:
+        row.document_type && row.document_number
+          ? {
+              type: row.document_type as DocumentType,
+              display: masked
+                ? maskDocument(row.document_type as DocumentType, row.document_number)
+                : formatDocument(row.document_type as DocumentType, row.document_number),
+            }
+          : null,
+      mobilePhone: formatPhoneNumber(row.mobile_phone, ctx.organizationCountry),
       lastAppointmentAt: lastDates.get(row.id) ?? null,
       active: row.active,
     })),

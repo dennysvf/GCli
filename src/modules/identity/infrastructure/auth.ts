@@ -46,7 +46,11 @@ function createAuth() {
       async sendResetPassword({ user, token }) {
         const record = await db().user.findUnique({
           where: { id: user.id },
-          select: { organizationId: true },
+          select: {
+            organizationId: true,
+            locale: true,
+            organization: { select: { defaultLocale: true, timeZone: true } },
+          },
         });
         await db().outboxMessage.create({
           data: {
@@ -57,6 +61,9 @@ function createAuth() {
               to: user.email,
               name: user.name,
               url: `${env.APP_URL}/reset-password?token=${encodeURIComponent(token)}`,
+              // The email follows the user's language, else the organization default (PRD F16).
+              locale: record?.locale ?? record?.organization.defaultLocale ?? "pt-BR",
+              timeZone: record?.organization.timeZone ?? "America/Sao_Paulo",
             },
           },
         });

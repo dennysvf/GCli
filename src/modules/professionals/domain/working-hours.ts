@@ -1,4 +1,5 @@
-import { DAY_MINUTES, MAX_INTERVALS_PER_UNIT_DAY, MINUTE_GRANULARITY, WEEK_MINUTES } from "./limits";
+import { addCalendarDays, localMinuteToUtc } from "@/shared/kernel/zoned-time";
+import { DAY_MINUTES, MAX_INTERVALS_PER_UNIT_DAY, MINUTE_GRANULARITY } from "./limits";
 
 // Working-hour intervals (PRD F04): per unit and ISO weekday (1 = Monday … 7 = Sunday), minutes
 // from midnight in the unit's local time, 5-minute granularity, at most 4 per unit and day.
@@ -10,12 +11,13 @@ export type BusinessDay = { weekday: number; open: boolean; intervals: { start: 
 // Field errors keyed `intervals.<index>`, the form's field paths.
 export type IntervalErrors = Record<string, string>;
 
+// Catalog keys (professionals.validation.intervals.*); the form translates them next to each interval.
 export const INTERVAL_MESSAGES = {
-  weekday: "Dia da semana inválido.",
-  range: "Informe um horário entre 00:00 e 24:00, com início antes do término.",
-  granularity: "Use horários em múltiplos de 5 minutos.",
-  tooMany: `No máximo ${MAX_INTERVALS_PER_UNIT_DAY} intervalos por dia em cada unidade.`,
-  overlap: "Os intervalos de um mesmo dia não podem se sobrepor.",
+  weekday: "professionals.validation.intervals.weekday",
+  range: "professionals.validation.intervals.range",
+  granularity: "professionals.validation.intervals.granularity",
+  tooMany: "professionals.validation.intervals.tooMany",
+  overlap: "professionals.validation.intervals.overlap",
 } as const;
 
 function key(index: number): string {
@@ -90,37 +92,61 @@ export function findOutsideBusinessHours(
   });
 }
 
-// Segments of the week in UTC minutes, split where an interval crosses the end of the week.
-function weekSegments(interval: WorkingInterval, offsetMinutes: number): [number, number][] {
-  const start = (interval.weekday - 1) * DAY_MINUTES + interval.start - offsetMinutes;
-  const normalized = ((start % WEEK_MINUTES) + WEEK_MINUTES) % WEEK_MINUTES;
-  const end = normalized + (interval.end - interval.start);
-  if (end <= WEEK_MINUTES) return [[normalized, end]];
-  return [
-    [normalized, WEEK_MINUTES],
-    [0, end - WEEK_MINUTES],
-  ];
+export type CrossUnitConflict = { index: number; conflictWith: number; date: string };
+
+// PRD F16, ADR-030: the check covers the first 53 weeks of the schedule.
+export const CROSS_UNIT_HORIZON_WEEKS = 53;
+
+// ISO weekday (1 = Monday ... 7 = Sunday) of a calendar date.
+function isoWeekdayOf(date: string): number {
+  return ((new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7) + 1;
 }
 
-function overlaps(a: [number, number][], b: [number, number][]): boolean {
-  return a.some(([aStart, aEnd]) => b.some(([bStart, bEnd]) => aStart < bEnd && bStart < aEnd));
-}
-
-export type CrossUnitConflict = { index: number; conflictWith: number };
+type Instance = { index: number; unitId: string; date: string; start: number; end: number };
 
 // PRD F04: a professional may work in several units, but intervals cannot overlap across units.
-// Intervals are compared in real time: each unit's local minutes are shifted by its UTC offset
-// (minutes east of UTC) before comparing (ADR-021). The later interval in the list is reported.
+// With daylight saving time the offset of a unit changes during the year, so the intervals are
+// compared as real instants on every date of the first 53 weeks from `from`, not with one offset
+// (ADR-030). `unitZones` maps each unit to its IANA time zone. The later interval in the list is
+// reported, with the first date on which the two overlap.
 export function findCrossUnitConflict(
   intervals: WorkingInterval[],
-  unitOffsets: Map<string, number>,
+  unitZones: Map<string, string>,
+  from: string,
+  horizonWeeks: number = CROSS_UNIT_HORIZON_WEEKS,
 ): CrossUnitConflict | null {
-  const segments = intervals.map((interval) => weekSegments(interval, unitOffsets.get(interval.unitId) ?? 0));
-  for (let j = 1; j < intervals.length; j++) {
-    for (let i = 0; i < j; i++) {
-      if (intervals[i]?.unitId === intervals[j]?.unitId) continue;
-      if (overlaps(segments[i] ?? [], segments[j] ?? [])) return { index: j, conflictWith: i };
+  const instances: Instance[] = [];
+  // One day of margin on each side: a local day in one zone can start on the previous or next day in another.
+  for (let offset = -1; offset <= horizonWeeks * 7; offset++) {
+    const date = addCalendarDays(from, offset);
+    const weekday = isoWeekdayOf(date);
+    intervals.forEach((interval, index) => {
+      const zone = unitZones.get(interval.unitId);
+      if (!zone || interval.weekday !== weekday) return;
+      instances.push({
+        index,
+        unitId: interval.unitId,
+        date,
+        start: localMinuteToUtc(date, interval.start, zone).getTime(),
+        end: localMinuteToUtc(date, interval.end, zone).getTime(),
+      });
+    });
+  }
+  instances.sort((a, b) => a.start - b.start || a.end - b.end);
+
+  // Sweep in start order: instances still running when the next one starts overlap it.
+  let active: Instance[] = [];
+  for (const current of instances) {
+    active = active.filter((other) => other.end > current.start);
+    const other = active.find((candidate) => candidate.unitId !== current.unitId);
+    if (other) {
+      return {
+        index: Math.max(current.index, other.index),
+        conflictWith: Math.min(current.index, other.index),
+        date: current.date,
+      };
     }
+    active.push(current);
   }
   return null;
 }

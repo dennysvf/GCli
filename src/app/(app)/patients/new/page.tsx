@@ -29,6 +29,7 @@ export default async function NewPatientPage() {
         }
       />
       <PatientForm
+        defaultCountry={ctx.organizationCountry}
         today={today}
         referralSources={sources.ok ? sources.value : []}
         tags={tags.ok ? tags.value : []}

@@ -3,20 +3,24 @@ import type { RequestContext } from "@/shared/context/types";
 import { definePort } from "@/shared/ports/registry";
 import { getBusinessHours, replaceBusinessHours } from "./application/business-hours";
 import { createClosure, deleteClosure, listClosures } from "./application/closures";
-import type { ScheduledAppointments, UnitsDeps } from "./application/ports";
+import type { ScheduledAppointments, ServicePricing, UnitsDeps } from "./application/ports";
 import { getUnitContact, getUnitSchedule } from "./application/provided";
 import { createRoom, getRooms, listRooms, setRoomActive, updateRoom } from "./application/rooms";
 import { getSelectedUnit, selectUnit } from "./application/selection";
 import { createUnit, getUnit, listUnits, setUnitActive, updateUnit } from "./application/units";
 import { noAppointments } from "./infrastructure/no-appointments";
+import { noPricing } from "./infrastructure/no-pricing";
 
 const scheduledAppointments = definePort<ScheduledAppointments>(
   "units.ScheduledAppointments",
   noAppointments,
 );
 
+const servicePricing = definePort<ServicePricing>("units.ServicePricing", noPricing);
+
 const deps: UnitsDeps = {
   appointments: () => scheduledAppointments.get(),
+  pricing: () => servicePricing.get(),
   clock: () => new Date(),
 };
 
@@ -52,15 +56,19 @@ export const units = {
   registerScheduledAppointments: (implementation: ScheduledAppointments | null) => {
     scheduledAppointments.register(implementation);
   },
+  // Extension point for services (F03): active services without a price in a currency.
+  registerServicePricing: (implementation: ServicePricing | null) => {
+    servicePricing.register(implementation);
+  },
 };
 
-export type { ScheduledAppointments } from "./application/ports";
+export type { ScheduledAppointments, ServicePricing } from "./application/ports";
 export type { UnitDetails, UnitSummary } from "./application/units";
 export type { RoomItem, RoomWithUnit } from "./application/rooms";
 export type { ClosureItem } from "./application/closures";
 export type { SelectedUnit } from "./application/selection";
 export type { UnitContact, UnitSchedule } from "./application/provided";
-export { formatAddress } from "./application/provided";
+export { formatUnitAddress } from "./application/provided";
 export {
   closedWeek,
   isWithinHours,
@@ -69,7 +77,7 @@ export {
   type Interval,
   type Week,
 } from "./domain/business-hours";
-export { unitsMessages } from "./messages";
+export { unitsCatalog } from "./messages/catalog";
 export { BusinessHoursForm } from "./ui/business-hours-form";
 export { ClosuresPanel } from "./ui/closures-panel";
 export { RoomsPanel } from "./ui/rooms-panel";

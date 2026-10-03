@@ -33,7 +33,9 @@
       "cityTooLong": "City is too long.",
       "regionTooLong": "State or region is too long.",
       "regionInvalid": "Choose a state or region from the list."
-    }
+    },
+    "required": "Fill in this field.",
+    "documentTypeInvalid": "Choose a document type of the country."
   },
   "shell": {
     "tagline": "Clinic management",
@@ -161,7 +163,12 @@
         "CL": "Region",
         "CO": "Department",
         "US": "State"
-      }
+      },
+      "title": "Address",
+      "cepHint": "The address is filled in from the CEP.",
+      "cepLooking": "Looking up the CEP...",
+      "cepNotFound": "CEP not found. Fill in the address manually.",
+      "cepUnavailable": "The CEP could not be looked up right now. Fill in the address manually."
     },
     "paymentMethods": {
       "CASH": "Cash",
@@ -179,6 +186,47 @@
       "PSE": "PSE",
       "CHECK": "Check",
       "ZELLE": "Zelle"
+    },
+    "fields": {
+      "documentCountry": "Document country",
+      "documentType": "Document type",
+      "phoneCountry": "Country code"
+    }
+  },
+  "errors": {
+    "GENERIC": "The operation could not be completed. Try again.",
+    "VALIDATION_FAILED": "Check the highlighted fields.",
+    "AUTH_UNAUTHENTICATED": "Your session has expired. Sign in again to continue.",
+    "AUTHZ_FORBIDDEN": "You do not have permission to access this page.",
+    "CONFLICT_STALE_VERSION": "This data was changed by someone else. Reload the page and try again.",
+    "NOT_FOUND": "Record not found.",
+    "DOCUMENT_INVALID": "Invalid {type}.",
+    "TAX_ID_INVALID": "Invalid {type}.",
+    "PHONE_INVALID": "Enter a valid phone number.",
+    "POSTAL_CODE_INVALID": "Invalid postal code.",
+    "LOCALE_INVALID": "Choose a language from the list.",
+    "MONEY_INVALID": "Enter a valid amount."
+  },
+  "email": {
+    "footer": "If you were not expecting this email, ignore it.",
+    "copyLink": "Or copy and paste this into your browser: {url}",
+    "invitation": {
+      "subject": "Invitation to access GCli — {organization}",
+      "title": "You have been invited to GCli",
+      "greeting": "Hello, {name}.",
+      "body": "You have been invited to access the {organization} system. Set your password to get started.",
+      "button": "Set password and sign in",
+      "link": "Set your password at: {url}",
+      "validity": "This link is valid until {expires} and can only be used once."
+    },
+    "passwordReset": {
+      "subject": "GCli password reset",
+      "title": "Reset your password",
+      "greeting": "Hello, {name}.",
+      "body": "We received a request to reset your account password.",
+      "button": "Reset password",
+      "link": "Reset it at: {url}",
+      "validity": "This link is valid for 60 minutes and can only be used once."
     }
   }
 }

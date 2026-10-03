@@ -37,3 +37,6 @@ export const AGENDA_MAX_DAYS = 62;
 export const REASON_NAME_MAX = 60;
 export const MAX_ACTIVE_REASONS = 30;
 export const DAY_MINUTES = 1440;
+
+// Default cancellation reasons are catalog messages (scheduling.defaultCancellationReasons.*).
+export const DEFAULT_CANCELLATION_REASON_KEYS = ["personal", "health", "clinic", "other"] as const;

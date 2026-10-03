@@ -3,6 +3,7 @@ import { services } from "@/modules/services";
 import { units } from "@/modules/units";
 import { closeHelpers, resetDatabase } from "../helpers";
 import {
+  brl,
   createCategoryOrThrow,
   createServiceOrThrow,
   createUnitWithRooms,
@@ -21,11 +22,11 @@ describe("provided to other features", () => {
     const massagem = await createServiceOrThrow(ctx, terapias, {
       name: "Massagem",
       durationMinutes: 50,
-      priceCents: 15000,
+      prices: brl(15000),
       color: "emerald",
       requiresRoom: true,
     });
-    const retorno = await createServiceOrThrow(ctx, consultas, { name: "Retorno", priceCents: 0 });
+    const retorno = await createServiceOrThrow(ctx, consultas, { name: "Retorno", prices: brl(0) });
     const antigo = await createServiceOrThrow(ctx, consultas, { name: "Antigo" });
     await services.setServiceActive(ctx, { serviceId: antigo, active: false });
 
@@ -37,7 +38,7 @@ describe("provided to other features", () => {
         categoryId: consultas,
         categoryName: "Consultas",
         durationMinutes: 30,
-        priceCents: 0,
+        prices: brl(0),
         color: "blue",
         requiresRoom: false,
       },
@@ -47,7 +48,7 @@ describe("provided to other features", () => {
         categoryId: terapias,
         categoryName: "Terapias",
         durationMinutes: 50,
-        priceCents: 15000,
+        prices: brl(15000),
         color: "emerald",
         requiresRoom: true,
       },
@@ -57,19 +58,19 @@ describe("provided to other features", () => {
   it("F03→F06: a price change affects only the price read for new bookings", async () => {
     const ctx = await servicesContext();
     const categoryId = await createCategoryOrThrow(ctx);
-    const serviceId = await createServiceOrThrow(ctx, categoryId, { priceCents: 18000 });
+    const serviceId = await createServiceOrThrow(ctx, categoryId, { prices: brl(18000) });
     const snapshotAtBooking = await services.getService(ctx, serviceId);
 
     await services.updateService(ctx, {
-      ...serviceInput(categoryId, { priceCents: 20000 }),
+      ...serviceInput(categoryId, { prices: brl(20000) }),
       serviceId,
       version: 1,
     });
     const afterChange = await services.getService(ctx, serviceId);
-    expect(snapshotAtBooking.ok && snapshotAtBooking.value.priceCents).toBe(18000);
-    expect(afterChange.ok && afterChange.value.priceCents).toBe(20000);
+    expect(snapshotAtBooking.ok && snapshotAtBooking.value.prices).toEqual(brl(18000));
+    expect(afterChange.ok && afterChange.value.prices).toEqual(brl(20000));
     const history = await services.listPriceHistory(ctx, serviceId);
-    expect(history.ok && history.value.map((change) => change.priceCents)).toEqual([20000, 18000]);
+    expect(history.ok && history.value.map((change) => change.amountMinor)).toEqual([20000, 18000]);
   });
 
   it("F03→F06: getAllowedRooms resolves rooms per unit", async () => {

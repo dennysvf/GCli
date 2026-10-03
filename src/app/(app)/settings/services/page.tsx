@@ -70,9 +70,17 @@ export default async function ServicesPage({ searchParams }: PageProps<"/setting
     const suggested = await services.suggestServiceColor(ctx);
     if (suggested.ok) defaultColor = suggested.value;
   }
-  const [rooms, profile] = opened
-    ? await Promise.all([units.getRooms(ctx, { activeOnly: true }), getOrganizationProfile(ctx)])
-    : [null, null];
+  const [rooms, profile, activeUnits] = opened
+    ? await Promise.all([
+        units.getRooms(ctx, { activeOnly: true }),
+        getOrganizationProfile(ctx),
+        units.listUnits(ctx, { activeOnly: true }),
+      ])
+    : [null, null, null];
+  // Each currency in use by the active units needs a price (PRD F16).
+  const currencies = [
+    ...new Map((activeUnits?.ok ? activeUnits.value : []).map((unit) => [unit.currency, unit.country])),
+  ].map(([currency, country]) => ({ currency, country }));
 
   const query = new URLSearchParams(
     Object.entries({ q: filters.search, category: filters.categoryId, status: filters.status }).flatMap(
@@ -123,6 +131,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/setting
           categories={categoryOptions}
           rooms={rooms?.ok ? rooms.value : []}
           defaultColor={defaultColor}
+          currencies={currencies}
           timeZone={profile?.ok ? profile.value.timeZone : FALLBACK_TIME_ZONE}
           canManage={canManage}
           actions={{
