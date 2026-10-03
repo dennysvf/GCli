@@ -23,7 +23,17 @@
     "taxIdInvalid": "{type} no válido.",
     "phoneInvalid": "Ingrese un teléfono válido.",
     "mobileInvalid": "Ingrese un celular válido.",
-    "postalCodeInvalid": "Código postal no válido."
+    "postalCodeInvalid": "Código postal no válido.",
+    "countryInvalid": "Elija un país de la lista.",
+    "address": {
+      "streetTooLong": "La calle es demasiado larga.",
+      "numberTooLong": "El número es demasiado largo.",
+      "complementTooLong": "El complemento es demasiado largo.",
+      "districtTooLong": "El barrio es demasiado largo.",
+      "cityTooLong": "La ciudad es demasiado larga.",
+      "regionTooLong": "El estado o región es demasiado largo.",
+      "regionInvalid": "Elija un estado o región de la lista."
+    }
   },
   "shell": {
     "tagline": "Gestión para clínicas",
@@ -68,6 +78,107 @@
       "CL": "Chile",
       "CO": "Colombia",
       "US": "Estados Unidos"
+    },
+    "documents": {
+      "CPF": "CPF",
+      "NIF_PT": "NIF",
+      "DNI_ES": "DNI",
+      "NIE_ES": "NIE",
+      "CURP": "CURP",
+      "DNI_AR": "DNI",
+      "CUIT_AR": "CUIT/CUIL",
+      "RUT_CL": "RUT",
+      "CC_CO": "Cédula de ciudadanía",
+      "CE_CO": "Cédula de extranjería",
+      "US_DL": "Licencia de conducir o identificación estatal"
+    },
+    "taxIds": {
+      "CNPJ": "CNPJ",
+      "NIF_PT": "NIF/NIPC",
+      "NIF_ES": "NIF/CIF",
+      "RFC": "RFC",
+      "CUIT": "CUIT",
+      "RUT": "RUT",
+      "NIT": "NIT",
+      "EIN": "EIN"
+    },
+    "councils": {
+      "CRM": "CRM",
+      "CRO": "CRO",
+      "CREFITO": "CREFITO",
+      "CRP": "CRP",
+      "CRN": "CRN",
+      "COREN": "COREN",
+      "CRBM": "CRBM",
+      "CRF": "CRF",
+      "OTHER": "Otro",
+      "ORDEM_MEDICOS": "Ordem dos Médicos",
+      "ORDEM_ENFERMEIROS": "Ordem dos Enfermeiros",
+      "ORDEM_PSICOLOGOS": "Ordem dos Psicólogos Portugueses",
+      "ORDEM_NUTRICIONISTAS": "Ordem dos Nutricionistas",
+      "ORDEM_FARMACEUTICOS": "Ordem dos Farmacêuticos",
+      "ORDEM_MEDICOS_DENTISTAS": "Ordem dos Médicos Dentistas",
+      "COLEGIO_MEDICOS": "Colegio de Médicos",
+      "COLEGIO_ENFERMERIA": "Colegio de Enfermería",
+      "COLEGIO_PSICOLOGOS": "Colegio de Psicólogos",
+      "COLEGIO_ODONTOLOGOS": "Colegio de Odontólogos",
+      "COLEGIO_FARMACEUTICOS": "Colegio de Farmacéuticos",
+      "COLEGIO_FISIOTERAPEUTAS": "Colegio de Fisioterapeutas",
+      "COLEGIO_NUTRICIONISTAS": "Colegio de Dietistas-Nutricionistas",
+      "CEDULA": "Cédula profesional",
+      "MATRICULA_NACIONAL": "Matrícula nacional",
+      "MATRICULA_PROVINCIAL": "Matrícula provincial",
+      "SIS": "Registro de la Superintendencia de Salud (SIS)",
+      "RETHUS": "RETHUS",
+      "STATE_LICENSE": "Licencia estatal",
+      "NPI": "NPI"
+    },
+    "address": {
+      "street": "Calle",
+      "number": "Número",
+      "complement": "Piso, puerta o complemento",
+      "city": "Ciudad",
+      "cityLabel": {
+        "CL": "Comuna"
+      },
+      "district": {
+        "BR": "Barrio",
+        "PT": "Freguesia",
+        "MX": "Colonia",
+        "CO": "Barrio"
+      },
+      "postalCodeLabel": {
+        "BR": "CEP",
+        "default": "Código postal",
+        "US": "Código ZIP"
+      },
+      "regionLabel": {
+        "BR": "Estado (UF)",
+        "PT": "Distrito",
+        "ES": "Provincia",
+        "MX": "Estado",
+        "AR": "Provincia",
+        "CL": "Región",
+        "CO": "Departamento",
+        "US": "Estado"
+      }
+    },
+    "paymentMethods": {
+      "CASH": "Efectivo",
+      "PIX": "Pix",
+      "DEBIT_CARD": "Tarjeta de débito",
+      "CREDIT_CARD": "Tarjeta de crédito",
+      "TRANSFER": "Transferencia",
+      "OTHER": "Otro",
+      "MULTIBANCO": "Multibanco",
+      "MBWAY": "MB WAY",
+      "BIZUM": "Bizum",
+      "SPEI": "SPEI",
+      "MERCADO_PAGO": "Mercado Pago",
+      "NEQUI": "Nequi",
+      "PSE": "PSE",
+      "CHECK": "Cheque",
+      "ZELLE": "Zelle"
     }
   }
 }
