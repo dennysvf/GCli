@@ -1,0 +1,69 @@
+{
+  "errors": {
+    "VALIDATION_FAILED": "Check the highlighted fields.",
+    "AUTH_UNAUTHENTICATED": "Your session has expired. Sign in again to continue.",
+    "AUTH_INVALID_CREDENTIALS": "Invalid email or password.",
+    "AUTH_ACCOUNT_LOCKED": "Account temporarily locked after too many attempts. Try again in 15 minutes.",
+    "AUTH_RATE_LIMITED": "Too many attempts. Wait a few minutes and try again.",
+    "AUTH_LINK_INVALID": "This link has expired or was already used. Request a new one.",
+    "AUTHZ_FORBIDDEN": "You do not have permission to access this page.",
+    "IDENTITY_LAST_ADMIN": "At least one active administrator is required.",
+    "IDENTITY_SELF_DEACTIVATION": "You cannot deactivate your own user.",
+    "IDENTITY_EMAIL_IN_USE": "A user with this email already exists.",
+    "IDENTITY_INVITATION_PENDING": "There is already a pending invitation for this email.",
+    "IDENTITY_INVITATION_NOT_PENDING": "This invitation is no longer pending.",
+    "IDENTITY_USER_LIMIT": "The limit of 100 users has been reached.",
+    "IDENTITY_USER_NOT_FOUND": "User not found.",
+    "ORG_INVALID_CNPJ": "Invalid CNPJ.",
+    "ORG_LOGO_INVALID": "Upload a PNG, JPG or SVG logo of up to 2 MB.",
+    "SETUP_ALREADY_DONE": "An organization already exists in this environment.",
+    "NOT_FOUND": "Record not found.",
+    "CONFLICT_STALE_VERSION": "This data was changed by someone else. Reload the page and try again."
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm the password",
+    "passwordHint": "At least 10 characters, with at least one letter and one number.",
+    "saving": "Saving...",
+    "signIn": {
+      "title": "Sign in",
+      "subtitle": "Sign in with your email and password.",
+      "submit": "Sign in",
+      "submitting": "Signing in...",
+      "forgot": "I forgot my password",
+      "passwordReset": "Password reset. Sign in with the new password."
+    },
+    "forgot": {
+      "title": "I forgot my password",
+      "subtitle": "Enter your email to receive a reset link.",
+      "submit": "Send reset link",
+      "submitting": "Sending...",
+      "back": "Back to sign in",
+      "requested": "If the email is registered, you will receive a link to reset your password."
+    },
+    "reset": {
+      "title": "Reset password",
+      "subtitle": "Choose a new password for your account.",
+      "submit": "Reset password",
+      "newLink": "Request a new link"
+    },
+    "invite": {
+      "title": "Invitation",
+      "welcome": "Welcome to GCli",
+      "subtitle": "Set your password to access the {organization} system.",
+      "name": "Name",
+      "submit": "Set password and sign in",
+      "requestReset": "Request a password reset"
+    },
+    "strength": {
+      "label": "Password strength: {level}",
+      "veryWeak": "Very weak",
+      "weak": "Weak",
+      "fair": "Fair",
+      "good": "Good",
+      "strong": "Strong"
+    }
+  }
+}

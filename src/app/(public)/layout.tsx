@@ -1,7 +1,12 @@
+import { getLocale } from "next-intl/server";
+import type { Locale } from "@/shared/i18n/locales";
 import { Card, CardContent } from "@/shared/ui/components/card";
+import { LanguageSelect } from "@/shared/ui/i18n/language-select";
+import { setPublicLocaleAction } from "./actions";
 
-// Centered card used by sign-in and account recovery pages.
-export default function PublicLayout({ children }: LayoutProps<"/">) {
+// Centered card used by sign-in and account recovery pages, with the language selector.
+export default async function PublicLayout({ children }: LayoutProps<"/">) {
+  const locale = (await getLocale()) as Locale;
   return (
     <main className="bg-background flex flex-1 items-center justify-center p-4">
       <div className="grid w-full max-w-sm gap-6">
@@ -9,6 +14,7 @@ export default function PublicLayout({ children }: LayoutProps<"/">) {
         <Card>
           <CardContent className="grid gap-6">{children}</CardContent>
         </Card>
+        <LanguageSelect value={locale} action={setPublicLocaleAction} />
       </div>
     </main>
   );

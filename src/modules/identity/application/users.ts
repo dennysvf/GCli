@@ -1,13 +1,14 @@
 import { authorize } from "@/shared/authz/guard";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
+import type { Locale } from "@/shared/i18n/locales";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import type { Role } from "@/shared/kernel/roles";
 import { parseInput } from "@/shared/kernel/validation";
 import { LINKABLE_ROLES, MAX_USERS } from "../domain/policies";
 import { IdentityErrors } from "./errors";
 import type { IdentityDeps } from "./ports";
-import { changeRoleSchema, listUsersSchema, userIdSchema } from "./schemas";
+import { changeRoleSchema, listUsersSchema, setUserLocaleSchema, userIdSchema } from "./schemas";
 
 export type UserListItem =
   | {
@@ -109,6 +110,33 @@ async function lockActiveAdministrators(uow: UnitOfWork, organizationId: string)
     WHERE organization_id = ${organizationId}::uuid AND role = 'ADMINISTRATOR' AND status = 'ACTIVE'
     FOR UPDATE`;
   return rows.map((row) => row.id);
+}
+
+// Self-service (PRD F16): every signed-in user may change their own interface language, so the
+// only authorization is that the row being changed is the requester's.
+export async function setUserLocale(
+  _deps: IdentityDeps,
+  ctx: RequestContext,
+  input: unknown,
+): Promise<Result<{ locale: Locale }>> {
+  const parsed = parseInput(setUserLocaleSchema, input);
+  if (!parsed.ok) return parsed;
+  const { locale } = parsed.value;
+
+  return withTransaction(ctx, async (uow) => {
+    const user = await uow.tx.user.findFirst({ where: { id: ctx.user.id } });
+    if (!user) return fail(IdentityErrors.userNotFound());
+    if (user.locale === locale) return ok({ locale });
+    await uow.tx.user.update({ where: { id: user.id }, data: { locale, version: { increment: 1 } } });
+    await uow.audit.record({
+      action: "UPDATE",
+      entityType: "user",
+      entityId: user.id,
+      summary: "Idioma alterado",
+      changes: { locale: { before: user.locale, after: locale } },
+    });
+    return ok({ locale });
+  });
 }
 
 export async function changeUserRole(

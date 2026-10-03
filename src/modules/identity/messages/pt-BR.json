@@ -1,0 +1,69 @@
+{
+  "errors": {
+    "VALIDATION_FAILED": "Verifique os campos destacados.",
+    "AUTH_UNAUTHENTICATED": "Sua sessão expirou. Entre novamente para continuar.",
+    "AUTH_INVALID_CREDENTIALS": "E-mail ou senha inválidos.",
+    "AUTH_ACCOUNT_LOCKED": "Conta bloqueada temporariamente por excesso de tentativas. Tente novamente em 15 minutos.",
+    "AUTH_RATE_LIMITED": "Muitas tentativas. Aguarde alguns minutos e tente novamente.",
+    "AUTH_LINK_INVALID": "Este link expirou ou já foi utilizado. Solicite um novo.",
+    "AUTHZ_FORBIDDEN": "Você não tem permissão para acessar esta página.",
+    "IDENTITY_LAST_ADMIN": "É necessário manter pelo menos um administrador ativo.",
+    "IDENTITY_SELF_DEACTIVATION": "Você não pode desativar o próprio usuário.",
+    "IDENTITY_EMAIL_IN_USE": "Já existe um usuário com este e-mail.",
+    "IDENTITY_INVITATION_PENDING": "Já existe um convite pendente para este e-mail.",
+    "IDENTITY_INVITATION_NOT_PENDING": "Este convite não está mais pendente.",
+    "IDENTITY_USER_LIMIT": "Limite de 100 usuários atingido.",
+    "IDENTITY_USER_NOT_FOUND": "Usuário não encontrado.",
+    "ORG_INVALID_CNPJ": "CNPJ inválido.",
+    "ORG_LOGO_INVALID": "Envie um logotipo PNG, JPG ou SVG de até 2 MB.",
+    "SETUP_ALREADY_DONE": "Já existe uma organização cadastrada neste ambiente.",
+    "NOT_FOUND": "Registro não encontrado.",
+    "CONFLICT_STALE_VERSION": "Estes dados foram alterados por outra pessoa. Recarregue a página e tente novamente."
+  },
+  "auth": {
+    "email": "E-mail",
+    "password": "Senha",
+    "newPassword": "Nova senha",
+    "confirmPassword": "Confirme a senha",
+    "passwordHint": "Mínimo de 10 caracteres, com pelo menos uma letra e um número.",
+    "saving": "Salvando...",
+    "signIn": {
+      "title": "Entrar",
+      "subtitle": "Acesse com seu e-mail e senha.",
+      "submit": "Entrar",
+      "submitting": "Entrando...",
+      "forgot": "Esqueci minha senha",
+      "passwordReset": "Senha redefinida. Entre com a nova senha."
+    },
+    "forgot": {
+      "title": "Esqueci minha senha",
+      "subtitle": "Informe seu e-mail para receber um link de redefinição.",
+      "submit": "Enviar link de redefinição",
+      "submitting": "Enviando...",
+      "back": "Voltar para o login",
+      "requested": "Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha."
+    },
+    "reset": {
+      "title": "Redefinir senha",
+      "subtitle": "Escolha uma nova senha para sua conta.",
+      "submit": "Redefinir senha",
+      "newLink": "Solicitar novo link"
+    },
+    "invite": {
+      "title": "Convite",
+      "welcome": "Bem-vindo ao GCli",
+      "subtitle": "Defina sua senha para acessar o sistema da {organization}.",
+      "name": "Nome",
+      "submit": "Definir senha e entrar",
+      "requestReset": "Solicitar redefinição de senha"
+    },
+    "strength": {
+      "label": "Força da senha: {level}",
+      "veryWeak": "Muito fraca",
+      "weak": "Fraca",
+      "fair": "Razoável",
+      "good": "Boa",
+      "strong": "Forte"
+    }
+  }
+}

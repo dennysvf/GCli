@@ -1,7 +1,9 @@
+import { identityCatalog } from "@/modules/identity";
 import { registerProfessionalsPorts } from "@/modules/professionals";
 import { registerSchedulingPorts } from "@/modules/scheduling";
 import { subscribeServicesEvents } from "@/modules/services";
 import { eventBus } from "@/shared/db/transaction";
+import { registerCatalog } from "@/shared/i18n/catalogs";
 
 // Composition root: cross-module wiring that must exist once per process (ADR-007). Called by
 // the web server (instrumentation), the worker, CLI scripts and the integration tests. Later
@@ -11,6 +13,8 @@ const globalForComposition = globalThis as unknown as { gcliModulesRegistered?: 
 export function registerModules(): void {
   if (globalForComposition.gcliModulesRegistered) return;
   globalForComposition.gcliModulesRegistered = true;
+  // Message catalogs (ADR-028): each module owns one per language.
+  registerCatalog("identity", identityCatalog);
   subscribeServicesEvents(eventBus);
   // F04: linked professionals for identity (F01) and professional counts for services (F03).
   registerProfessionalsPorts();

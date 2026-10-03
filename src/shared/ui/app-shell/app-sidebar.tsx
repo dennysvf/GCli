@@ -13,6 +13,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -44,6 +45,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
 // Receives only the groups and items the signed-in role may see (filtered on the server).
 export function AppSidebar({ groups, organizationName }: { groups: NavGroup[]; organizationName: string }) {
   const pathname = usePathname();
+  const t = useTranslations("shell");
   return (
     <Sidebar>
       <SidebarHeader>
@@ -54,8 +56,8 @@ export function AppSidebar({ groups, organizationName }: { groups: NavGroup[]; o
       </SidebarHeader>
       <SidebarContent>
         {groups.map((group) => (
-          <SidebarGroup key={group.label}>
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+          <SidebarGroup key={group.labelKey}>
+            <SidebarGroupLabel>{t(`groups.${group.labelKey}`)}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {group.items.map((item) => {
@@ -66,7 +68,7 @@ export function AppSidebar({ groups, organizationName }: { groups: NavGroup[]; o
                       <SidebarMenuButton asChild isActive={active}>
                         <Link href={item.href}>
                           <Icon />
-                          <span>{item.label}</span>
+                          <span>{t(`navigation.${item.labelKey}`)}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

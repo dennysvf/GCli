@@ -1,0 +1,73 @@
+{
+  "common": {
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "back": "Voltar",
+    "close": "Fechar",
+    "edit": "Editar",
+    "remove": "Remover",
+    "search": "Buscar",
+    "loading": "Carregando…",
+    "yes": "Sim",
+    "no": "Não",
+    "language": "Idioma",
+    "languages": {
+      "pt-BR": "Português (Brasil)",
+      "en": "English",
+      "es": "Español"
+    }
+  },
+  "validation": {
+    "localeInvalid": "Escolha um idioma da lista.",
+    "documentInvalid": "{type} inválido.",
+    "taxIdInvalid": "{type} inválido.",
+    "phoneInvalid": "Informe um telefone válido.",
+    "mobileInvalid": "Informe um celular válido.",
+    "postalCodeInvalid": "Código postal inválido."
+  },
+  "shell": {
+    "tagline": "Gestão para clínicas",
+    "skipToContent": "Pular para o conteúdo",
+    "toggleMenu": "Alternar menu",
+    "userMenu": "Menu do usuário",
+    "signOut": "Sair",
+    "language": "Idioma",
+    "breadcrumb": "Trilha",
+    "underConstruction": "Esta tela ainda está em construção e será entregue na funcionalidade {feature}.",
+    "groups": {
+      "operation": "Operação",
+      "settings": "Configurações"
+    },
+    "navigation": {
+      "schedule": "Agenda",
+      "patients": "Pacientes",
+      "dashboard": "Painel",
+      "organization": "Organização",
+      "units": "Unidades",
+      "services": "Serviços",
+      "professionals": "Profissionais",
+      "patientLists": "Listas de pacientes",
+      "cancellationReasons": "Motivos de cancelamento",
+      "privacyTerms": "Termos de privacidade",
+      "users": "Usuários"
+    },
+    "roles": {
+      "ADMINISTRATOR": "Administrador",
+      "MANAGER": "Gestor",
+      "FRONT_DESK": "Recepção",
+      "PROFESSIONAL": "Profissional"
+    }
+  },
+  "countries": {
+    "names": {
+      "BR": "Brasil",
+      "PT": "Portugal",
+      "ES": "Espanha",
+      "MX": "México",
+      "AR": "Argentina",
+      "CL": "Chile",
+      "CO": "Colômbia",
+      "US": "Estados Unidos"
+    }
+  }
+}

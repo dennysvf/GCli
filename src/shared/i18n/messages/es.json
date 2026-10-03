@@ -1,0 +1,73 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "back": "Volver",
+    "close": "Cerrar",
+    "edit": "Editar",
+    "remove": "Quitar",
+    "search": "Buscar",
+    "loading": "Cargando…",
+    "yes": "Sí",
+    "no": "No",
+    "language": "Idioma",
+    "languages": {
+      "pt-BR": "Português (Brasil)",
+      "en": "English",
+      "es": "Español"
+    }
+  },
+  "validation": {
+    "localeInvalid": "Elija un idioma de la lista.",
+    "documentInvalid": "{type} no válido.",
+    "taxIdInvalid": "{type} no válido.",
+    "phoneInvalid": "Ingrese un teléfono válido.",
+    "mobileInvalid": "Ingrese un celular válido.",
+    "postalCodeInvalid": "Código postal no válido."
+  },
+  "shell": {
+    "tagline": "Gestión para clínicas",
+    "skipToContent": "Saltar al contenido",
+    "toggleMenu": "Mostrar u ocultar el menú",
+    "userMenu": "Menú del usuario",
+    "signOut": "Salir",
+    "language": "Idioma",
+    "breadcrumb": "Ruta de navegación",
+    "underConstruction": "Esta pantalla aún está en construcción y se entregará en la funcionalidad {feature}.",
+    "groups": {
+      "operation": "Operación",
+      "settings": "Configuración"
+    },
+    "navigation": {
+      "schedule": "Agenda",
+      "patients": "Pacientes",
+      "dashboard": "Panel",
+      "organization": "Organización",
+      "units": "Sedes",
+      "services": "Servicios",
+      "professionals": "Profesionales",
+      "patientLists": "Listas de pacientes",
+      "cancellationReasons": "Motivos de cancelación",
+      "privacyTerms": "Términos de privacidad",
+      "users": "Usuarios"
+    },
+    "roles": {
+      "ADMINISTRATOR": "Administrador",
+      "MANAGER": "Gerente",
+      "FRONT_DESK": "Recepción",
+      "PROFESSIONAL": "Profesional"
+    }
+  },
+  "countries": {
+    "names": {
+      "BR": "Brasil",
+      "PT": "Portugal",
+      "ES": "España",
+      "MX": "México",
+      "AR": "Argentina",
+      "CL": "Chile",
+      "CO": "Colombia",
+      "US": "Estados Unidos"
+    }
+  }
+}

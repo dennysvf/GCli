@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SUPPORTED_LOCALES } from "@/shared/i18n/locales";
 import { ROLES } from "@/shared/kernel/roles";
 import { normalizeCnpj } from "@/shared/kernel/cnpj";
 import {
@@ -54,6 +55,10 @@ export const inviteUserSchema = z.object({
   email: emailSchema,
   role: roleSchema,
 });
+
+// Message keys, not text: the boundary translates them (ADR-028).
+export const localeSchema = z.enum(SUPPORTED_LOCALES, { error: "validation.localeInvalid" });
+export const setUserLocaleSchema = z.object({ locale: localeSchema });
 
 export const userIdSchema = z.object({ userId: z.uuid() });
 export const invitationIdSchema = z.object({ invitationId: z.uuid() });

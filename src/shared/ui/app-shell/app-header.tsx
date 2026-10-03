@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { Separator } from "@/shared/ui/components/separator";
 import { SidebarTrigger } from "@/shared/ui/components/sidebar";
@@ -12,9 +13,10 @@ export function AppHeader({
   search?: ReactNode;
   userMenu: ReactNode;
 }) {
+  const t = useTranslations("shell");
   return (
     <header className="bg-card sticky top-0 z-10 flex h-14 items-center gap-2 border-b px-4">
-      <SidebarTrigger className="-ml-1" aria-label="Alternar menu" />
+      <SidebarTrigger className="-ml-1" aria-label={t("toggleMenu")} />
       <Separator orientation="vertical" className="mr-2 h-4" />
       <div className="flex flex-1 items-center gap-2" data-slot="unit-selector">
         {unitSelector}

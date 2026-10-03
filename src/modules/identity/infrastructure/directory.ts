@@ -1,4 +1,6 @@
 import { db } from "@/shared/db/client";
+import { isLocale, DEFAULT_LOCALE } from "@/shared/i18n/locales";
+import { isCountryCode } from "@/shared/kernel/countries/codes";
 import { isRole } from "@/shared/kernel/roles";
 import type { IdentityDirectory, IdentityUser, InvitationRecord, UserStatus } from "../application/ports";
 
@@ -11,13 +13,23 @@ type UserRow = {
   email: string;
   role: string;
   status: string;
+  locale: string | null;
+  organization: { defaultLocale: string; country: string };
   lockedUntil: Date | null;
   failedLoginCount: number;
 };
 
 function toUser(row: UserRow | null): IdentityUser | null {
   if (!row || !isRole(row.role)) return null;
-  return { ...row, role: row.role, status: row.status as UserStatus };
+  const { organization, locale, ...rest } = row;
+  return {
+    ...rest,
+    role: row.role,
+    status: row.status as UserStatus,
+    locale: isLocale(locale) ? locale : null,
+    organizationLocale: isLocale(organization.defaultLocale) ? organization.defaultLocale : DEFAULT_LOCALE,
+    organizationCountry: isCountryCode(organization.country) ? organization.country : "BR",
+  };
 }
 
 const userSelect = {
@@ -27,6 +39,8 @@ const userSelect = {
   email: true,
   role: true,
   status: true,
+  locale: true,
+  organization: { select: { defaultLocale: true, country: true } },
   lockedUntil: true,
   failedLoginCount: true,
 } as const;

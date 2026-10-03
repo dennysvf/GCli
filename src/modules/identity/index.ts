@@ -29,6 +29,7 @@ import {
   listLinkableUsers,
   listUsers,
   reactivateUser,
+  setUserLocale,
 } from "./application/users";
 import { postgresRateLimiter, s3LogoStore, sharpLogoProcessor } from "./infrastructure/adapters";
 import { betterAuthGateway } from "./infrastructure/auth";
@@ -70,6 +71,7 @@ export const identity = {
   changeUserRole: (ctx: RequestContext, input: unknown) => changeUserRole(deps(), ctx, input),
   deactivateUser: (ctx: RequestContext, input: unknown) => deactivateUser(deps(), ctx, input),
   reactivateUser: (ctx: RequestContext, input: unknown) => reactivateUser(deps(), ctx, input),
+  setUserLocale: (ctx: RequestContext, input: unknown) => setUserLocale(deps(), ctx, input),
   // Organization
   organizationName: (ctx: RequestContext) => deps().directory.findOrganizationName(ctx.organizationId),
   updateOrganization: (ctx: RequestContext, input: unknown) => updateOrganization(deps(), ctx, input),
@@ -96,6 +98,7 @@ export { homeFor } from "./application/sign-in";
 export { BRAZIL_TIME_ZONES, SLOT_GRANULARITIES } from "./domain/policies";
 export { formatCnpj } from "@/shared/kernel/cnpj";
 export { identityMessages, PASSWORD_RESET_REQUESTED_MESSAGE } from "./messages";
+export { identityCatalog } from "./messages/catalog";
 export type { ProfessionalLinks, RequestMeta } from "./application/ports";
 export { isLinkableRole, LINKABLE_ROLES } from "./domain/policies";
 export { SESSION_COOKIE_NAMES } from "@/shared/security/session-cookie";

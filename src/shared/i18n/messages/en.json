@@ -1,0 +1,73 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "back": "Back",
+    "close": "Close",
+    "edit": "Edit",
+    "remove": "Remove",
+    "search": "Search",
+    "loading": "Loading…",
+    "yes": "Yes",
+    "no": "No",
+    "language": "Language",
+    "languages": {
+      "pt-BR": "Português (Brasil)",
+      "en": "English",
+      "es": "Español"
+    }
+  },
+  "validation": {
+    "localeInvalid": "Choose a language from the list.",
+    "documentInvalid": "Invalid {type}.",
+    "taxIdInvalid": "Invalid {type}.",
+    "phoneInvalid": "Enter a valid phone number.",
+    "mobileInvalid": "Enter a valid mobile number.",
+    "postalCodeInvalid": "Invalid postal code."
+  },
+  "shell": {
+    "tagline": "Clinic management",
+    "skipToContent": "Skip to content",
+    "toggleMenu": "Toggle menu",
+    "userMenu": "User menu",
+    "signOut": "Sign out",
+    "language": "Language",
+    "breadcrumb": "Breadcrumb",
+    "underConstruction": "This screen is still under construction and will be delivered in feature {feature}.",
+    "groups": {
+      "operation": "Operations",
+      "settings": "Settings"
+    },
+    "navigation": {
+      "schedule": "Schedule",
+      "patients": "Patients",
+      "dashboard": "Dashboard",
+      "organization": "Organization",
+      "units": "Units",
+      "services": "Services",
+      "professionals": "Professionals",
+      "patientLists": "Patient lists",
+      "cancellationReasons": "Cancellation reasons",
+      "privacyTerms": "Privacy terms",
+      "users": "Users"
+    },
+    "roles": {
+      "ADMINISTRATOR": "Administrator",
+      "MANAGER": "Manager",
+      "FRONT_DESK": "Front desk",
+      "PROFESSIONAL": "Professional"
+    }
+  },
+  "countries": {
+    "names": {
+      "BR": "Brazil",
+      "PT": "Portugal",
+      "ES": "Spain",
+      "MX": "Mexico",
+      "AR": "Argentina",
+      "CL": "Chile",
+      "CO": "Colombia",
+      "US": "United States"
+    }
+  }
+}

@@ -2,8 +2,9 @@ import type { Action } from "@/shared/authz/permissions";
 
 // Sidebar items. Each item declares the permission needed to see it; items are filtered on the
 // server before rendering. Later features add their entries here.
-export type NavItem = { href: string; label: string; icon: NavIcon; anyOf: Action[] };
-export type NavGroup = { label: string; items: NavItem[] };
+// Labels are keys of the shell catalog (shell.navigation.* and shell.groups.*).
+export type NavItem = { href: string; labelKey: string; icon: NavIcon; anyOf: Action[] };
+export type NavGroup = { labelKey: string; items: NavItem[] };
 export type NavIcon =
   | "calendar"
   | "dashboard"
@@ -18,50 +19,50 @@ export type NavIcon =
 
 export const NAVIGATION: NavGroup[] = [
   {
-    label: "Operação",
+    labelKey: "operation",
     items: [
       {
         href: "/schedule",
-        label: "Agenda",
+        labelKey: "schedule",
         icon: "calendar",
         anyOf: ["schedule:read-all", "schedule:read-own"],
       },
-      { href: "/patients", label: "Pacientes", icon: "patients", anyOf: ["patient:read"] },
-      { href: "/dashboard", label: "Painel", icon: "dashboard", anyOf: ["dashboard:read"] },
+      { href: "/patients", labelKey: "patients", icon: "patients", anyOf: ["patient:read"] },
+      { href: "/dashboard", labelKey: "dashboard", icon: "dashboard", anyOf: ["dashboard:read"] },
     ],
   },
   {
-    label: "Configurações",
+    labelKey: "settings",
     items: [
       {
         href: "/settings/organization",
-        label: "Organização",
+        labelKey: "organization",
         icon: "building",
         anyOf: ["organization:update"],
       },
-      { href: "/settings/units", label: "Unidades", icon: "map-pin", anyOf: ["setup:read"] },
-      { href: "/settings/services", label: "Serviços", icon: "stethoscope", anyOf: ["setup:read"] },
+      { href: "/settings/units", labelKey: "units", icon: "map-pin", anyOf: ["setup:read"] },
+      { href: "/settings/services", labelKey: "services", icon: "stethoscope", anyOf: ["setup:read"] },
       // Professional-role users land on their own profile (spec F04 section 4).
       {
         href: "/settings/professionals",
-        label: "Profissionais",
+        labelKey: "professionals",
         icon: "contact",
         anyOf: ["professional:read"],
       },
-      { href: "/settings/patients", label: "Listas de pacientes", icon: "list", anyOf: ["setup:manage"] },
+      { href: "/settings/patients", labelKey: "patientLists", icon: "list", anyOf: ["setup:manage"] },
       {
         href: "/settings/schedule",
-        label: "Motivos de cancelamento",
+        labelKey: "cancellationReasons",
         icon: "list",
         anyOf: ["setup:manage"],
       },
       {
         href: "/settings/privacy-terms",
-        label: "Termos de privacidade",
+        labelKey: "privacyTerms",
         icon: "shield",
         anyOf: ["lgpd:manage"],
       },
-      { href: "/settings/users", label: "Usuários", icon: "users", anyOf: ["user:read"] },
+      { href: "/settings/users", labelKey: "users", icon: "users", anyOf: ["user:read"] },
     ],
   },
 ];
