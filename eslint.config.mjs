@@ -10,9 +10,9 @@ import nextTs from "eslint-config-next/typescript";
 // - the unscoped Prisma client is restricted to infrastructure code.
 // Flat config: when several blocks match a file, the last one wins for the same rule.
 const deepModuleImport = {
-  group: ["@/modules/*/**", "!@/modules/*/next"],
+  group: ["@/modules/*/**", "!@/modules/*/next", "!@/modules/*/client"],
   message:
-    "Import other modules only through their public entry points '@/modules/<name>' (or '@/modules/<name>/next' for Next.js helpers).",
+    "Import other modules only through their public entry points '@/modules/<name>' (or '@/modules/<name>/next' for Next.js helpers, '@/modules/<name>/client' for client UI).",
 };
 const unscopedClient = {
   group: ["@/shared/db/client"],

@@ -6,9 +6,21 @@ export interface ScheduledAppointments {
   countFutureInRoom(organizationId: string, roomId: string, now: Date): Promise<number>;
   countFutureInUnit(organizationId: string, unitId: string, now: Date): Promise<number>;
   // Appointments on the unit between two calendar dates (inclusive), in the unit's time zone.
-  countInDateRange(organizationId: string, unitId: string, startsOn: string, endsOn: string): Promise<number>;
-  // Future appointments that would fall outside the given weekly hours.
-  countFutureOutsideHours(organizationId: string, unitId: string, week: Week, now: Date): Promise<number>;
+  countInDateRange(
+    organizationId: string,
+    unitId: string,
+    startsOn: string,
+    endsOn: string,
+    timeZone: string,
+  ): Promise<number>;
+  // Future appointments that would fall outside the given weekly hours (local to the unit).
+  countFutureOutsideHours(
+    organizationId: string,
+    unitId: string,
+    week: Week,
+    now: Date,
+    timeZone: string,
+  ): Promise<number>;
 }
 
 export type UnitsDeps = {

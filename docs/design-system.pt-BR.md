@@ -382,6 +382,19 @@ A busca de pacientes no cabeçalho (F05), disponível em todas as telas.
 - Os resultados abrem abaixo como uma lista flutuante (a única sombra), com no máximo 8 linhas de 40 px: o nome em `body-strong` e, em `meta`, a idade, o CPF mascarado ou os 4 últimos dígitos do telefone. As setas navegam, `Enter` abre.
 - Com menos de 3 caracteres a lista diz "Digite pelo menos 3 caracteres."; sem resultado, "Nenhum paciente encontrado para "{busca}"." e, para quem pode cadastrar, um link "Cadastrar paciente". A última linha é sempre "Ver todos os resultados".
 
+### 5.11 Agenda
+
+A agenda (F06) parte da seção 10.1. Estas regras cobrem o que aquela seção não mostra.
+- **Visão semanal:** sete colunas de dias (segunda primeiro) para um profissional ou uma sala, com a mesma régua de horários, linhas, linha de agora e blocos da visão do dia. O cabeçalho da coluna é o dia da semana e a data em `column-label`; o cabeçalho de hoje fica em `ink-1` com um sublinhado de 2 px em `ink-blue`.
+- **Visão por sala:** a visão do dia com uma coluna por sala ativa da unidade. Os cabeçalhos não têm ponto de cor; os blocos continuam com a faixa do serviço.
+- **Encaixe:** um bloco de encaixe mantém o carimbo de status e ganha um segundo carimbo "ENCAIXE" no tom de atenção. Dois blocos que se sobrepõem na mesma coluna dividem a largura lado a lado.
+- **Arrastar e redimensionar:** um bloco arrastável mostra o cursor `grab`; durante o arrasto, um contorno tracejado em `ink-blue` marca o horário de destino e o bloco original fica no lugar com 40% de opacidade até a mudança ser confirmada. A alça de redimensionar são os 6 px de baixo do bloco (uma linha de 2 px em `rule-strong` aparece com hover e foco). Teclado: `Espaço` pega, as setas movem um horário (cima e baixo) ou uma coluna (esquerda e direita), `Espaço` solta, `Esc` cancela; cada passo é anunciado. Soltar sempre abre um diálogo de confirmação ("Reagendar para qui, 14:30 com Dra. Ana?").
+- **Conflitos no painel de agendamento:** os conflitos aparecem acima do rodapé do painel, na ordem: bloqueio, contornável, aviso. Bloqueio usa o alerta de página de perigo; contornável usa o alerta de atenção com a ação dentro dele ("Confirmar encaixe" como botão secundário, ou o campo "Justificar exceção"); o aviso sobre o paciente usa o alerta informativo. O botão principal só volta a mostrar "Agendar" depois que todos os conflitos contornáveis forem aceitos.
+- **Conflitos da série:** uma linha de resumo em `body-strong` ("4 de 20 sessões possuem conflito.") acima de uma tabela compacta: Sessão, Data, Horário, Conflito, Ação. A coluna de ação tem os botões ghost "Pular" e "Escolher outro horário"; escolher outro horário abre um select de horário na própria linha, com até 3 horários sugeridos. As linhas resolvidas mostram a decisão em texto ("Pulada", "Novo horário 11:00").
+- **Próximo horário livre:** um diálogo comum com Serviço (obrigatório) e Profissional (opcional), e os resultados numa tabela de até 10 linhas (Data, Horário, Profissional, Sala) com um botão ghost "Agendar" por linha.
+- **Atraso e histórico:** o atraso segue a seção 10.1. O painel do agendamento lista o histórico de status numa tabela compacta (Status como carimbo, Data e hora, Por), do mais recente para o mais antigo.
+- **Agenda impressa (PDF):** A4 retrato em fundo branco, nome e logo da clínica no canto superior esquerdo, o profissional, a unidade e a data como título na fonte serifada, a régua dupla abaixo, e uma tabela com linhas horizontais finas (Horário, Paciente, Telefone, Serviço, Sala, Status, Observações). Rodapé: "Gerado em {data hora} por {usuário}" à esquerda e o número da página à direita, no tamanho `meta`. Nenhuma cor além da tinta.
+
 ## 6. Detalhes visuais
 
 ### 6.1 Bordas e raios

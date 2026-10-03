@@ -76,3 +76,39 @@ export async function getAllowedRooms(
   const rooms = roomIds.length > 0 ? await deps.rooms.findRooms(ctx, roomIds) : [];
   return ok({ requiresRoom: true, rooms: resolveAllowedRooms(rooms, unitId) });
 }
+
+export type ServiceSummary = {
+  id: string;
+  name: string;
+  durationMinutes: number;
+  priceCents: number;
+  color: ServiceColor;
+  requiresRoom: boolean;
+  active: boolean;
+};
+
+// Several services at once, active or inactive, for agenda and history screens (F06).
+export async function getServiceSummaries(
+  ctx: RequestContext,
+  serviceIds: string[],
+): Promise<Result<ServiceSummary[]>> {
+  const allowed = await authorize(ctx, "setup:read");
+  if (!allowed.ok) return allowed;
+  const ids = [...new Set(serviceIds)];
+  if (ids.length === 0) return ok([]);
+  return withTransaction(ctx, async (uow) => {
+    const rows = await uow.tx.service.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        name: true,
+        durationMinutes: true,
+        priceCents: true,
+        color: true,
+        requiresRoom: true,
+        active: true,
+      },
+    });
+    return ok(rows.map((row) => ({ ...row, color: row.color as ServiceColor })));
+  });
+}

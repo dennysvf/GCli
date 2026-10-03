@@ -1,4 +1,5 @@
 import { registerProfessionalsPorts } from "@/modules/professionals";
+import { registerSchedulingPorts } from "@/modules/scheduling";
 import { subscribeServicesEvents } from "@/modules/services";
 import { eventBus } from "@/shared/db/transaction";
 
@@ -13,4 +14,6 @@ export function registerModules(): void {
   subscribeServicesEvents(eventBus);
   // F04: linked professionals for identity (F01) and professional counts for services (F03).
   registerProfessionalsPorts();
+  // F06: real appointments for units (F02), services (F03), professionals (F04) and patients (F05).
+  registerSchedulingPorts();
 }

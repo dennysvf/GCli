@@ -3,7 +3,15 @@ import type { Result } from "./result";
 // Envelope returned by every Server Action (spec F01 section 5).
 export type ActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: { code: string; message: string; fields?: Record<string, string> } };
+  | {
+      ok: false;
+      error: {
+        code: string;
+        message: string;
+        fields?: Record<string, string>;
+        details?: Record<string, unknown>;
+      };
+    };
 
 export type MessageCatalog = Record<string, string>;
 
@@ -13,9 +21,12 @@ export function toActionResult<T>(result: Result<T>, messages: MessageCatalog): 
 export function toActionResult(result: Result<unknown>, messages: MessageCatalog): ActionResult<never>;
 export function toActionResult<T>(result: Result<T>, messages: MessageCatalog): ActionResult<T> {
   if (result.ok) return { ok: true, data: result.value };
-  const { code, fields, params } = result.error;
+  const { code, fields, params, details } = result.error;
   const message = interpolate(messages[code] ?? GENERIC_MESSAGE, params);
-  return fields ? { ok: false, error: { code, message, fields } } : { ok: false, error: { code, message } };
+  return {
+    ok: false,
+    error: { code, message, ...(fields ? { fields } : {}), ...(details ? { details } : {}) },
+  };
 }
 
 // Replaces {name} placeholders with error params; unknown placeholders are left as they are.

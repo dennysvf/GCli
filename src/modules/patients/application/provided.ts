@@ -1,4 +1,4 @@
-import { recordDenial } from "@/shared/authz/guard";
+import { authorize, recordDenial } from "@/shared/authz/guard";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction } from "@/shared/db/transaction";
 import { formatAddress } from "@/shared/kernel/address";
@@ -6,9 +6,10 @@ import { CommonErrors } from "@/shared/kernel/errors";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import type { ConsentItem } from "./consents";
 import { listConsents } from "./consents";
+import { displayName } from "../domain/names";
 import { PatientsErrors } from "./errors";
 import { identityOf, loadDetails, organizationToday, type PatientDetails } from "./patients";
-import { canViewPatient } from "./policies";
+import { canViewPatient, visiblePatientIds } from "./policies";
 import type { PatientsDeps } from "./ports";
 
 // Read API provided to scheduling (F06), documents (F08), packages (F10), the dashboard (F12) and
@@ -68,5 +69,51 @@ export async function getPatientRecord(
     ...details,
     consents: consents.value,
     createdByName: createdById ? (names.get(createdById) ?? null) : null,
+  });
+}
+
+export type PatientSummary = {
+  id: string;
+  displayName: string;
+  mobilePhone: string;
+  birthDate: string;
+  active: boolean;
+};
+
+// Names and phones of many patients at once, for the agenda (F06) and its printed version. Only
+// patients visible to the reader are returned; the others are left out.
+export async function getPatientSummaries(
+  deps: PatientsDeps,
+  ctx: RequestContext,
+  patientIds: string[],
+): Promise<Result<PatientSummary[]>> {
+  const allowed = await authorize(ctx, "patient:read");
+  if (!allowed.ok) return allowed;
+  const unique = [...new Set(patientIds)];
+  if (unique.length === 0) return ok([]);
+  const visible = await visiblePatientIds(deps, ctx);
+  const ids = visible === null ? unique : unique.filter((id) => visible.includes(id));
+  if (ids.length === 0) return ok([]);
+  return withTransaction(ctx, async (uow) => {
+    const rows = await uow.tx.patient.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        fullName: true,
+        socialName: true,
+        mobilePhone: true,
+        birthDate: true,
+        active: true,
+      },
+    });
+    return ok(
+      rows.map((row) => ({
+        id: row.id,
+        displayName: displayName(row.fullName, row.socialName),
+        mobilePhone: row.mobilePhone,
+        birthDate: row.birthDate.toISOString().slice(0, 10),
+        active: row.active,
+      })),
+    );
   });
 }

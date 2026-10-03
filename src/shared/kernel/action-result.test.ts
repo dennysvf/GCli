@@ -23,4 +23,12 @@ describe("toActionResult", () => {
       error: { code: "X", message: "Erro {other}", fields: { name: "Nome inválido." } },
     });
   });
+
+  it("carries structured details for the UI", () => {
+    const error = { ...domainError("CONFLICTS", 409), details: { findings: [{ code: "A" }] } };
+    expect(toActionResult(fail(error), { CONFLICTS: "Revise." })).toEqual({
+      ok: false,
+      error: { code: "CONFLICTS", message: "Revise.", details: { findings: [{ code: "A" }] } },
+    });
+  });
 });

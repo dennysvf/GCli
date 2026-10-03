@@ -11,7 +11,7 @@ import {
   renameCategory,
 } from "./application/categories";
 import type { ScheduledServiceAppointments, ServiceProfessionals, ServicesDeps } from "./application/ports";
-import { getAllowedRooms, listActiveServices } from "./application/provided";
+import { getAllowedRooms, getServiceSummaries, listActiveServices } from "./application/provided";
 import {
   createService,
   getService,
@@ -62,6 +62,7 @@ export const services = {
   deleteCategory: (ctx: RequestContext, input: unknown) => deleteCategory(ctx, input),
   // Provided to F04, F06, F09 and F10
   listActiveServices: (ctx: RequestContext) => listActiveServices(ctx),
+  getServiceSummaries: (ctx: RequestContext, serviceIds: string[]) => getServiceSummaries(ctx, serviceIds),
   getAllowedRooms: (ctx: RequestContext, serviceId: string, unitId: string) =>
     getAllowedRooms(deps, ctx, serviceId, unitId),
   // Extension points for scheduling (F06) and professionals (F04); null restores the default.
@@ -76,7 +77,7 @@ export const services = {
 export { subscribeServicesEvents } from "./events";
 export type { ScheduledServiceAppointments, ServiceProfessionals } from "./application/ports";
 export type { CategoryItem } from "./application/categories";
-export type { ActiveService, AllowedRooms } from "./application/provided";
+export type { ActiveService, AllowedRooms, ServiceSummary } from "./application/provided";
 export type {
   PriceChangeItem,
   SaveServiceResult,

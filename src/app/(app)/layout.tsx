@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider } from "@/shared/ui/components/sidebar";
 import { AppHeader } from "@/shared/ui/app-shell/app-header";
 import { AppSidebar } from "@/shared/ui/app-shell/app-sidebar";
 import { NAVIGATION } from "@/shared/ui/app-shell/navigation";
+import { QueryProvider } from "@/shared/ui/query/query-provider";
 import { UserMenu } from "@/shared/ui/app-shell/user-menu";
 import { signOutAction } from "./actions";
 import { selectUnitAction } from "./settings/units/actions";
@@ -56,8 +57,12 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             />
           }
         />
-        <div id="conteudo" className="flex w-full max-w-(--content-max-width) flex-1 flex-col p-4 md:p-8">
-          {children}
+        {/* Design system 4.2: content is at most 1280 px wide; the agenda uses the full width. */}
+        <div
+          id="conteudo"
+          className="flex w-full max-w-(--content-max-width) flex-1 flex-col p-4 has-data-full-width:max-w-none md:p-8"
+        >
+          <QueryProvider>{children}</QueryProvider>
         </div>
       </SidebarInset>
     </SidebarProvider>

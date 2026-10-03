@@ -12,7 +12,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactCompiler: true,
   poweredByHeader: false,
-  serverExternalPackages: ["@node-rs/argon2", "pg-boss", "pino", "sharp"],
+  serverExternalPackages: ["@node-rs/argon2", "@react-pdf/renderer", "pg-boss", "pino", "sharp"],
   experimental: {
     // Enables forbidden() and forbidden.tsx (PRD F01: 403 page).
     authInterrupts: true,

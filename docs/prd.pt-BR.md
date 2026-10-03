@@ -403,7 +403,7 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 
 **Capacidades:**
 - Campos do agendamento: paciente (obrigatório), serviço (obrigatório), profissional (obrigatório, deve ter o serviço habilitado), unidade (obrigatório), sala (obrigatório se o serviço exigir sala; restrita às salas permitidas), data e horário de início (granularidade das configurações de F01), duração (padrão do serviço, editável 5–480 min em múltiplos de 5), preço no momento (do serviço no agendamento), observações para a recepção (máx. 500 caracteres).
-- Ciclo de status: Agendado → Confirmado → Chegou → Em atendimento → Concluído; alternativas terminais: Faltou e Cancelado. Transições permitidas para trás: Confirmado → Agendado, Chegou → Confirmado (desfazer em até 30 minutos). Toda transição registra usuário e data/hora.
+- Ciclo de status: Agendado → Confirmado → Chegou → Em atendimento → Concluído; alternativas terminais: Faltou e Cancelado. Transições permitidas para trás: Confirmado → Agendado, Chegou → Confirmado (desfazer em até 30 minutos), Concluído → Em atendimento (pelo profissional do agendamento em até 30 minutos, ou por Gerente/Administrador a qualquer momento, com justificativa). Toda transição registra usuário e data/hora.
 - O cancelamento exige origem (paciente, clínica, profissional) e motivo de uma lista configurável mais texto opcional. Falta só pode ser marcada após o horário de início do agendamento.
 - Regras de conflito, validadas no servidor ao salvar:
   - Duplo agendamento de profissional: bloqueado; pode ser sobreposto como "Encaixe" por Recepção, Gestor ou Administrador com confirmação explícita; agendamentos com encaixe exibem um selo "Encaixe".
