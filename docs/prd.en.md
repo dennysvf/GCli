@@ -6,7 +6,7 @@ GCli is a responsive web platform that centralizes the daily operation of a heal
 
 The first version serves a single clinic company operating up to 5 units, 50 professionals, 30 concurrent users, around 500 appointments per day, and up to 100,000 patient records. Although it is deployed for one company, every record is scoped to an organization from day one, so the product can evolve into a multi-tenant SaaS without data migration. Access is controlled by four fixed roles (Administrator, Manager, Front Desk, Professional), with clinical content visible only to professionals, and every sensitive operation recorded in an audit log to support LGPD (Brazil's General Data Protection Law) compliance.
 
-The core value is replacing the scattered combination of spreadsheets, paper agendas, messaging apps, and disconnected tools with one source of truth: the front desk books and checks in patients, the professional records the encounter, the charge is generated automatically from the appointment, payments flow into the daily cash register of each unit, and the owner sees occupancy, no-shows, revenue, and receivables on a dashboard and in exportable reports. The interface is in Brazilian Portuguese, amounts are in BRL, and the stack is Next.js with Prisma.
+The core value is replacing the scattered combination of spreadsheets, paper agendas, messaging apps, and disconnected tools with one source of truth: the front desk books and checks in patients, the professional records the encounter, the charge is generated automatically from the appointment, payments flow into the daily cash register of each unit, and the owner sees occupancy, no-shows, revenue, and receivables on a dashboard and in exportable reports. The interface is available in Brazilian Portuguese, English and Spanish, each unit follows the conventions of its country (currency, documents, address) starting with Brazil, Portugal, Spain, Mexico, Argentina, Chile, Colombia and the United States (F16), and the stack is Next.js with Prisma. Legal rules are validated for Brazil only in V1.
 
 ## 2. Problem and Opportunity
 
@@ -78,7 +78,7 @@ The differentiator is configurability without complexity: the same product serve
 - Uses the system under time pressure, frequently with a patient in front of them; tolerates few clicks and no slow screens.
 - Moderate digital literacy: comfortable with WhatsApp, web browsers, and spreadsheets, but not with complex enterprise software.
 - Uses desktops at the front desk, and notebooks, tablets, or phones in consulting rooms and on the move.
-- Expects Brazilian conventions: Portuguese interface, CPF validation, DD/MM/YYYY dates, BRL currency, PIX as a payment method.
+- Expects the conventions of their country and language (in Brazil: Portuguese interface, CPF validation, DD/MM/YYYY dates, BRL currency, PIX as a payment method).
 
 ## 4. Objectives
 
@@ -222,6 +222,14 @@ The differentiator is configurability without complexity: the same product serve
 - As an administrator, I want to see the before and after values of an edit so that I understand exactly what changed.
 - As an administrator, I want to export audit log results to CSV so that I can provide evidence in an audit or legal request.
 
+### F16. Internationalization and Country Profiles
+- As a user, I want to choose the interface language (Português (Brasil), English or Español) so that I work in the language I read best.
+- As an administrator, I want to set the organization's default language and headquarters country so that new users and new units start with the right settings.
+- As an administrator, I want to set each unit's country so that its currency, tax ID, address format, phone code, time zones, professional councils and payment methods follow that country.
+- As a front desk user, I want to register patients with the identity document and address format of their country so that records are valid locally.
+- As a manager, I want amounts shown in each unit's currency, and dashboard and report totals separated by currency, so that money in different currencies is never mixed.
+- As a user, I want emails, PDFs and exports in my language, with the date and number formats I am used to.
+
 ## 6. Functionalities
 
 ### F01. Platform Foundation, Authentication and Access Control
@@ -233,7 +241,7 @@ The differentiator is configurability without complexity: the same product serve
 
 **Capabilities:**
 - Application scaffolding: Next.js app with authenticated layout (sidebar navigation, header with user menu and unit selector), Prisma with PostgreSQL, and a global `organizationId` on every business table so that the data model supports multiple tenants later.
-- Organization settings: legal name (required, max 150 chars), trade name, CNPJ (validated check digits), logo (PNG/JPG/SVG, max 2 MB, displayed at max 200×80 px), time zone (default America/Sao_Paulo), agenda slot granularity (5, 10, 15, or 30 minutes; default 15), locale fixed to pt-BR, currency BRL.
+- Organization settings: legal name (required, max 150 chars), trade name, tax ID of the headquarters country (CNPJ in Brazil, validated check digits), logo (PNG/JPG/SVG, max 2 MB, displayed at max 200×80 px), time zone (default America/Sao_Paulo), agenda slot granularity (5, 10, 15, or 30 minutes; default 15), default language and headquarters country (F16; default pt-BR and Brazil). Currency is defined per unit (F16).
 - Up to 100 active users per organization.
 - Four fixed roles, one per user:
 
@@ -281,7 +289,7 @@ The differentiator is configurability without complexity: the same product serve
 
 **Capabilities:**
 - Up to 20 units per organization; up to 30 rooms per unit.
-- Unit fields: name (required, unique, max 80 chars), CNPJ (optional, validated), address (CEP, street, number, complement, district, city, state — CEP auto-filled via a public CEP lookup when available, editable manually), phone, email, active flag.
+- Unit fields: country (required; defines currency, tax ID, address fields and time zones — F16), name (required, unique, max 80 chars), tax ID of the country (optional, validated; CNPJ in Brazil), address (fields of the country — in Brazil CEP, street, number, complement, district, city, state, with CEP auto-filled via a public CEP lookup when available, editable manually), time zone (among the country's zones), phone, email, active flag.
 - Business hours: per weekday, open/closed plus up to 2 intervals (e.g., 07:00–12:00, 13:00–20:00), with 5-minute granularity.
 - Closures: date or date range with reason (e.g., "Feriado municipal"); up to 100 future closures per unit.
 - Room fields: name (required, unique within the unit, max 50 chars), description, active flag.
@@ -307,13 +315,13 @@ The differentiator is configurability without complexity: the same product serve
 
 **Capabilities:**
 - Up to 500 services per organization; up to 50 categories.
-- Fields: name (required, unique, max 100 chars), category (required, e.g., "Consultas", "Procedimentos", "Terapias"), description (max 500 chars), duration (required, 5–480 minutes in multiples of 5), price (required, R$ 0.00–R$ 99,999.99; zero allowed for free returns), color (from a palette of 16), requires room (yes/no), allowed rooms (optional subset; empty = any active room), active flag.
+- Fields: name (required, unique, max 100 chars), category (required, e.g., "Consultas", "Procedimentos", "Terapias"), description (max 500 chars), duration (required, 5–480 minutes in multiples of 5), price per currency used by the organization's active units (required for each, 0 to 99,999.99 in the currency; zero allowed for free returns — F16), color (from a palette of 16), requires room (yes/no), allowed rooms (optional subset; empty = any active room), active flag.
 - Price history: every price change is stored with effective date and author; appointments snapshot the price at booking time, so changes never alter existing appointments or charges.
 - Services referenced by appointments cannot be deleted, only deactivated.
 
 **Experience:**
 - Services list grouped by category, with columns name, duration, price, number of enabled professionals, status; search by name; filter by category and status.
-- Service form in a side panel; price field with BRL mask; after changing the price, the confirmation reads "O novo preço valerá para novos agendamentos. Agendamentos existentes mantêm o preço original."
+- Service form in a side panel; one price field per currency in use, each with its currency mask (F16); after changing the price, the confirmation reads "O novo preço valerá para novos agendamentos. Agendamentos existentes mantêm o preço original."
 - Price history is visible in a "Histórico de preços" tab.
 
 **Error Handling:**
@@ -334,7 +342,7 @@ The differentiator is configurability without complexity: the same product serve
 
 **Capabilities:**
 - Up to 100 active professionals per organization.
-- Fields: full name (required), display name, specialty (free text, e.g., "Fisioterapia ortopédica"), council type (CRM, CRO, CREFITO, CRP, CRN, COREN, CRBM, CRF, other/none), council number and state (required when type ≠ none), CPF, phone, email, agenda color, linked user (optional; must be an active user with Professional role, or Administrator/Manager as described in F01; one user per professional), active flag.
+- Fields: full name (required), display name, specialty (free text, e.g., "Fisioterapia ortopédica"), council type (per country of the units where the professional works — in Brazil CRM, CRO, CREFITO, CRP, CRN, COREN, CRBM, CRF, other/none; see F16), council number and state or region (required when type ≠ none), identity document (types of the country, F16), phone, email, agenda color, linked user (optional; must be an active user with Professional role, or Administrator/Manager as described in F01; one user per professional), active flag.
 - Enabled services: multi-select of active services; a professional can only be booked for enabled services.
 - Working hours: per unit and weekday, up to 4 intervals per day, 5-minute granularity; a professional may work in multiple units but intervals cannot overlap across units on the same day. Working hours outside the unit's business hours are rejected.
 - Validity period: working-hour sets have a start date (and optional end date), allowing a future schedule change without affecting past or current weeks.
@@ -362,8 +370,8 @@ The differentiator is configurability without complexity: the same product serve
 
 **Capabilities:**
 - Up to 100,000 active patients with search p95 ≤ 1 second.
-- Fields: full name (required, max 150 chars), social name (optional; displayed instead of full name in agenda and screens when filled), birth date (required), sex (female, male, other, not informed), CPF (optional, check-digit validated, unique within the organization), RG, mobile phone (required, Brazilian format with DDD), secondary phone, email, address (CEP lookup as in F02), occupation, referral source (configurable list, e.g., Instagram, Google, indicação), administrative observations (max 2,000 chars), tags (up to 10 per patient, from a configurable list).
-- Guardian: required for patients under 18 at registration — guardian name, CPF, relationship, phone.
+- Fields: full name (required, max 150 chars), social name (optional; displayed instead of full name in agenda and screens when filled), birth date (required), sex (female, male, other, not informed), identity document (optional; type and number of the patient's country — CPF in Brazil — check digits validated, unique per type within the organization, F16), RG or secondary document, mobile phone (required, international format with the unit's country code by default; Brazilian numbers with DDD), secondary phone, email, address (fields of the country; CEP lookup in Brazil as in F02), occupation, referral source (configurable list, e.g., Instagram, Google, indicação), administrative observations (max 2,000 chars), tags (up to 10 per patient, from a configurable list).
+- Guardian: required for patients under 18 at registration — guardian name, identity document, relationship, phone.
 - Duplicate detection: on save, the system checks exact CPF match (blocks) and same normalized name + birth date (warns, allows proceeding with confirmation).
 - Consent: record of acceptance of the clinic's privacy terms — terms version, date/time, method (signed on paper and uploaded, verbal confirmed by staff, digital), and staff user. The clinic's terms text is maintained by the Administrator with versioning; a new version flags patients as "consentimento pendente" until renewed.
 - Search: by name (accent- and case-insensitive, partial), CPF (with or without mask), or phone (last 8+ digits); minimum 3 characters; results show 20 per page with name, age, CPF (masked except last 5 digits for Front Desk), phone, last appointment date.
@@ -516,7 +524,7 @@ The differentiator is configurability without complexity: the same product serve
 - Automatic charge: created in status "Em aberto" when an appointment changes to Chegou, with the appointment's price snapshot. Not created for appointments with price R$ 0.00 or covered by a package (F10). If the appointment returns to Confirmado within the undo window, the charge is removed if it has no payments.
 - Manual charge: for a patient and service (price from service, editable) or free description, e.g., sale of a product or a fee.
 - Discount: percentage or fixed amount; discounts up to 20% can be applied by Front Desk; above 20% require approval by a Manager/Administrator (inline approval by entering their credentials, or later approval from a pending-approvals list). The discount reason is mandatory above 10%.
-- Payment methods (configurable list, default: Dinheiro, PIX, Cartão de débito, Cartão de crédito, Transferência, Outro); credit card records the number of installments (1–12) for information only.
+- Payment methods (configurable list per unit country; default from the country profile in F16, e.g., Brazil: Dinheiro, PIX, Cartão de débito, Cartão de crédito, Transferência, Outro); amounts are in the unit's currency; credit card records the number of installments (1–12) for information only.
 - Multiple payments per charge (partial payments); status calculated: Em aberto, Parcialmente pago, Pago, Cancelado. Overpayment is not allowed.
 - Payment date defaults to now; backdating up to 7 days allowed for Manager/Administrator.
 - Void (cancel) a charge: Manager/Administrator, only if it has no active payments, mandatory reason.
@@ -663,7 +671,7 @@ The differentiator is configurability without complexity: the same product serve
   4. **Contas a receber**: open charges with patient, phone, origin, amount, open balance, days overdue, aging buckets 0–30, 31–60, 61–90, 90+ days.
   5. **Produtividade por profissional**: per professional — appointments completed, no-shows, cancellations, hours attended, billed amount, received amount, average ticket.
 - Maximum period: 366 days. On-screen pagination of 50 rows with totals row.
-- CSV: UTF-8 with BOM, semicolon separator, comma decimal (Excel pt-BR compatible), max 50,000 rows.
+- CSV: UTF-8 with BOM; separators follow the user's language (pt-BR and es: semicolon and decimal comma, Excel-compatible; en: comma and decimal point), with a currency column for money; max 50,000 rows.
 - PDF: A4 landscape, header with logo, report name, filters applied, generation date and user; footer with page "x de y"; max 5,000 rows (above that, the user is advised to export CSV).
 - Generation: ≤ 10 seconds for 50,000 rows CSV.
 - Exports are recorded in the audit log (F01) with report name and filters.
@@ -723,6 +731,70 @@ The differentiator is configurability without complexity: the same product serve
 - Configurações > Auditoria: filter bar on top, results table, clicking a row opens a side panel with details and diff.
 - Shortcut links "Ver auditoria" on patient, appointment, charge, and user pages open the viewer pre-filtered by that entity.
 
+### F16. Internationalization and Country Profiles
+
+**Consumes:**
+- F01: organization settings and user accounts (default language, user language preference)
+- F02: units (country per unit)
+- F03: services (price per currency)
+- F04: professionals (council registration per country)
+- F05: patients (identity document, address and phone per country)
+- F06: agenda screens and messages (translated)
+
+**Provides:**
+- Language per user (pt-BR, en, es), with the organization default, for every screen, message, email, PDF and export (used by all features)
+- Country profile per unit: currency, organization and unit tax ID, identity document types and validation, address fields, phone country code, professional council types, default payment methods, available time zones (used by F02, F03, F04, F05, F08, F09, F10, F11, F12, F13, F14)
+- Locale formatting of dates, times, numbers and money (used by all features)
+
+**Core Scope:**
+- Three interface languages with a per-user preference and an organization default; locale formatting; country per unit; the eight country profiles below (currency, tax ID, identity documents, address, phone, councils, payment methods, time zones); service prices per currency; per-currency totals in the dashboard and reports; daylight-saving-correct calendar logic.
+
+**Full Scope additions:**
+- Postal code lookup for countries other than Brazil (where a public service exists); default document templates (F08) per language.
+
+**Capabilities:**
+- Languages: Português (Brasil) `pt-BR` (default), English `en`, Español `es`. Every label, message, email, PDF and export text exists in the three languages. The pt-BR texts in this PRD are the source; English and Spanish are translations kept in the same message catalogs. A missing translation fails the build. Data typed by the clinic (service names, cancellation reasons, notes, templates) is shown as typed and is not translated.
+- Language choice: each user picks a language in the user menu; new users and invitation emails use the organization default (set by the Administrator in organization settings, default pt-BR). Pages before sign-in (login, password reset, invitation) follow the browser language when it is one of the three, else pt-BR. Emails use the recipient's language.
+- Locale formatting: dates, times and numbers follow the user's language combined with the country of the unit in context (e.g., pt-BR, es-MX, es-AR, en-US); when the language is not spoken in that country, the language's default region is used (en → en-US, es → es-ES, pt → pt-BR).
+- Organization country: the headquarters country defines the organization tax ID type (CNPJ in Brazil) and is the default country for new units.
+- Unit country: chosen when the unit is created, among the eight profiles; it defines the unit's currency, tax ID, address fields, phone code, time zones, council types and payment methods. The country cannot be changed once the unit has appointments, charges or cash registers.
+- Money: every amount carries its currency (ISO 4217) and is stored in integer minor units (CLP has no decimals). Charges, payments, packages, cash registers and expenses use the currency of their unit. Services have one price per currency used by the organization's active units; booking snapshots the price in the unit's currency.
+- Country profiles in V1:
+
+| Country | Currency | Patient identity documents | Organization/unit tax ID | Postal code | Phone | Councils | Default payment methods |
+|---|---|---|---|---|---|---|---|
+| Brazil (BR) | BRL | CPF | CNPJ | CEP (with lookup) | +55 | CRM, CRO, CREFITO, CRP, CRN, COREN, CRBM, CRF | Dinheiro, PIX, Cartão de débito, Cartão de crédito, Transferência |
+| Portugal (PT) | EUR | NIF | NIF/NIPC | 0000-000 | +351 | Ordem dos Médicos, Médicos Dentistas, Fisioterapeutas, Psicólogos, Nutricionistas, Enfermeiros | Numerário, Multibanco, MB WAY, Cartão, Transferência |
+| Spain (ES) | EUR | DNI, NIE | NIF | 5 digits | +34 | Colegio de Médicos, Dentistas, Fisioterapeutas, Psicólogos, Dietistas-Nutricionistas, Enfermería | Efectivo, Tarjeta, Bizum, Transferencia |
+| Mexico (MX) | MXN | CURP | RFC | 5 digits | +52 | Cédula profesional | Efectivo, Tarjeta, Transferencia (SPEI) |
+| Argentina (AR) | ARS | DNI | CUIT | CPA or 4 digits | +54 | Matrícula nacional, Matrícula provincial | Efectivo, Tarjeta, Transferencia, Mercado Pago |
+| Chile (CL) | CLP | RUT | RUT | 7 digits (optional) | +56 | Registro Nacional de Prestadores (Superintendencia de Salud) | Efectivo, Tarjeta, Transferencia |
+| Colombia (CO) | COP | Cédula de ciudadanía, Cédula de extranjería | NIT | 6 digits (optional) | +57 | ReTHUS | Efectivo, Tarjeta, Transferencia, PSE, Nequi |
+| United States (US) | USD | None required (optional driver's license or state ID; SSN is never collected) | EIN | ZIP (5 or 9 digits) | +1 | State license (state + number), NPI | Cash, Card, Check, Transfer |
+
+- Identity documents: each patient document has a type and a number; check digits are validated where the document has them (CPF, NIF, DNI/NIE, CURP, CUIT, RUT, NIT, NPI). A document is unique per type within the organization. The document is optional, as the CPF is today; Front Desk sees documents masked in search results: the CPF except its last 5 digits (F05), other documents except their last 4 characters. Guardians use the same document types.
+- Address: fields follow the country (e.g., Brazil: CEP, street, number, complement, district, city, state; United States: street, apartment, city, state, ZIP; Chile: street, comuna, región). Phones are stored in international format; the default country code is the unit's.
+- Professionals: council types and registration format follow the countries of the units where the professional works.
+- Time zones: each unit's time zone is chosen among its country's zones. Calendar logic (working hours, business hours, agenda, recurrence, "today") is correct across daylight saving time changes (Portugal, Spain, Chile, United States and parts of Mexico observe it).
+- Dashboard and reports: money figures are shown per currency (e.g., "R$ 12.400,00 · € 3.150,00") and are never summed across currencies; counts and rates are not affected. Filtering by a unit or country shows a single currency. CSV exports use the separators of the user's language (pt-BR and es: semicolon and decimal comma; en: comma and decimal point) and include a currency column.
+- Legal rules: only the Brazilian rules (LGPD, 20-year clinical record retention, 15-day data request deadline, privacy terms) have legal validity in V1. Units in other countries apply the Brazilian rules, and the Administrator sees a warning until each country's rules are validated with legal counsel.
+
+**Experience:**
+- User menu: "Idioma" with Português (Brasil), English and Español; the change applies immediately, without signing out.
+- Organization settings: "Idioma padrão" and "País da sede"; the tax ID field follows the country.
+- Unit form: "País" is the first field; tax ID, address fields and time zones adapt to it; the currency is shown read-only.
+- Service form: one price field per currency in use, each with its currency mask.
+- Patient form: "Documento" with the types of the country (defaulting to the unit's country, with "Outro país" for foreign patients) and an address form that adapts to the country.
+- Money fields and values show the unit's currency symbol; dashboard money cards list one line per currency.
+- Units outside Brazil show an administrator banner: "As regras legais deste país ainda não foram validadas. O sistema aplica as regras brasileiras."
+
+**Error Handling:**
+- Invalid identity document: "{Tipo} inválido." (e.g., "CPF inválido.", "NIF inválido.").
+- Document already registered: "Este {tipo} já está cadastrado para Maria S. Oliveira." with a link to the record.
+- Changing the country of a unit with records: "Não é possível alterar o país de uma unidade que já tem agendamentos, cobranças ou caixas."
+- Booking a service without a price in the unit's currency: "Este serviço não tem preço em {moeda}. Defina o preço no catálogo antes de agendar nesta unidade."
+- Activating a unit in a currency where active services have no price: a warning lists the services without a price in that currency.
+
 ## 7. Out of Scope
 
 **Patient communication and self-service**
@@ -743,7 +815,7 @@ The differentiator is configurability without complexity: the same product serve
 - Invoice issuance (NFS-e) and any fiscal document.
 - Professional commission/revenue sharing (repasse) calculations.
 - Bank reconciliation with bank statements (OFX) and integrations with accounting systems.
-- Multi-currency.
+- Currency conversion and consolidated totals across currencies (money is shown per currency, F16).
 
 **Operations**
 - Inventory and supplies control.
@@ -757,7 +829,9 @@ The differentiator is configurability without complexity: the same product serve
 - Restricting users to specific units (all users see all units in V1).
 - Two-factor authentication and single sign-on (SSO).
 - Native mobile apps and offline mode (the responsive web app is the only client).
-- Interface languages other than Brazilian Portuguese.
+- Interface languages other than Brazilian Portuguese, English and Spanish.
+- Country profiles beyond Brazil, Portugal, Spain, Mexico, Argentina, Chile, Colombia and the United States.
+- Legal validation of countries other than Brazil (privacy law, clinical record retention, health data rules such as HIPAA); those units apply the Brazilian rules in V1.
 - Public API for third-party integrations.
 - Import of legacy data from other systems (may be handled as a one-off service outside the product).
 
@@ -771,15 +845,16 @@ The differentiator is configurability without complexity: the same product serve
 | F04 | Professionals and Working Hours | 1 | F01, F02, F03 |
 | F05 | Patient Registry | 1 | F01 |
 | F06 | Scheduling and Agenda | 1 | F02, F03, F04, F05 |
-| F07 | Clinical Encounter Records | 1 | F06 |
-| F08 | Patient Documents | 2 | F01, F02, F04, F05 |
-| F09 | Billing and Payments | 1 | F03, F06 |
+| F07 | Clinical Encounter Records | 1 | F06, F16 |
+| F08 | Patient Documents | 2 | F01, F02, F04, F05, F16 |
+| F09 | Billing and Payments | 1 | F03, F06, F16 |
 | F10 | Session Packages | 2 | F03, F05, F06, F09 |
 | F11 | Cash Register and Expenses | 2 | F02, F09 |
 | F12 | Management Dashboard | 2 | F05, F06, F09, F11 |
 | F13 | Reports and Export | 2 | F01, F06, F09 |
 | F14 | Patient Timeline and LGPD Data Requests | 2 | F05, F06, F07, F08, F09 |
 | F15 | Audit Log Viewer | 2 | F01 |
+| F16 | Internationalization and Country Profiles | 1 | F01, F02, F03, F04, F05, F06 |
 
 ### Foundation Features
 These features set up shared project infrastructure. In a greenfield project they must be implemented sequentially before or alongside any feature that depends on them:
@@ -793,10 +868,11 @@ Features within the same wave can be built in parallel. A wave starts only after
 - **Wave 1**: F01
 - **Wave 2**: F02, F03, F05, F15
 - **Wave 3**: F04
-- **Wave 4**: F06, F08
-- **Wave 5**: F07, F09
-- **Wave 6**: F10, F11, F13, F14
-- **Wave 7**: F12
+- **Wave 4**: F06
+- **Wave 5**: F16
+- **Wave 6**: F07, F08, F09
+- **Wave 7**: F10, F11, F13, F14
+- **Wave 8**: F12
 
 ### Priority levels
 - **1** = Essential — product does not work without it
@@ -841,6 +917,14 @@ graph TD
   F08 --> F14
   F09 --> F14
   F01 --> F15[F15 Audit Viewer]
+  F02 --> F16[F16 Internationalization]
+  F03 --> F16
+  F04 --> F16
+  F05 --> F16
+  F06 --> F16
+  F16 --> F07
+  F16 --> F08
+  F16 --> F09
 ```
 
 ## 9. Acceptance Criteria
@@ -973,7 +1057,7 @@ graph TD
 ### F13. Reports and Export
 - [ ] Each of the 5 reports returns data consistent with the filters and shows totals.
 - [ ] Periods longer than 366 days are rejected.
-- [ ] CSV opens correctly in Excel pt-BR (UTF-8 BOM, semicolon separator, comma decimal) and supports up to 50,000 rows generated in ≤ 10 seconds.
+- [ ] CSV opens correctly in Excel in the user's language (UTF-8 BOM; pt-BR and es: semicolon separator and decimal comma; en: comma separator and decimal point) and supports up to 50,000 rows generated in ≤ 10 seconds.
 - [ ] PDF includes logo, report name, filters, generation date/user, and page numbering; above 5,000 rows the user is advised to export CSV.
 - [ ] Receivables aging buckets classify charges correctly by days overdue.
 - [ ] Every export creates an audit event with report name and filters.
@@ -997,6 +1081,18 @@ graph TD
 - [ ] CSV export of up to 100,000 rows works and is itself audited.
 - [ ] "Ver auditoria" link on a patient page opens the viewer filtered by that patient.
 
+### F16. Internationalization and Country Profiles
+- [ ] Each user can switch among pt-BR, English and Spanish; every screen, message, email and PDF of the implemented features appears in the chosen language, and no interface text is hard-coded (every key exists in the three catalogs; a missing key fails the build).
+- [ ] New users and invitation emails use the organization's default language; the login page follows the browser language among the three, else pt-BR.
+- [ ] Dates, times, numbers and money follow the user's language and the unit's country (e.g., pt-BR "06/10/2026 14:30, R$ 1.234,56"; en-US "10/06/2026 2:30 PM, $1,234.56"; es-MX "06/10/2026 14:30, $1,234.56").
+- [ ] A unit's country defines its currency, tax ID, address fields, phone code, time zones, council types and payment methods; the country cannot be changed once the unit has appointments, charges or cash registers.
+- [ ] Patient and guardian documents are validated per type (CPF, NIF, DNI, NIE, CURP, CUIT, RUT, cédula, NIT) and are unique per type within the organization; Front Desk sees them masked (CPF except the last 5 digits, other documents except the last 4 characters).
+- [ ] Every amount is stored in integer minor units with its currency (CLP without decimals); charges, payments, packages, cash registers and expenses always use their unit's currency.
+- [ ] Booking in a unit snapshots the service price in that unit's currency; a service without a price in that currency cannot be booked there.
+- [ ] Dashboard and report money totals are shown per currency and never summed across currencies; CSV exports use the separators of the user's language and include a currency column.
+- [ ] Calendar logic is correct across daylight saving time changes (e.g., Europe/Madrid, America/Santiago, America/New_York): a 09:00 working interval and a 09:00 appointment stay at 09:00 local time on both sides of the change.
+- [ ] Units outside Brazil apply the Brazilian legal rules and show the administrator warning.
+
 ### Cross-Feature Integration
 - [ ] Active user accounts from F01 are available for linking in the professional form (F04), and deactivated users are not listed.
 - [ ] Organization profile from F01 (name, CNPJ, logo) appears in generated documents (F08) and in PDF report headers (F13).
@@ -1019,3 +1115,5 @@ graph TD
 - [ ] Report totals in F13 match the underlying appointment (F06) and charge/payment (F09) records for the same filters.
 - [ ] The patient timeline (F14) shows appointments from F06, clinical notes from F07, documents from F08, and charges/payments from F09, with role-based filtering applied.
 - [ ] LGPD export (F14) contains the patient's data from F05, F06, F07, F08, and F09.
+- [ ] The language chosen in F16 applies to F01 emails and screens, the F06 agenda, F08 documents, F09 receipts and F13 reports and exports.
+- [ ] The unit's country profile (F16) drives the F02 unit form, F03 prices per currency, F04 council types, F05 patient document, address and phone, F09 payment methods and currency, F11 cash register currency, and per-currency totals in F12 and F13.
