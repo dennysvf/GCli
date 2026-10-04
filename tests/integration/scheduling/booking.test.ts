@@ -11,7 +11,7 @@ import { booking, bookOrThrow, day, schedulingWorld, type World } from "./suppor
 beforeEach(resetDatabase);
 afterAll(closeHelpers);
 
-type Finding = { code: string; severity: string; message: string };
+type Finding = { code: string; severity: string; params: Record<string, string | null> };
 const findingsOf = (error: { details?: Record<string, unknown> }) =>
   (error.details?.findings ?? []) as Finding[];
 
@@ -81,7 +81,7 @@ describe("booking", () => {
       expect.objectContaining({
         code: "SCHEDULING_PROFESSIONAL_CONFLICT",
         severity: "OVERBOOKABLE",
-        message: "Dra. Ana já possui atendimento das 14:00 às 14:50. Deseja registrar como encaixe?",
+        params: expect.objectContaining({ professional: "Dra. Ana", timeZone: "America/Sao_Paulo" }),
       }),
     ]);
     const confirmed = await bookOrThrow(world.desk, { ...overlap, confirmOverbooking: true });
@@ -109,7 +109,7 @@ describe("booking", () => {
       expect.objectContaining({
         code: "SCHEDULING_ROOM_CONFLICT",
         severity: "BLOCKING",
-        message: "A Sala 1 está ocupada das 14:00 às 14:50. Escolha outra sala ou horário.",
+        params: expect.objectContaining({ room: "Sala 1", timeZone: "America/Sao_Paulo" }),
       }),
     ]);
     // The database refuses it too, even when the application check is bypassed.
@@ -170,7 +170,7 @@ describe("booking", () => {
     expect(closed.ok ? [] : findingsOf(closed.error)).toContainEqual(
       expect.objectContaining({
         code: "SCHEDULING_UNIT_CLOSED",
-        message: "A unidade está fechada nesta data: Dedetização.",
+        params: { reason: "Dedetização" },
       }),
     );
     const early = await scheduling.bookAppointment(world.desk, booking(world, { startTime: "07:00" }));
@@ -250,7 +250,7 @@ describe("booking", () => {
     expect(second.warnings).toEqual([
       expect.objectContaining({
         code: "SCHEDULING_PATIENT_OVERLAP",
-        message: "O paciente já tem agendamento das 10:00 às 10:50 com Dra. Ana.",
+        params: expect.objectContaining({ professional: "Dra. Ana", timeZone: "America/Sao_Paulo" }),
       }),
     ]);
   });

@@ -1,29 +1,19 @@
 import { recordDenial } from "@/shared/authz/guard";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction } from "@/shared/db/transaction";
-import { formatDateBR } from "@/shared/kernel/calendar-date";
+import { formatLongDate } from "@/shared/i18n/calendar-names";
+import { formatDateTime, formatLocale, formatTime } from "@/shared/i18n/format";
+import { createTranslator } from "@/shared/i18n/translator";
 import { CommonErrors } from "@/shared/kernel/errors";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import { formatPhoneNumber } from "@/shared/kernel/phone";
 import { parseInput } from "@/shared/kernel/validation";
-import { localMinuteToUtc, utcToZonedParts } from "@/shared/kernel/zoned-time";
-import { localTime } from "../domain/agenda-time";
+import { localMinuteToUtc } from "@/shared/kernel/zoned-time";
 import { SchedulingErrors } from "../domain/errors";
-import { STATUS_LABELS } from "../domain/status";
 import { authorizeRead, canSee } from "./policies";
 import type { SchedulingDeps } from "./ports";
 import { toItems } from "./queries";
 import { agendaPdfSchema } from "./schemas";
-
-const WEEKDAYS = [
-  "domingo",
-  "segunda-feira",
-  "terça-feira",
-  "quarta-feira",
-  "quinta-feira",
-  "sexta-feira",
-  "sábado",
-];
 
 function slugify(text: string): string {
   return text
@@ -76,23 +66,44 @@ export async function exportDailyAgenda(
   if (!listed.ok) return listed;
   const items = await toItems(deps, ctx, listed.value.items, allUnits);
   const now = deps.clock();
-  const nowLocal = utcToZonedParts(now, unit.timeZone);
-  const weekday = WEEKDAYS[new Date(`${date}T12:00:00Z`).getUTCDay()] ?? "";
+  const t = createTranslator(ctx.locale);
+  const intl = formatLocale(ctx.locale, unit.country);
+  const timeOf = (iso: string) => formatTime(iso, intl, unit.timeZone);
 
   const bytes = await deps.pdf.render({
     clinicName: organization.name,
     logo: organization.logo,
     professionalName: professional.displayName,
-    unitName: unit.name,
-    dateLabel: `${weekday}, ${formatDateBR(date)}`,
-    generatedLabel: `Gerado em ${formatDateBR(nowLocal.date)} ${localTime(now, unit.timeZone)} por ${ctx.user.name}`,
+    labels: {
+      title: t("scheduling.pdf.title", { professional: professional.displayName }),
+      subtitle: t("scheduling.pdf.subtitle", {
+        unit: unit.name,
+        date: formatLongDate(date, ctx.locale),
+        count: items.length,
+      }),
+      generated: t("scheduling.pdf.generated", {
+        at: formatDateTime(now, intl, unit.timeZone),
+        user: ctx.user.name,
+      }),
+      page: t("scheduling.pdf.page", { page: "{page}", total: "{total}" }),
+      empty: t("scheduling.pdf.empty"),
+      columns: [
+        t("scheduling.pdf.columns.time"),
+        t("scheduling.pdf.columns.patient"),
+        t("scheduling.pdf.columns.phone"),
+        t("scheduling.pdf.columns.service"),
+        t("scheduling.pdf.columns.room"),
+        t("scheduling.pdf.columns.status"),
+        t("scheduling.pdf.columns.notes"),
+      ],
+    },
     rows: items.map((item) => ({
-      time: `${localTime(new Date(item.startsAt), unit.timeZone)}–${localTime(new Date(item.endsAt), unit.timeZone)}`,
+      time: `${timeOf(item.startsAt)}–${timeOf(item.endsAt)}`,
       patient: item.patient.displayName,
       phone: item.patient.mobilePhone ? formatPhoneNumber(item.patient.mobilePhone, unit.country) : "",
       service: item.service.name,
       room: item.room?.name ?? "",
-      status: STATUS_LABELS[item.status],
+      status: t(`scheduling.ui.status.${item.status}`),
       notes: item.notes ?? "",
     })),
   });

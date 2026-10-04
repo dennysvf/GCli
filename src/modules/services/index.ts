@@ -109,7 +109,6 @@ export { SERVICE_STATUSES, type ServiceStatusFilter } from "./application/schema
 export { SERVICE_COLORS, type ServiceColor } from "./domain/palette";
 export { formatDuration } from "./domain/service-rules";
 export { servicesCatalog } from "./messages/catalog";
-export { SERVICES_DEACTIVATED_WITH_APPOINTMENTS, SERVICES_PRICE_CHANGE_CONFIRMATION } from "./notices";
 export { CategoriesDialog } from "./ui/categories-dialog";
 export { ServicesFilters } from "./ui/services-filters";
 export { ServiceSheet } from "./ui/service-sheet";

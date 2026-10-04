@@ -6,14 +6,11 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Input } from "@/shared/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 import type { ProfessionalStatusFilter } from "../application/schemas";
+import { useTranslations } from "next-intl";
 
 const SEARCH_DELAY_MS = 300;
 
-const STATUS_LABELS: Record<ProfessionalStatusFilter, string> = {
-  active: "Ativos",
-  inactive: "Inativos",
-  all: "Todos",
-};
+const STATUS_FILTERS: ProfessionalStatusFilter[] = ["active", "inactive", "all"];
 
 // Filters live in the URL so the list stays a Server Component and links can be shared.
 export function ProfessionalsFilters({
@@ -23,6 +20,7 @@ export function ProfessionalsFilters({
   search?: string;
   status: ProfessionalStatusFilter;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -57,8 +55,8 @@ export function ProfessionalsFilters({
         <Search className="text-muted-foreground absolute top-2.5 left-2.5 size-4" aria-hidden />
         <Input
           type="search"
-          aria-label="Buscar profissional por nome"
-          placeholder="Buscar por nome"
+          aria-label={t("professionals.ui.searchByName")}
+          placeholder={t("common.searchByName")}
           className="pl-8"
           value={text}
           onChange={(event) => setText(event.target.value)}
@@ -68,13 +66,13 @@ export function ProfessionalsFilters({
         value={status}
         onValueChange={(value) => apply({ status: value === "active" ? undefined : value })}
       >
-        <SelectTrigger className="w-36" aria-label="Status">
+        <SelectTrigger className="w-36" aria-label={t("common.status")}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {(Object.keys(STATUS_LABELS) as ProfessionalStatusFilter[]).map((value) => (
+          {STATUS_FILTERS.map((value) => (
             <SelectItem key={value} value={value}>
-              {STATUS_LABELS[value]}
+              {t(`common.statusFilter.${value}`)}
             </SelectItem>
           ))}
         </SelectContent>

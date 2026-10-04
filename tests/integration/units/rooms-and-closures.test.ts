@@ -98,7 +98,7 @@ describe("closures", () => {
       endsOn: isoDaysFromToday(1),
       reason: "Reforma",
     });
-    expect(!past.ok && past.error.fields?.startsOn).toContain("passado");
+    expect(!past.ok && past.error.fields?.startsOn).toBe("units.validation.closureStartInPast");
     const reversed = await units.createClosure(ctx, {
       unitId,
       startsOn: isoDaysFromToday(5),

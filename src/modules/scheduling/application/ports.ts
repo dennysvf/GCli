@@ -184,9 +184,15 @@ export type DailyAgendaDocument = {
   clinicName: string;
   logo: OrganizationInfo["logo"];
   professionalName: string;
-  unitName: string;
-  dateLabel: string;
-  generatedLabel: string;
+  // Every text of the page, written in the language of the requester.
+  labels: {
+    title: string;
+    subtitle: string;
+    generated: string;
+    page: string;
+    empty: string;
+    columns: [string, string, string, string, string, string, string];
+  };
   rows: {
     time: string;
     patient: string;

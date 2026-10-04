@@ -135,13 +135,6 @@ export type {
 } from "./application/provided";
 export { PROFESSIONAL_STATUSES, type ProfessionalStatusFilter } from "./application/schemas";
 export { professionalsCatalog } from "./messages/catalog";
-export {
-  PROFESSIONALS_DEACTIVATE_CONFIRMATION,
-  PROFESSIONALS_NOT_LINKED,
-  PROFESSIONALS_SCHEDULE_PREVIOUS_CLOSED,
-  PROFESSIONALS_SERVICES_REMOVED_WITH_APPOINTMENTS,
-  PROFESSIONALS_TIME_OFF_AFFECTED_APPOINTMENTS,
-} from "./notices";
 export type { RegistrationItem } from "./application/registrations";
 export { ProfessionalActiveToggle } from "./ui/professional-active-toggle";
 export { ProfessionalForm, type LinkableUserOption } from "./ui/professional-form";

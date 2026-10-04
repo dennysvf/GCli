@@ -16,7 +16,7 @@ import {
 } from "@/shared/ui/components/alert-dialog";
 import { Button } from "@/shared/ui/components/button";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
-import { PROFESSIONALS_DEACTIVATE_CONFIRMATION } from "../notices";
+import { useTranslations } from "next-intl";
 
 // Deactivation asks first (design system 5.7) and, when future appointments block it (PRD F04),
 // keeps the message on screen with a link to the filtered agenda list (F06 URL contract).
@@ -31,6 +31,7 @@ export function ProfessionalActiveToggle({
   appointmentsHref: string;
   action: (input: { professionalId: string; active: boolean }) => Promise<ActionResult<{ active: boolean }>>;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
@@ -43,13 +44,18 @@ export function ProfessionalActiveToggle({
         toast.error(result.error.message, {
           duration: Infinity,
           closeButton: true,
-          action: { label: "Ver agendamentos", onClick: () => router.push(appointmentsHref) },
+          action: {
+            label: t("professionals.ui.viewAppointments"),
+            onClick: () => router.push(appointmentsHref),
+          },
         });
         return;
       }
       if (
         handleActionResult(result, {
-          successMessage: active ? "Profissional desativado." : "Profissional reativado.",
+          successMessage: active
+            ? t("professionals.ui.professionalDeactivated")
+            : t("professionals.ui.professionalReactivated"),
         })
       ) {
         router.refresh();
@@ -65,18 +71,18 @@ export function ProfessionalActiveToggle({
         disabled={pending}
         onClick={() => (active ? setConfirming(true) : run())}
       >
-        {active ? "Desativar profissional" : "Reativar profissional"}
+        {active ? t("professionals.ui.deactivate") : t("professionals.ui.reactivate")}
       </Button>
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Desativar profissional?</AlertDialogTitle>
-            <AlertDialogDescription>{PROFESSIONALS_DEACTIVATE_CONFIRMATION}</AlertDialogDescription>
+            <AlertDialogTitle>{t("professionals.ui.deactivateConfirm")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("professionals.ui.deactivateBody")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={run}>
-              Desativar profissional
+              {t("professionals.ui.deactivate")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

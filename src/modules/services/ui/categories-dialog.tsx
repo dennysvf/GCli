@@ -16,6 +16,7 @@ import {
 import { Input } from "@/shared/ui/components/input";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import type { CategoryItem } from "../application/categories";
+import { useTranslations } from "next-intl";
 
 type CategoryActions = {
   create: (input: { name: string }) => Promise<ActionResult<unknown>>;
@@ -32,6 +33,7 @@ export function CategoriesDialog({
   categories: CategoryItem[];
   actions: CategoryActions;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [names, setNames] = useState<Record<string, string>>({});
@@ -63,15 +65,13 @@ export function CategoriesDialog({
       <DialogTrigger asChild>
         <Button variant="outline">
           <Tags />
-          Categorias
+          {t("common.categories")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Categorias de serviço</DialogTitle>
-          <DialogDescription>
-            A ordem das categorias é a ordem dos grupos na lista de serviços.
-          </DialogDescription>
+          <DialogTitle>{t("services.ui.serviceCategories")}</DialogTitle>
+          <DialogDescription>{t("services.ui.categoriesOrderHint")}</DialogDescription>
         </DialogHeader>
         <ul className="grid gap-2">
           {categories.map((category, index) => {
@@ -81,7 +81,7 @@ export function CategoriesDialog({
               <li key={category.id} className="grid gap-1">
                 <div className="flex items-center gap-1">
                   <Input
-                    aria-label={`Nome da categoria ${category.name}`}
+                    aria-label={t("services.ui.categoryNameOf", { name: category.name })}
                     value={name}
                     maxLength={50}
                     onChange={(event) =>
@@ -93,7 +93,7 @@ export function CategoriesDialog({
                         run(
                           category.id,
                           () => actions.rename({ categoryId: category.id, name }),
-                          "Categoria renomeada",
+                          t("services.ui.categoryRenamed"),
                         );
                       }
                     }}
@@ -106,17 +106,17 @@ export function CategoriesDialog({
                         run(
                           category.id,
                           () => actions.rename({ categoryId: category.id, name }),
-                          "Categoria renomeada",
+                          t("services.ui.categoryRenamed"),
                         )
                       }
                     >
-                      Salvar
+                      {t("common.save")}
                     </Button>
                   ) : null}
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={`Mover ${category.name} para cima`}
+                    aria-label={t("services.ui.moveUp", { name: category.name })}
                     disabled={pending || index === 0}
                     onClick={() =>
                       run(category.id, () => actions.move({ categoryId: category.id, direction: "up" }))
@@ -127,7 +127,7 @@ export function CategoriesDialog({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={`Mover ${category.name} para baixo`}
+                    aria-label={t("services.ui.moveDown", { name: category.name })}
                     disabled={pending || index === categories.length - 1}
                     onClick={() =>
                       run(category.id, () => actions.move({ categoryId: category.id, direction: "down" }))
@@ -138,18 +138,18 @@ export function CategoriesDialog({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={`Excluir ${category.name}`}
+                    aria-label={t("services.ui.deleteNamed", { name: category.name })}
                     title={
                       category.serviceCount > 0
-                        ? `Possui ${category.serviceCount} serviços. Mova-os antes de excluir.`
-                        : "Excluir categoria"
+                        ? t("services.ui.hasServices", { count: category.serviceCount })
+                        : t("services.ui.deleteCategory")
                     }
                     disabled={pending || category.serviceCount > 0}
                     onClick={() =>
                       run(
                         category.id,
                         () => actions.remove({ categoryId: category.id }),
-                        "Categoria excluída",
+                        t("services.ui.categoryDeleted"),
                       )
                     }
                   >
@@ -179,14 +179,14 @@ export function CategoriesDialog({
         >
           <div className="flex gap-2">
             <Input
-              aria-label="Nova categoria"
-              placeholder="Nova categoria"
+              aria-label={t("services.ui.newCategory")}
+              placeholder={t("services.ui.newCategory")}
               maxLength={50}
               value={newName}
               onChange={(event) => setNewName(event.target.value)}
             />
             <Button type="submit" disabled={pending}>
-              Adicionar
+              {t("common.add")}
             </Button>
           </div>
           {errors.new ? (

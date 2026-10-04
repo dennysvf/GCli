@@ -71,12 +71,14 @@ export function UnitForm({
   const { errors } = form.formState;
   const version = unit?.version;
   const country = useWatch({ control: form.control, name: "country" }) as CountryCode;
+  // The selects below ignore the "" that Radix emits while the options of a new country are not mounted
+  // yet, so the default zone of the country stays selected.
   const profile = countryProfile(country);
 
   const onSubmit = form.handleSubmit((values) =>
     startTransition(async () => {
       const result = await action(unit ? { ...values, unitId: unit.id, version } : values);
-      if (handleActionResult(result, { setError: form.setError, successMessage: "Unidade salva" })) {
+      if (handleActionResult(result, { setError: form.setError, successMessage: t("units.ui.unitSaved") })) {
         draft.clear();
         // A unit in a currency the catalog does not price yet: list the services to price (PRD F16).
         const missing = result.data.servicesWithoutPrice;
@@ -101,7 +103,7 @@ export function UnitForm({
   return (
     <form onSubmit={onSubmit} className="grid max-w-2xl gap-4" noValidate>
       <HydratedFieldset disabled={readOnly}>
-        <Field id="unit-name" label="Nome" error={errors.name?.message}>
+        <Field id="unit-name" label={t("common.name")} error={errors.name?.message}>
           <Input
             id="unit-name"
             readOnly={readOnly}
@@ -149,7 +151,7 @@ export function UnitForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
             id="unit-taxId"
-            label={`${taxIdSpec(country).shortLabel} (opcional)`}
+            label={t("units.ui.taxIdOptional", { label: taxIdSpec(country).shortLabel })}
             error={errors.taxId?.message}
           >
             <Controller
@@ -166,12 +168,16 @@ export function UnitForm({
               )}
             />
           </Field>
-          <Field id="unit-timezone" label="Fuso horário" error={errors.timeZone?.message}>
+          <Field id="unit-timezone" label={t("identity.ui.timeZone")} error={errors.timeZone?.message}>
             <Controller
               control={form.control}
               name="timeZone"
               render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                <Select
+                  value={field.value}
+                  onValueChange={(next) => next && field.onChange(next)}
+                  disabled={readOnly}
+                >
                   <SelectTrigger id="unit-timezone" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -186,7 +192,7 @@ export function UnitForm({
               )}
             />
           </Field>
-          <Field id="unit-phone" label="Telefone" error={errors.phone?.message}>
+          <Field id="unit-phone" label={t("common.phone")} error={errors.phone?.message}>
             <Controller
               control={form.control}
               name="phone"
@@ -201,7 +207,7 @@ export function UnitForm({
               )}
             />
           </Field>
-          <Field id="unit-email" label="E-mail" error={errors.email?.message}>
+          <Field id="unit-email" label={t("common.email")} error={errors.email?.message}>
             <Input
               id="unit-email"
               type="email"
@@ -222,7 +228,7 @@ export function UnitForm({
         {readOnly ? null : (
           <div>
             <Button type="submit" disabled={pending}>
-              {pending ? "Salvando..." : unit ? "Salvar" : "Criar unidade"}
+              {pending ? t("common.saving") : unit ? t("common.save") : t("units.ui.createUnit")}
             </Button>
           </div>
         )}

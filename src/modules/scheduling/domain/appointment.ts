@@ -14,12 +14,6 @@ import { isOpen, resolveTransition, type AppointmentStatus, type Transition } fr
 export const CANCELLATION_ORIGINS = ["PATIENT", "CLINIC", "PROFESSIONAL"] as const;
 export type CancellationOrigin = (typeof CANCELLATION_ORIGINS)[number];
 
-export const CANCELLATION_ORIGIN_LABELS: Record<CancellationOrigin, string> = {
-  PATIENT: "Paciente",
-  CLINIC: "Clínica",
-  PROFESSIONAL: "Profissional",
-};
-
 export type RescheduleSource = "FORM" | "DRAG" | "SERIES";
 
 export type Cancellation = {

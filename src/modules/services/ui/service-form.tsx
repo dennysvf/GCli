@@ -33,8 +33,8 @@ import { createServiceSchema } from "../application/schemas";
 import type { SaveServiceResult, ServiceDetails } from "../application/services";
 import type { ServiceColor } from "../domain/palette";
 import { DURATION_OPTIONS, formatDuration } from "../domain/service-rules";
-import { SERVICES_PRICE_CHANGE_CONFIRMATION } from "../notices";
 import { ColorPicker } from "@/shared/ui/palette/color-picker";
+import { useTranslations } from "next-intl";
 
 type Values = z.input<typeof createServiceSchema>;
 type Parsed = z.output<typeof createServiceSchema>;
@@ -96,6 +96,7 @@ export function ServiceForm({
   createCategoryAction: (input: { name: string }) => Promise<ActionResult<{ categoryId: string }>>;
   onSaved: (serviceId: string) => void;
 }) {
+  const t = useTranslations();
   const [pending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState<Parsed | null>(null);
   const [addedCategories, setAddedCategories] = useState<{ id: string; name: string }[]>([]);
@@ -147,7 +148,7 @@ export function ServiceForm({
         const index = priceCurrencies.findIndex((item) => item.currency === currency);
         form.setError(index >= 0 ? `prices.${index}.amountMinor` : name, error, options);
       };
-      if (handleActionResult(result, { setError, successMessage: "Serviço salvo" })) {
+      if (handleActionResult(result, { setError, successMessage: t("services.ui.serviceSaved") })) {
         draft.clear();
         onSaved(result.data.serviceId);
       }
@@ -184,7 +185,7 @@ export function ServiceForm({
   return (
     <form onSubmit={onSubmit} className="grid gap-4" noValidate>
       <HydratedFieldset disabled={readOnly}>
-        <Field id="service-name" label="Nome" error={errors.name?.message}>
+        <Field id="service-name" label={t("common.name")} error={errors.name?.message}>
           <Input
             id="service-name"
             defaultValue={defaults.name}
@@ -194,7 +195,7 @@ export function ServiceForm({
           />
         </Field>
 
-        <Field id="service-category" label="Categoria" error={errors.categoryId?.message}>
+        <Field id="service-category" label={t("common.category")} error={errors.categoryId?.message}>
           <Controller
             control={form.control}
             name="categoryId"
@@ -208,7 +209,7 @@ export function ServiceForm({
                 }}
               >
                 <SelectTrigger id="service-category" className="w-full" aria-invalid={!!errors.categoryId}>
-                  <SelectValue placeholder="Selecione a categoria" />
+                  <SelectValue placeholder={t("services.ui.selectCategory")} />
                 </SelectTrigger>
                 <SelectContent>
                   {allCategories.map((category) => (
@@ -216,14 +217,16 @@ export function ServiceForm({
                       {category.name}
                     </SelectItem>
                   ))}
-                  {readOnly ? null : <SelectItem value={NEW_CATEGORY}>+ Nova categoria</SelectItem>}
+                  {readOnly ? null : (
+                    <SelectItem value={NEW_CATEGORY}>{t("services.ui.addNewCategory")}</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             )}
           />
         </Field>
         {newCategory !== null ? (
-          <Field id="service-new-category" label="Nova categoria" error={newCategoryError}>
+          <Field id="service-new-category" label={t("services.ui.newCategory")} error={newCategoryError}>
             <div className="flex gap-2">
               <Input
                 id="service-new-category"
@@ -239,16 +242,20 @@ export function ServiceForm({
                 }}
               />
               <Button type="button" variant="secondary" disabled={pending} onClick={addCategory}>
-                Adicionar
+                {t("common.add")}
               </Button>
               <Button type="button" variant="ghost" onClick={() => setNewCategory(null)}>
-                Cancelar
+                {t("common.cancel")}
               </Button>
             </div>
           </Field>
         ) : null}
 
-        <Field id="service-description" label="Descrição (opcional)" error={errors.description?.message}>
+        <Field
+          id="service-description"
+          label={t("common.descriptionOptional")}
+          error={errors.description?.message}
+        >
           <Textarea
             id="service-description"
             rows={3}
@@ -260,7 +267,11 @@ export function ServiceForm({
         </Field>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="service-duration" label="Duração" error={errors.durationMinutes?.message}>
+          <Field
+            id="service-duration"
+            label={t("services.ui.duration")}
+            error={errors.durationMinutes?.message}
+          >
             <Controller
               control={form.control}
               name="durationMinutes"
@@ -292,7 +303,9 @@ export function ServiceForm({
               <Field
                 key={currency}
                 id={`service-price-${currency}`}
-                label={priceCurrencies.length > 1 ? `Preço (${currency})` : "Preço"}
+                label={
+                  priceCurrencies.length > 1 ? t("services.ui.priceIn", { currency }) : t("services.ui.price")
+                }
                 error={message}
               >
                 <Controller
@@ -316,7 +329,7 @@ export function ServiceForm({
           })}
         </div>
 
-        <Field id="service-color" label="Cor na agenda" error={errors.color?.message}>
+        <Field id="service-color" label={t("services.ui.agendaColor")} error={errors.color?.message}>
           <Controller
             control={form.control}
             name="color"
@@ -334,11 +347,9 @@ export function ServiceForm({
         <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
           <div className="grid gap-1">
             <label htmlFor="service-requires-room" className="text-sm font-medium">
-              Exige sala
+              {t("services.ui.requiresRoom")}
             </label>
-            <span className="text-muted-foreground text-xs">
-              O agendamento deste serviço precisará de uma sala.
-            </span>
+            <span className="text-muted-foreground text-xs">{t("services.ui.requiresRoomHint")}</span>
           </div>
           <Controller
             control={form.control}
@@ -360,17 +371,15 @@ export function ServiceForm({
 
         {requiresRoom ? (
           <fieldset className="grid gap-3 rounded-lg border p-3">
-            <legend className="px-1 text-sm font-medium">Salas permitidas</legend>
-            <p className="text-muted-foreground text-xs">
-              Em cada unidade, se nenhuma sala for marcada, qualquer sala ativa poderá ser usada.
-            </p>
+            <legend className="px-1 text-sm font-medium">{t("services.ui.allowedRooms")}</legend>
+            <p className="text-muted-foreground text-xs">{t("services.ui.allowedRoomsHint")}</p>
             {errors.allowedRoomIds?.message ? (
               <p role="alert" className="text-destructive text-sm">
                 {errors.allowedRoomIds.message}
               </p>
             ) : null}
             {rooms.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nenhuma sala ativa cadastrada.</p>
+              <p className="text-muted-foreground text-sm">{t("services.ui.noActiveRooms")}</p>
             ) : (
               <Controller
                 control={form.control}
@@ -414,7 +423,7 @@ export function ServiceForm({
         {readOnly ? null : (
           <div>
             <Button type="submit" disabled={pending}>
-              {pending ? "Salvando..." : service ? "Salvar" : "Criar serviço"}
+              {pending ? t("common.saving") : service ? t("common.save") : t("services.ui.createService")}
             </Button>
           </div>
         )}
@@ -423,23 +432,23 @@ export function ServiceForm({
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Alterar preço</AlertDialogTitle>
+            <AlertDialogTitle>{t("services.ui.changePrice")}</AlertDialogTitle>
             <AlertDialogDescription>
               {service && confirming
                 ? `${priceChangeSummary(service.prices, confirming.prices, locale)}. `
                 : null}
-              {SERVICES_PRICE_CHANGE_CONFIRMATION}
+              {t("services.ui.priceChangeNote")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (confirming) save(confirming);
                 setConfirming(null);
               }}
             >
-              Salvar novo preço
+              {t("services.ui.saveNewPrice")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

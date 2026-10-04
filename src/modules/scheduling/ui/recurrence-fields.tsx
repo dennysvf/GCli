@@ -4,6 +4,7 @@ import { Checkbox } from "@/shared/ui/components/checkbox";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
+import { useTranslations } from "next-intl";
 
 export type RecurrenceState = {
   frequency: "WEEKLY" | "BIWEEKLY";
@@ -13,15 +14,7 @@ export type RecurrenceState = {
   endsOn: string;
 };
 
-const WEEKDAYS = [
-  { value: 1, label: "Seg" },
-  { value: 2, label: "Ter" },
-  { value: 3, label: "Qua" },
-  { value: 4, label: "Qui" },
-  { value: 5, label: "Sex" },
-  { value: 6, label: "Sáb" },
-  { value: 7, label: "Dom" },
-];
+const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7];
 
 // Recurrence of the booking panel (PRD F06: weekly or every 2 weeks, 1–6 weekdays, ending after N
 // sessions, at most 52, or on a date at most 12 months ahead).
@@ -34,6 +27,7 @@ export function RecurrenceFields({
   onChange: (value: RecurrenceState) => void;
   errors: Record<string, string>;
 }) {
+  const t = useTranslations();
   const toggle = (weekday: number, checked: boolean) =>
     onChange({
       ...value,
@@ -43,9 +37,9 @@ export function RecurrenceFields({
     });
   return (
     <fieldset className="grid gap-3 rounded-md border p-3">
-      <legend className="px-1 text-sm font-semibold">Repetição</legend>
+      <legend className="px-1 text-sm font-semibold">{t("scheduling.ui.recurrence")}</legend>
       <div className="grid gap-2">
-        <Label htmlFor="recurrence-frequency">Frequência</Label>
+        <Label htmlFor="recurrence-frequency">{t("scheduling.ui.frequency")}</Label>
         <Select
           value={value.frequency}
           onValueChange={(frequency) =>
@@ -56,23 +50,23 @@ export function RecurrenceFields({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="WEEKLY">Toda semana</SelectItem>
-            <SelectItem value="BIWEEKLY">A cada 2 semanas</SelectItem>
+            <SelectItem value="WEEKLY">{t("scheduling.ui.everyWeek")}</SelectItem>
+            <SelectItem value="BIWEEKLY">{t("scheduling.ui.everyTwoWeeks")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="grid gap-2">
         <span className="text-sm font-medium" id="recurrence-weekdays">
-          Dias da semana
+          {t("scheduling.ui.weekdays")}
         </span>
         <div role="group" aria-labelledby="recurrence-weekdays" className="flex flex-wrap gap-3">
           {WEEKDAYS.map((weekday) => (
-            <label key={weekday.value} className="flex items-center gap-1.5 text-sm">
+            <label key={weekday} className="flex items-center gap-1.5 text-sm">
               <Checkbox
-                checked={value.weekdays.includes(weekday.value)}
-                onCheckedChange={(checked) => toggle(weekday.value, checked === true)}
+                checked={value.weekdays.includes(weekday)}
+                onCheckedChange={(checked) => toggle(weekday, checked === true)}
               />
-              {weekday.label}
+              {t(`common.weekdaysShort.${weekday}`)}
             </label>
           ))}
         </div>
@@ -83,7 +77,7 @@ export function RecurrenceFields({
         ) : null}
       </div>
       <div className="grid gap-2">
-        <span className="text-sm font-medium">Termina</span>
+        <span className="text-sm font-medium">{t("scheduling.ui.ends")}</span>
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <label className="flex items-center gap-1.5">
             <input
@@ -92,10 +86,10 @@ export function RecurrenceFields({
               checked={value.endMode === "count"}
               onChange={() => onChange({ ...value, endMode: "count" })}
             />
-            Após
+            {t("scheduling.ui.after")}
           </label>
           <Input
-            aria-label="Número de sessões"
+            aria-label={t("scheduling.ui.sessionCount")}
             type="number"
             min={2}
             max={52}
@@ -104,7 +98,7 @@ export function RecurrenceFields({
             disabled={value.endMode !== "count"}
             onChange={(event) => onChange({ ...value, endsAfter: event.target.value })}
           />
-          <span>sessões</span>
+          <span>{t("scheduling.ui.sessionsWord")}</span>
           <label className="flex items-center gap-1.5">
             <input
               type="radio"
@@ -112,10 +106,10 @@ export function RecurrenceFields({
               checked={value.endMode === "date"}
               onChange={() => onChange({ ...value, endMode: "date" })}
             />
-            Em
+            {t("scheduling.ui.on")}
           </label>
           <Input
-            aria-label="Data final"
+            aria-label={t("scheduling.ui.endDate")}
             type="date"
             className="w-40"
             value={value.endsOn}

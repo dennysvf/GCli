@@ -1,7 +1,6 @@
-import { formatDateBR, formatMinute } from "@/shared/kernel/calendar-date";
 import type { DateTimeRange } from "@/shared/kernel/date-time-range";
 import { utcToZonedParts } from "@/shared/kernel/zoned-time";
-import { localSpan, localTime } from "../agenda-time";
+import { localSpan } from "../agenda-time";
 import { occupiesSlot } from "../status";
 import type { CheckOptions, ConflictContext, Draft, Finding, LocalInterval } from "./types";
 
@@ -11,26 +10,19 @@ import type { CheckOptions, ConflictContext, Draft, Finding, LocalInterval } fro
 
 export type ConflictRule = (draft: Draft, context: ConflictContext, options: CheckOptions) => Finding[];
 
-const TIME_OFF_LABELS: Record<string, string> = {
-  VACATION: "férias",
-  CONFERENCE: "congresso",
-  PERSONAL: "ausência pessoal",
-  OTHER: "ausência",
-};
-
 function isoRange(range: DateTimeRange) {
   return { startsAt: range.start.toISOString(), endsAt: range.end.toISOString() };
 }
 
-// Times of another range as written in a message: "14:00", or "05/10 14:00" on another day.
+// Another range as message values: the instants, the unit zone and the date of the draft, so the
+// browser writes "14:00", or "05/10 14:00" on another day, in the language of the user.
 function timesOf(range: DateTimeRange, draft: Draft, timeZone: string) {
-  const draftDate = utcToZonedParts(draft.range.start, timeZone).date;
-  const label = (instant: Date) => {
-    const date = utcToZonedParts(instant, timeZone).date;
-    const time = localTime(instant, timeZone);
-    return date === draftDate ? time : `${formatDateBR(date).slice(0, 5)} ${time}`;
+  return {
+    start: range.start.toISOString(),
+    end: range.end.toISOString(),
+    timeZone,
+    onDate: utcToZonedParts(draft.range.start, timeZone).date,
   };
-  return { start: label(range.start), end: label(range.end) };
 }
 
 function others(draft: Draft, context: ConflictContext) {
@@ -63,7 +55,7 @@ export const roomOverlap: ConflictRule = (draft, context) =>
         .map((item) => ({
           code: "SCHEDULING_ROOM_CONFLICT",
           severity: "BLOCKING",
-          params: { room: context.roomName ?? "sala", ...timesOf(item.range, draft, context.timeZone) },
+          params: { room: context.roomName, ...timesOf(item.range, draft, context.timeZone) },
           range: isoRange(item.range),
           appointmentId: item.id,
         }));
@@ -72,11 +64,9 @@ function inside(span: { start: number; end: number }, intervals: LocalInterval[]
   return intervals.some((interval) => interval.start <= span.start && span.end <= interval.end);
 }
 
-function describeIntervals(intervals: LocalInterval[], none: string): string {
-  if (intervals.length === 0) return none;
-  return intervals
-    .map((interval) => `${formatMinute(interval.start)}–${formatMinute(interval.end)}`)
-    .join(", ");
+// "480-720,780-1080" (minutes from midnight); empty when the day has no intervals.
+function encodeIntervals(intervals: LocalInterval[]): string {
+  return intervals.map((interval) => `${interval.start}-${interval.end}`).join(",");
 }
 
 export const workingHours: ConflictRule = (draft, context, options) => {
@@ -89,7 +79,7 @@ export const workingHours: ConflictRule = (draft, context, options) => {
       severity: availability(options),
       params: {
         professional: context.professionalName,
-        hours: describeIntervals(intervals, "sem atendimento nesta unidade"),
+        hours: encodeIntervals(intervals),
       },
     },
   ];
@@ -103,7 +93,7 @@ export const timeOff: ConflictRule = (draft, context, options) =>
       severity: availability(options),
       params: {
         professional: context.professionalName,
-        type: TIME_OFF_LABELS[item.type] ?? "ausência",
+        type: item.type,
         ...timesOf(item.range, draft, context.timeZone),
       },
       range: isoRange(item.range),
@@ -117,7 +107,7 @@ export const unitHours: ConflictRule = (draft, context, options) => {
     {
       code: "SCHEDULING_OUTSIDE_UNIT_HOURS",
       severity: availability(options),
-      params: { hours: describeIntervals(intervals, "unidade fechada neste dia") },
+      params: { hours: encodeIntervals(intervals) },
     },
   ];
 };

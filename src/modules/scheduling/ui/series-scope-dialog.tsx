@@ -11,13 +11,14 @@ import {
   AlertDialogTitle,
 } from "@/shared/ui/components/alert-dialog";
 import { Button } from "@/shared/ui/components/button";
+import { useTranslations } from "next-intl";
 
 export type SeriesScope = "THIS" | "THIS_AND_FOLLOWING" | "ALL_FUTURE";
 
 const SCOPES: { value: SeriesScope; label: string; hint: string }[] = [
-  { value: "THIS", label: "Somente este", hint: "Apenas esta sessão muda." },
-  { value: "THIS_AND_FOLLOWING", label: "Este e os seguintes", hint: "Esta sessão e as próximas da série." },
-  { value: "ALL_FUTURE", label: "Todos os futuros", hint: "Todas as sessões futuras da série." },
+  { value: "THIS", label: "scopeThis", hint: "scopeThisHint" },
+  { value: "THIS_AND_FOLLOWING", label: "scopeFollowing", hint: "scopeFollowingHint" },
+  { value: "ALL_FUTURE", label: "scopeAll", hint: "scopeAllHint" },
 ];
 
 // PRD F06: editing or cancelling an occurrence offers "Somente este", "Este e os seguintes" or
@@ -31,16 +32,17 @@ export function SeriesScopeDialog({
   onOpenChange: (open: boolean) => void;
   onChoose: (scope: SeriesScope) => void;
 }) {
+  const t = useTranslations();
   const [scope, setScope] = useState<SeriesScope>("THIS");
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Este agendamento faz parte de uma série</AlertDialogTitle>
-          <AlertDialogDescription>Escolha quais sessões a alteração deve atingir.</AlertDialogDescription>
+          <AlertDialogTitle>{t("scheduling.ui.partOfSeries")}</AlertDialogTitle>
+          <AlertDialogDescription>{t("scheduling.ui.chooseSessions")}</AlertDialogDescription>
         </AlertDialogHeader>
         <fieldset className="grid gap-2">
-          <legend className="sr-only">Sessões atingidas</legend>
+          <legend className="sr-only">{t("scheduling.ui.affectedSessions")}</legend>
           {SCOPES.map((option) => (
             <label key={option.value} className="flex items-start gap-2 text-sm">
               <input
@@ -51,16 +53,18 @@ export function SeriesScopeDialog({
                 onChange={() => setScope(option.value)}
               />
               <span>
-                <span className="font-semibold">{option.label}</span>
-                <span className="text-muted-foreground block text-xs">{option.hint}</span>
+                <span className="font-semibold">{t(`scheduling.ui.${option.label}`)}</span>
+                <span className="text-muted-foreground block text-xs">
+                  {t(`scheduling.ui.${option.hint}`)}
+                </span>
               </span>
             </label>
           ))}
         </fieldset>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
           <Button type="button" onClick={() => onChoose(scope)}>
-            Continuar
+            {t("common.continue")}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

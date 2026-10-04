@@ -3,21 +3,24 @@ import { Stamp } from "@/shared/ui/components/stamp";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/components/table";
 import { cn } from "@/shared/ui/utils";
 import type { PatientSearchItem } from "../application/search";
-import { formatDateBR } from "./format";
+import { useFormatters } from "@/shared/ui/i18n/use-formatters";
+import { useTranslations } from "next-intl";
 
 // Search results (PRD F05): name, age, CPF (masked for Front Desk), phone and last appointment.
 export function PatientsTable({ items }: { items: PatientSearchItem[] }) {
+  const t = useTranslations();
+  const format = useFormatters();
   return (
     <div className="border-y">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Nome</TableHead>
-            <TableHead className="w-20 text-right">Idade</TableHead>
-            <TableHead className="hidden md:table-cell">CPF</TableHead>
-            <TableHead className="hidden md:table-cell">Celular</TableHead>
-            <TableHead className="hidden lg:table-cell">Último agendamento</TableHead>
-            <TableHead className="w-24">Status</TableHead>
+            <TableHead>{t("common.name")}</TableHead>
+            <TableHead className="w-20 text-right">{t("patients.ui.age")}</TableHead>
+            <TableHead className="hidden md:table-cell">{t("patients.ui.document")}</TableHead>
+            <TableHead className="hidden md:table-cell">{t("patients.ui.mobile")}</TableHead>
+            <TableHead className="hidden lg:table-cell">{t("patients.ui.lastAppointment")}</TableHead>
+            <TableHead className="w-24">{t("common.status")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -32,7 +35,7 @@ export function PatientsTable({ items }: { items: PatientSearchItem[] }) {
                     {item.displayName}
                   </Link>
                   <span className="text-muted-foreground text-xs tabular-nums md:hidden">
-                    {item.document?.display ?? "Documento não informado"} · {item.mobilePhone}
+                    {item.document?.display ?? t("patients.ui.documentNotInformed")} · {item.mobilePhone}
                   </span>
                 </div>
               </TableCell>
@@ -42,11 +45,11 @@ export function PatientsTable({ items }: { items: PatientSearchItem[] }) {
               </TableCell>
               <TableCell className="hidden tabular-nums md:table-cell">{item.mobilePhone}</TableCell>
               <TableCell className="hidden tabular-nums lg:table-cell">
-                {item.lastAppointmentAt ? formatDateBR(item.lastAppointmentAt) : "—"}
+                {item.lastAppointmentAt ? format.date(item.lastAppointmentAt.slice(0, 10)) : "—"}
               </TableCell>
               <TableCell>
                 <Stamp variant={item.active ? "success" : "neutral"}>
-                  {item.active ? "Ativo" : "Inativo"}
+                  {item.active ? t("common.active") : t("common.inactive")}
                 </Stamp>
               </TableCell>
             </TableRow>

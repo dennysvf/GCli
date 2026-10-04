@@ -18,6 +18,7 @@ import { ConflictFindings, hasBlocking, needsOverbooking } from "./conflict-find
 import { localParts, slotTimes } from "./format";
 import { allResolved, SeriesConflicts, type Resolution } from "./series-conflicts";
 import type { SeriesScope } from "./series-scope-dialog";
+import { useTranslations } from "next-intl";
 
 export type ChangeKind = "reschedule" | "edit";
 
@@ -45,6 +46,7 @@ export function ChangeForm({
   onSaved: () => void;
   onBack: () => void;
 }) {
+  const t = useTranslations();
   const zone = details.unitTimeZone;
   const local = localParts(details.startsAt, zone);
   const series = scope !== "THIS";
@@ -204,15 +206,15 @@ export function ChangeForm({
       }}
     >
       <h3 className="section-title">
-        {change === "reschedule" ? "Reagendar" : "Editar agendamento"}
+        {change === "reschedule" ? t("common.reschedule") : t("scheduling.ui.editAppointment")}
         {series
           ? scope === "THIS_AND_FOLLOWING"
-            ? " · esta e as próximas sessões"
-            : " · todas as sessões futuras"
+            ? t("scheduling.ui.scopeFollowingSuffix")
+            : t("scheduling.ui.scopeAllSuffix")
           : ""}
       </h3>
       {change === "edit" && !series ? (
-        <Field id="change-service" label="Serviço" error={errors.serviceId}>
+        <Field id="change-service" label={t("common.service")} error={errors.serviceId}>
           <Select value={serviceId} onValueChange={setServiceId}>
             <SelectTrigger id="change-service" className="w-full">
               <SelectValue />
@@ -230,7 +232,7 @@ export function ChangeForm({
       {showsTime ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {!series ? (
-            <Field id="change-date" label="Data" error={errors.date}>
+            <Field id="change-date" label={t("common.date")} error={errors.date}>
               <Input
                 id="change-date"
                 type="date"
@@ -239,7 +241,7 @@ export function ChangeForm({
               />
             </Field>
           ) : null}
-          <Field id="change-time" label="Horário" error={errors.startTime}>
+          <Field id="change-time" label={t("professionals.ui.scheduleSingular")} error={errors.startTime}>
             <Select
               value={startTime}
               onValueChange={(value) => {
@@ -262,7 +264,7 @@ export function ChangeForm({
         </div>
       ) : null}
       {showsTime || series ? (
-        <Field id="change-professional" label="Profissional" error={errors.professionalId}>
+        <Field id="change-professional" label={t("common.professional")} error={errors.professionalId}>
           <Select
             value={professionalId}
             onValueChange={(value) => {
@@ -290,7 +292,7 @@ export function ChangeForm({
       {options && (options.requiresRoom || options.rooms.length > 0) ? (
         <Field
           id="change-room"
-          label={options.requiresRoom ? "Sala" : "Sala (opcional)"}
+          label={options.requiresRoom ? t("common.room") : t("scheduling.ui.roomOptional")}
           error={errors.roomId}
         >
           <Select
@@ -301,10 +303,12 @@ export function ChangeForm({
             }}
           >
             <SelectTrigger id="change-room" className="w-full">
-              <SelectValue placeholder="Escolha a sala" />
+              <SelectValue placeholder={t("scheduling.ui.chooseRoom")} />
             </SelectTrigger>
             <SelectContent>
-              {!options.requiresRoom ? <SelectItem value={NO_ROOM}>Sem sala</SelectItem> : null}
+              {!options.requiresRoom ? (
+                <SelectItem value={NO_ROOM}>{t("scheduling.ui.noRoom")}</SelectItem>
+              ) : null}
               {options.rooms.map((room) => (
                 <SelectItem key={room.id} value={room.id}>
                   {room.name}
@@ -316,7 +320,11 @@ export function ChangeForm({
       ) : null}
       {change === "edit" ? (
         <>
-          <Field id="change-duration" label="Duração (min)" error={errors.durationMinutes}>
+          <Field
+            id="change-duration"
+            label={t("scheduling.ui.durationMinutes")}
+            error={errors.durationMinutes}
+          >
             <Input
               id="change-duration"
               type="number"
@@ -330,7 +338,7 @@ export function ChangeForm({
               }}
             />
           </Field>
-          <Field id="change-notes" label="Observações para a recepção" error={errors.notes}>
+          <Field id="change-notes" label={t("scheduling.ui.notesForFrontDesk")} error={errors.notes}>
             <Textarea
               id="change-notes"
               maxLength={500}
@@ -360,7 +368,7 @@ export function ChangeForm({
       )}
       <div className="flex gap-2">
         <Button type="button" variant="secondary" onClick={onBack}>
-          Voltar
+          {t("common.back")}
         </Button>
         <Button
           type="submit"
@@ -372,12 +380,12 @@ export function ChangeForm({
           }
         >
           {pending
-            ? "Salvando..."
+            ? t("common.saving")
             : series && !preview
-              ? "Revisar sessões"
+              ? t("scheduling.ui.reviewSessions")
               : change === "reschedule"
-                ? "Reagendar"
-                : "Salvar alterações"}
+                ? t("common.reschedule")
+                : t("common.saveChanges")}
         </Button>
       </div>
     </form>

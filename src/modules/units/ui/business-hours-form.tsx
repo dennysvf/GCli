@@ -11,7 +11,8 @@ import { Label } from "@/shared/ui/components/label";
 import { Switch } from "@/shared/ui/components/switch";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
-import { formatMinutes, MAX_INTERVALS_PER_DAY, WEEKDAY_LABELS, type Week } from "../domain/business-hours";
+import { formatMinutes, MAX_INTERVALS_PER_DAY, type Week } from "../domain/business-hours";
+import { useTranslations } from "next-intl";
 
 const toMinutes = (value: string) => {
   const [hours = "0", minutes = "0"] = value.split(":");
@@ -32,6 +33,7 @@ export function BusinessHoursForm({
   readOnly?: boolean;
   action: (input: { unitId: string; days: Week }) => Promise<ActionResult<{ affectedAppointments: number }>>;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [week, setWeek] = useState<Week>(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -75,11 +77,9 @@ export function BusinessHoursForm({
         toast.error(result.error.message, { duration: Infinity, closeButton: true });
         return;
       }
-      if (handleActionResult(result, { successMessage: "Horário de funcionamento salvo" })) {
+      if (handleActionResult(result, { successMessage: t("units.ui.hoursSaved") })) {
         if (result.data.affectedAppointments > 0) {
-          toast.warning(
-            `${result.data.affectedAppointments} agendamentos futuros ficaram fora do novo horário. Revise-os na agenda.`,
-          );
+          toast.warning(t("units.ui.hoursAffected", { count: result.data.affectedAppointments }));
         }
         router.refresh();
       }
@@ -91,7 +91,7 @@ export function BusinessHoursForm({
         {week.map((day, index) => (
           <div key={day.weekday} className="grid gap-2 border-b py-3" data-weekday={day.weekday}>
             <div className="flex flex-wrap items-center gap-3">
-              <span className="w-24 font-medium">{WEEKDAY_LABELS[day.weekday]}</span>
+              <span className="w-24 font-medium">{t(`common.weekdays.${day.weekday}`)}</span>
               <div className="flex items-center gap-2">
                 <Switch
                   id={`open-${day.weekday}`}
@@ -104,7 +104,9 @@ export function BusinessHoursForm({
                     }))
                   }
                 />
-                <Label htmlFor={`open-${day.weekday}`}>{day.open ? "Aberto" : "Fechado"}</Label>
+                <Label htmlFor={`open-${day.weekday}`}>
+                  {day.open ? t("units.ui.open") : t("units.ui.closed")}
+                </Label>
               </div>
               {day.open
                 ? day.intervals.map((interval, position) => (
@@ -112,7 +114,10 @@ export function BusinessHoursForm({
                       <Input
                         type="time"
                         step={300}
-                        aria-label={`${WEEKDAY_LABELS[day.weekday]} início ${position + 1}`}
+                        aria-label={t("units.ui.weekdayStart", {
+                          weekday: t(`common.weekdays.${day.weekday}`),
+                          position: position + 1,
+                        })}
                         className="w-28"
                         value={formatMinutes(interval.start)}
                         onChange={(event) => setTime(day.weekday, position, "start", event.target.value)}
@@ -121,7 +126,10 @@ export function BusinessHoursForm({
                       <Input
                         type="time"
                         step={300}
-                        aria-label={`${WEEKDAY_LABELS[day.weekday]} fim ${position + 1}`}
+                        aria-label={t("units.ui.weekdayEnd", {
+                          weekday: t(`common.weekdays.${day.weekday}`),
+                          position: position + 1,
+                        })}
                         className="w-28"
                         value={formatMinutes(interval.end === 1440 ? 0 : interval.end)}
                         onChange={(event) => setTime(day.weekday, position, "end", event.target.value)}
@@ -131,7 +139,7 @@ export function BusinessHoursForm({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          aria-label="Remover intervalo"
+                          aria-label={t("units.ui.removeInterval")}
                           onClick={() =>
                             updateDay(day.weekday, (current) => ({
                               ...current,
@@ -162,7 +170,7 @@ export function BusinessHoursForm({
                   }
                 >
                   <Plus />
-                  Intervalo
+                  {t("units.ui.interval")}
                 </Button>
               ) : null}
             </div>
@@ -176,10 +184,10 @@ export function BusinessHoursForm({
         {readOnly ? null : (
           <div className="flex flex-wrap gap-2">
             <Button type="button" onClick={save} disabled={pending}>
-              {pending ? "Salvando..." : "Salvar horário"}
+              {pending ? t("common.saving") : t("units.ui.saveHours")}
             </Button>
             <Button type="button" variant="outline" onClick={copyMondayToWeekdays}>
-              Copiar segunda para todos os dias úteis
+              {t("units.ui.copyMonday")}
             </Button>
           </div>
         )}

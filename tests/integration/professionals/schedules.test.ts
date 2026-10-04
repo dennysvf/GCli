@@ -136,7 +136,7 @@ describe("working-hour schedules", () => {
     const conflict = await save(ctx, { professionalId, validFrom: orgDate(10), intervals: interval });
     expect(!conflict.ok && conflict.error.code).toBe("PROFESSIONALS_SCHEDULE_OVERLAP");
     const past = await save(ctx, { professionalId, validFrom: orgDate(-1), intervals: interval });
-    expect(!past.ok && past.error.fields?.validFrom).toBe("A vigência deve começar hoje ou depois.");
+    expect(!past.ok && past.error.fields?.validFrom).toBe("professionals.validation.startInPast");
   });
 
   it("F04: overlapping schedules are rejected even under concurrent saves", async () => {

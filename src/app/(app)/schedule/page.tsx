@@ -31,8 +31,12 @@ import {
   rescheduleAppointmentAction,
   updateAppointmentAction,
 } from "./actions";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Agenda" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return { title: t("common.agenda") };
+}
 
 const LIST_DAYS = 30;
 
@@ -46,6 +50,7 @@ const ids = (value: string | string[] | undefined) =>
 // The agenda (PRD F06). URL contract (also used by F04): ?view=day|week|list, date, unit, by,
 // focus, professionals (or professional), services, statuses, from, to, page, appointment, action.
 export default async function SchedulePage({ searchParams }: PageProps<"/schedule">) {
+  const t = await getTranslations();
   const ctx = await requirePermission("schedule:read-all", "schedule:read-own");
   const params = await searchParams;
   const ownOnly = !can(ctx, "schedule:read-all");
@@ -68,10 +73,8 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
   if (!unitId) {
     return (
       <div className="grid gap-6">
-        <PageHeader title="Agenda" />
-        <p className="text-muted-foreground">
-          Nenhuma unidade ativa. Cadastre uma unidade em Configurações para começar a agendar.
-        </p>
+        <PageHeader title={t("common.agenda")} />
+        <p className="text-muted-foreground">{t("scheduling.ui.noActiveUnit")}</p>
       </div>
     );
   }
@@ -122,7 +125,7 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
     <AgendaView
       key={`${unitId}-${view}`}
       unitId={unitId}
-      unitName={unit?.name ?? "Todas as unidades"}
+      unitName={unit?.name ?? t("scheduling.ui.allUnits")}
       unitCurrency={unit?.currency ?? currencyOf(ctx.organizationCountry)}
       unitCountry={unit?.country ?? ctx.organizationCountry}
       timeZone={timeZone}

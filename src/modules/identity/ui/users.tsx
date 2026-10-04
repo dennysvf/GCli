@@ -35,23 +35,17 @@ import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import { inviteUserSchema } from "../application/schemas";
 import type { UserListItem } from "../application/users";
+import { useTranslations } from "next-intl";
+import { useFormatters } from "@/shared/ui/i18n/use-formatters";
 
-export const ROLE_LABELS: Record<Role, string> = {
-  ADMINISTRATOR: "Administrador",
-  MANAGER: "Gestor",
-  FRONT_DESK: "Recepção",
-  PROFESSIONAL: "Profissional",
+const ROLES: Role[] = ["ADMINISTRATOR", "MANAGER", "FRONT_DESK", "PROFESSIONAL"];
+
+const STATUS_VARIANTS: Record<string, StampVariant> = {
+  ACTIVE: "success",
+  INACTIVE: "neutral",
+  PENDING: "warning",
+  EXPIRED: "danger",
 };
-
-const STATUS: Record<string, { label: string; variant: StampVariant }> = {
-  ACTIVE: { label: "Ativo", variant: "success" },
-  INACTIVE: { label: "Inativo", variant: "neutral" },
-  PENDING: { label: "Convite pendente", variant: "warning" },
-  EXPIRED: { label: "Convite expirado", variant: "danger" },
-};
-
-const dateTime = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—";
 
 type InviteValues = z.input<typeof inviteUserSchema>;
 
@@ -62,6 +56,7 @@ export function InviteUserDialog({
   action: (input: InviteValues) => Promise<ActionResult<unknown>>;
   defaultLocale: Locale;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -74,7 +69,9 @@ export function InviteUserDialog({
   const onSubmit = form.handleSubmit((values) =>
     startTransition(async () => {
       const result = await action(values);
-      if (handleActionResult(result, { setError: form.setError, successMessage: "Convite enviado" })) {
+      if (
+        handleActionResult(result, { setError: form.setError, successMessage: t("identity.ui.inviteSent") })
+      ) {
         setOpen(false);
         form.reset();
         router.refresh();
@@ -87,23 +84,23 @@ export function InviteUserDialog({
       <DialogTrigger asChild>
         <Button>
           <UserPlus />
-          Convidar usuário
+          {t("identity.ui.inviteUser")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Convidar usuário</DialogTitle>
-          <DialogDescription>O convite é enviado por e-mail e vale por 72 horas.</DialogDescription>
+          <DialogTitle>{t("identity.ui.inviteUser")}</DialogTitle>
+          <DialogDescription>{t("identity.ui.inviteHint")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="grid gap-4" noValidate>
           <HydratedFieldset>
-            <Field id="invite-name" label="Nome completo" error={errors.name?.message}>
+            <Field id="invite-name" label={t("common.fullName")} error={errors.name?.message}>
               <Input id="invite-name" {...form.register("name")} />
             </Field>
-            <Field id="invite-email" label="E-mail" error={errors.email?.message}>
+            <Field id="invite-email" label={t("common.email")} error={errors.email?.message}>
               <Input id="invite-email" type="email" {...form.register("email")} />
             </Field>
-            <Field id="invite-role" label="Perfil" error={errors.role?.message}>
+            <Field id="invite-role" label={t("common.role")} error={errors.role?.message}>
               <Controller
                 control={form.control}
                 name="role"
@@ -113,9 +110,9 @@ export function InviteUserDialog({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                      {ROLES.map((value) => (
                         <SelectItem key={value} value={value}>
-                          {label}
+                          {t(`shell.roles.${value}`)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -123,7 +120,7 @@ export function InviteUserDialog({
                 )}
               />
             </Field>
-            <Field id="invite-locale" label="Idioma do convite" error={errors.locale?.message}>
+            <Field id="invite-locale" label={t("identity.ui.inviteLanguage")} error={errors.locale?.message}>
               <Controller
                 control={form.control}
                 name="locale"
@@ -145,7 +142,7 @@ export function InviteUserDialog({
             </Field>
             <DialogFooter>
               <Button type="submit" disabled={pending}>
-                {pending ? "Enviando..." : "Enviar convite"}
+                {pending ? t("common.sending") : t("identity.ui.sendInvite")}
               </Button>
             </DialogFooter>
           </HydratedFieldset>
@@ -174,6 +171,7 @@ function ChangeRoleDialog({
   action: RowAction;
   onClose: () => void;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [role, setRole] = useState<Role>(user.role);
   const [pending, startTransition] = useTransition();
@@ -181,17 +179,17 @@ function ChangeRoleDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Alterar perfil</DialogTitle>
+          <DialogTitle>{t("identity.ui.changeRole")}</DialogTitle>
           <DialogDescription>{user.name}</DialogDescription>
         </DialogHeader>
         <Select value={role} onValueChange={(value) => setRole(value as Role)}>
-          <SelectTrigger className="w-full" aria-label="Perfil">
+          <SelectTrigger className="w-full" aria-label={t("common.role")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {Object.entries(ROLE_LABELS).map(([value, label]) => (
+            {ROLES.map((value) => (
               <SelectItem key={value} value={value}>
-                {label}
+                {t(`shell.roles.${value}`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -202,14 +200,14 @@ function ChangeRoleDialog({
             onClick={() =>
               startTransition(async () => {
                 const result = await action({ userId: user.id, role });
-                if (handleActionResult(result, { successMessage: "Perfil alterado" })) {
+                if (handleActionResult(result, { successMessage: t("identity.ui.roleChanged") })) {
                   onClose();
                   router.refresh();
                 }
               })
             }
           >
-            Salvar
+            {t("common.save")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -228,6 +226,9 @@ export function UsersTable({
   currentUserId: string;
   actions: UserActions;
 }) {
+  const t = useTranslations();
+  const format = useFormatters();
+  const dateTime = (iso: string | null) => (iso ? format.dateTime(iso) : "—");
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [editing, setEditing] = useState<Extract<UserListItem, { kind: "user" }> | null>(null);
@@ -238,7 +239,7 @@ export function UsersTable({
     });
 
   if (items.length === 0) {
-    return <p className="text-muted-foreground">Nenhum usuário encontrado.</p>;
+    return <p className="text-muted-foreground">{t("identity.ui.noUsers")}</p>;
   }
 
   return (
@@ -247,12 +248,12 @@ export function UsersTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>E-mail</TableHead>
-              <TableHead>Perfil</TableHead>
-              <TableHead>Profissional vinculado</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Último acesso</TableHead>
+              <TableHead>{t("common.name")}</TableHead>
+              <TableHead>{t("common.email")}</TableHead>
+              <TableHead>{t("common.role")}</TableHead>
+              <TableHead>{t("identity.ui.linkedProfessional")}</TableHead>
+              <TableHead>{t("common.status")}</TableHead>
+              <TableHead>{t("identity.ui.lastAccess")}</TableHead>
               {canManage ? <TableHead className="w-12" /> : null}
             </TableRow>
           </TableHeader>
@@ -261,7 +262,7 @@ export function UsersTable({
               <TableRow key={`${item.kind}-${item.id}`}>
                 <TableCell className="font-medium">{item.name}</TableCell>
                 <TableCell>{item.email}</TableCell>
-                <TableCell>{ROLE_LABELS[item.role]}</TableCell>
+                <TableCell>{t(`shell.roles.${item.role}`)}</TableCell>
                 <TableCell>
                   {item.kind === "user" && item.linkedProfessional ? (
                     <Link
@@ -277,18 +278,24 @@ export function UsersTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  <Stamp variant={STATUS[item.status]?.variant ?? "neutral"}>
-                    {STATUS[item.status]?.label}
+                  <Stamp variant={STATUS_VARIANTS[item.status] ?? "neutral"}>
+                    {t(`identity.ui.userStatus.${item.status}`)}
                   </Stamp>
                 </TableCell>
                 <TableCell>
-                  {item.kind === "user" ? dateTime(item.lastLoginAt) : `Expira ${dateTime(item.expiresAt)}`}
+                  {item.kind === "user"
+                    ? dateTime(item.lastLoginAt)
+                    : t("identity.ui.expiresAt", { date: dateTime(item.expiresAt) })}
                 </TableCell>
                 {canManage ? (
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label={`Ações para ${item.name}`}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={t("identity.ui.actionsFor", { name: item.name })}
+                        >
                           <MoreHorizontal />
                         </Button>
                       </DropdownMenuTrigger>
@@ -297,40 +304,48 @@ export function UsersTable({
                           <>
                             <DropdownMenuItem
                               onSelect={() =>
-                                run(actions.resend, { invitationId: item.id }, "Convite reenviado")
+                                run(actions.resend, { invitationId: item.id }, t("identity.ui.inviteResent"))
                               }
                             >
-                              Reenviar convite
+                              {t("identity.ui.resendInvite")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onSelect={() =>
-                                run(actions.revoke, { invitationId: item.id }, "Convite revogado")
+                                run(actions.revoke, { invitationId: item.id }, t("identity.ui.inviteRevoked"))
                               }
                             >
-                              Revogar convite
+                              {t("identity.ui.revokeInvite")}
                             </DropdownMenuItem>
                           </>
                         ) : (
                           <>
                             <DropdownMenuItem onSelect={() => setEditing(item)}>
-                              Alterar perfil
+                              {t("identity.ui.changeRole")}
                             </DropdownMenuItem>
                             {item.status === "ACTIVE" ? (
                               <DropdownMenuItem
                                 disabled={item.id === currentUserId}
                                 onSelect={() =>
-                                  run(actions.deactivate, { userId: item.id }, "Usuário desativado")
+                                  run(
+                                    actions.deactivate,
+                                    { userId: item.id },
+                                    t("identity.ui.userDeactivated"),
+                                  )
                                 }
                               >
-                                Desativar
+                                {t("common.deactivate")}
                               </DropdownMenuItem>
                             ) : (
                               <DropdownMenuItem
                                 onSelect={() =>
-                                  run(actions.reactivate, { userId: item.id }, "Usuário reativado")
+                                  run(
+                                    actions.reactivate,
+                                    { userId: item.id },
+                                    t("identity.ui.userReactivated"),
+                                  )
                                 }
                               >
-                                Reativar
+                                {t("common.reactivate")}
                               </DropdownMenuItem>
                             )}
                           </>

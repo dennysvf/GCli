@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import type { RoomItem } from "../application/rooms";
+import { useTranslations } from "next-intl";
 
 type RoomAction = (input: Record<string, unknown>) => Promise<ActionResult<unknown>>;
 
@@ -25,6 +26,7 @@ export function RoomsPanel({
   readOnly?: boolean;
   actions: { create: RoomAction; update: RoomAction; setActive: RoomAction };
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState("");
@@ -67,8 +69,8 @@ export function RoomsPanel({
           <HydratedFieldset>
             <div className="grid gap-1">
               <Input
-                aria-label="Nome da sala"
-                placeholder="Nome da sala"
+                aria-label={t("units.ui.roomName")}
+                placeholder={t("units.ui.roomName")}
                 value={name}
                 maxLength={50}
                 onChange={(event) => setName(event.target.value)}
@@ -82,29 +84,29 @@ export function RoomsPanel({
               ) : null}
             </div>
             <Input
-              aria-label="Descrição da sala"
-              placeholder="Descrição (opcional)"
+              aria-label={t("units.ui.roomDescription")}
+              placeholder={t("common.descriptionOptional")}
               value={description}
               maxLength={200}
               onChange={(event) => setDescription(event.target.value)}
               className="w-64"
             />
             <Button type="submit" disabled={pending || !name.trim()}>
-              Adicionar sala
+              {t("units.ui.addRoom")}
             </Button>
           </HydratedFieldset>
         </form>
       )}
       {rooms.length === 0 ? (
-        <p className="text-muted-foreground">Nenhuma sala cadastrada nesta unidade.</p>
+        <p className="text-muted-foreground">{t("units.ui.noRooms")}</p>
       ) : (
         <div className="border-y">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Sala</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{t("common.room")}</TableHead>
+                <TableHead>{t("common.description")}</TableHead>
+                <TableHead>{t("common.status")}</TableHead>
                 {readOnly ? null : <TableHead className="w-56" />}
               </TableRow>
             </TableHeader>
@@ -114,7 +116,7 @@ export function RoomsPanel({
                   <TableRow key={room.id}>
                     <TableCell>
                       <Input
-                        aria-label="Novo nome da sala"
+                        aria-label={t("units.ui.newRoomName")}
                         value={editing.name}
                         maxLength={50}
                         onChange={(event) => setEditing({ ...editing, name: event.target.value })}
@@ -122,7 +124,7 @@ export function RoomsPanel({
                     </TableCell>
                     <TableCell>
                       <Input
-                        aria-label="Nova descrição da sala"
+                        aria-label={t("units.ui.newRoomDescription")}
                         value={editing.description}
                         maxLength={200}
                         onChange={(event) => setEditing({ ...editing, description: event.target.value })}
@@ -137,15 +139,15 @@ export function RoomsPanel({
                           run(
                             actions.update,
                             { roomId: room.id, name: editing.name, description: editing.description },
-                            "Sala alterada",
+                            t("units.ui.roomChanged"),
                             () => setEditing(null),
                           )
                         }
                       >
-                        Salvar
+                        {t("common.save")}
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
-                        Cancelar
+                        {t("common.cancel")}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -155,7 +157,7 @@ export function RoomsPanel({
                     <TableCell>{room.description ?? "—"}</TableCell>
                     <TableCell>
                       <Stamp variant={room.active ? "success" : "neutral"}>
-                        {room.active ? "Ativa" : "Inativa"}
+                        {room.active ? t("common.activeFeminine") : t("common.inactiveFeminine")}
                       </Stamp>
                     </TableCell>
                     {readOnly ? null : (
@@ -163,7 +165,7 @@ export function RoomsPanel({
                         <Button
                           size="sm"
                           variant="ghost"
-                          aria-label={`Editar ${room.name}`}
+                          aria-label={t("common.editNamed", { name: room.name })}
                           onClick={() =>
                             setEditing({ id: room.id, name: room.name, description: room.description ?? "" })
                           }
@@ -178,11 +180,11 @@ export function RoomsPanel({
                             run(
                               actions.setActive,
                               { roomId: room.id, active: !room.active },
-                              room.active ? "Sala desativada" : "Sala reativada",
+                              room.active ? t("units.ui.roomDeactivated") : t("units.ui.roomReactivated"),
                             )
                           }
                         >
-                          {room.active ? "Desativar" : "Reativar"}
+                          {room.active ? t("common.deactivate") : t("common.reactivate")}
                         </Button>
                       </TableCell>
                     )}

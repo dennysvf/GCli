@@ -4,7 +4,7 @@ import { Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { interpolate, type ActionResult } from "@/shared/kernel/action-result";
+import type { ActionResult } from "@/shared/kernel/action-result";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,8 +35,10 @@ import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import type { AffectedAppointment } from "../application/ports";
 import type { CreateTimeOffResult, TimeOffItem } from "../application/time-offs";
-import { TIME_OFF_TYPE_LABELS, TIME_OFF_TYPES, type TimeOffType } from "../domain/time-offs";
-import { PROFESSIONALS_TIME_OFF_AFFECTED_APPOINTMENTS } from "../notices";
+import { TIME_OFF_TYPES, type TimeOffType } from "../domain/time-offs";
+import { formatLocale } from "@/shared/i18n/format";
+import { useFormatters } from "@/shared/ui/i18n/use-formatters";
+import { useTranslations } from "next-intl";
 
 type CreateInput = {
   professionalId: string;
@@ -47,8 +49,8 @@ type CreateInput = {
   note: string | null;
 };
 
-function formatter(timeZone: string, withTime: boolean) {
-  return new Intl.DateTimeFormat("pt-BR", {
+function formatter(locale: string, timeZone: string, withTime: boolean) {
+  return new Intl.DateTimeFormat(locale, {
     timeZone,
     day: "2-digit",
     month: "2-digit",
@@ -61,17 +63,22 @@ function formatter(timeZone: string, withTime: boolean) {
 export function formatTimeOffPeriod(
   item: Pick<TimeOffItem, "startsAt" | "endsAt" | "allDay">,
   timeZone: string,
+  locale: string,
+  t: (key: string, values: Record<string, string>) => string,
 ) {
   if (item.allDay) {
-    const date = formatter(timeZone, false);
+    const date = formatter(locale, timeZone, false);
     // The stored end is midnight after the last day.
     const lastDay = new Date(new Date(item.endsAt).getTime() - 60_000);
     const start = date.format(new Date(item.startsAt));
     const end = date.format(lastDay);
-    return start === end ? start : `${start} a ${end}`;
+    return start === end ? start : t("professionals.ui.dateRange", { start, end });
   }
-  const dateTime = formatter(timeZone, true);
-  return `${dateTime.format(new Date(item.startsAt))} – ${dateTime.format(new Date(item.endsAt))}`;
+  const dateTime = formatter(locale, timeZone, true);
+  return t("professionals.ui.dateTimeRange", {
+    start: dateTime.format(new Date(item.startsAt)),
+    end: dateTime.format(new Date(item.endsAt)),
+  });
 }
 
 function rescheduleHref(appointmentId: string) {
@@ -101,6 +108,10 @@ export function TimeOffsPanel({
     remove: (input: { timeOffId: string }) => Promise<ActionResult<unknown>>;
   };
 }) {
+  const t = useTranslations();
+  const format = useFormatters();
+  const period = (item: Pick<TimeOffItem, "startsAt" | "endsAt" | "allDay">) =>
+    formatTimeOffPeriod(item, timeZone, formatLocale(format.locale, null), t);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
@@ -113,7 +124,7 @@ export function TimeOffsPanel({
       if (!target) return;
       if (
         handleActionResult(await actions.remove({ timeOffId: target.id }), {
-          successMessage: "Ausência excluída.",
+          successMessage: t("professionals.ui.timeOffDeleted"),
         })
       ) {
         router.refresh();
@@ -123,35 +134,31 @@ export function TimeOffsPanel({
   return (
     <div className="grid max-w-4xl gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-muted-foreground text-sm">
-          Períodos em que o profissional não pode ser agendado. Horários no fuso da organização.
-        </p>
-        {canManage ? <Button onClick={() => setOpen(true)}>Nova ausência</Button> : null}
+        <p className="text-muted-foreground text-sm">{t("professionals.ui.timeOffsHint")}</p>
+        {canManage ? <Button onClick={() => setOpen(true)}>{t("professionals.ui.newTimeOff")}</Button> : null}
       </div>
 
       {items.length === 0 ? (
         <p className="text-muted-foreground">
-          {showingEnded ? "Nenhuma ausência registrada." : "Nenhuma ausência programada."}
+          {showingEnded ? t("professionals.ui.noTimeOffs") : t("professionals.ui.noUpcomingTimeOffs")}
         </p>
       ) : (
         <div className="border-y">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Período</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead className="hidden md:table-cell">Observação</TableHead>
-                <TableHead className="hidden md:table-cell">Registrada por</TableHead>
+                <TableHead>{t("common.period")}</TableHead>
+                <TableHead>{t("common.type")}</TableHead>
+                <TableHead className="hidden md:table-cell">{t("common.note")}</TableHead>
+                <TableHead className="hidden md:table-cell">{t("professionals.ui.recordedBy")}</TableHead>
                 {canManage ? <TableHead className="w-12" /> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.map((item) => (
                 <TableRow key={item.id} className={item.deletable ? undefined : "text-muted-foreground"}>
-                  <TableCell className="font-semibold tabular-nums">
-                    {formatTimeOffPeriod(item, timeZone)}
-                  </TableCell>
-                  <TableCell>{TIME_OFF_TYPE_LABELS[item.type]}</TableCell>
+                  <TableCell className="font-semibold tabular-nums">{period(item)}</TableCell>
+                  <TableCell>{t(`professionals.ui.timeOffTypes.${item.type}`)}</TableCell>
                   <TableCell className="hidden md:table-cell">{item.note ?? "—"}</TableCell>
                   <TableCell className="hidden md:table-cell">{item.createdByName ?? "—"}</TableCell>
                   {canManage ? (
@@ -160,7 +167,7 @@ export function TimeOffsPanel({
                         <Button
                           variant="ghost"
                           size="icon"
-                          aria-label={`Excluir ausência de ${formatTimeOffPeriod(item, timeZone)}`}
+                          aria-label={t("professionals.ui.deleteTimeOffFor", { period: period(item) })}
                           disabled={pending}
                           onClick={() => setRemoving(item)}
                         >
@@ -180,7 +187,7 @@ export function TimeOffsPanel({
         scroll={false}
         className="text-primary text-sm underline-offset-4 hover:underline"
       >
-        {showingEnded ? "Mostrar só as próximas" : "Mostrar anteriores"}
+        {showingEnded ? t("professionals.ui.showUpcoming") : t("professionals.ui.showPast")}
       </Link>
 
       {canManage ? (
@@ -197,16 +204,15 @@ export function TimeOffsPanel({
       <AlertDialog open={removing !== null} onOpenChange={(value) => !value && setRemoving(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir ausência?</AlertDialogTitle>
+            <AlertDialogTitle>{t("professionals.ui.deleteTimeOffConfirm")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {removing ? formatTimeOffPeriod(removing, timeZone) : ""} volta a ficar disponível para
-              agendamento.
+              {t("professionals.ui.deleteTimeOffBody", { period: removing ? period(removing) : "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={remove}>
-              Excluir ausência
+              {t("professionals.ui.deleteTimeOff")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -230,6 +236,8 @@ function TimeOffDialog({
   action: (input: CreateInput) => Promise<ActionResult<CreateTimeOffResult>>;
   onSaved: () => void;
 }) {
+  const t = useTranslations();
+  const format = useFormatters();
   const [pending, startTransition] = useTransition();
   const empty = { type: "VACATION" as TimeOffType, allDay: true, startsAt: today, endsAt: today, note: "" };
   const [values, setValues] = useState(empty);
@@ -261,7 +269,7 @@ function TimeOffDialog({
         setErrors(result.error.fields);
         return;
       }
-      if (!handleActionResult(result, { successMessage: "Ausência registrada." })) return;
+      if (!handleActionResult(result, { successMessage: t("professionals.ui.timeOffRecorded") })) return;
       onSaved();
       // PRD F04: appointments in the period are listed with a link to reschedule each one.
       if (result.data.affectedAppointments.length > 0) setAffected(result.data.affectedAppointments);
@@ -275,9 +283,9 @@ function TimeOffDialog({
         {affected ? (
           <>
             <DialogHeader>
-              <DialogTitle>Agendamentos no período</DialogTitle>
+              <DialogTitle>{t("professionals.ui.appointmentsInPeriod")}</DialogTitle>
               <DialogDescription>
-                {interpolate(PROFESSIONALS_TIME_OFF_AFFECTED_APPOINTMENTS, { count: affected.length })}
+                {t("professionals.ui.timeOffAffected", { count: affected.length })}
               </DialogDescription>
             </DialogHeader>
             <ul className="divide-y border-y">
@@ -287,23 +295,21 @@ function TimeOffDialog({
                   className="flex items-center justify-between gap-2 py-2 text-sm"
                 >
                   <span>
-                    {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(
-                      new Date(appointment.startsAt),
-                    )}{" "}
-                    · {appointment.patientName} · {appointment.serviceName}
+                    {format.dateTime(appointment.startsAt)} · {appointment.patientName} ·{" "}
+                    {appointment.serviceName}
                   </span>
                   <Link
                     className="text-primary underline-offset-4 hover:underline"
                     href={rescheduleHref(appointment.appointmentId)}
                   >
-                    Reagendar
+                    {t("common.reschedule")}
                   </Link>
                 </li>
               ))}
             </ul>
             <DialogFooter>
               <Button variant="outline" onClick={() => close(false)}>
-                Fechar
+                {t("common.close")}
               </Button>
             </DialogFooter>
           </>
@@ -317,13 +323,11 @@ function TimeOffDialog({
             }}
           >
             <DialogHeader>
-              <DialogTitle>Nova ausência</DialogTitle>
-              <DialogDescription>
-                O período fica indisponível na agenda. Até 1 ano a partir de hoje.
-              </DialogDescription>
+              <DialogTitle>{t("professionals.ui.newTimeOff")}</DialogTitle>
+              <DialogDescription>{t("professionals.ui.timeOffFormHint")}</DialogDescription>
             </DialogHeader>
             <HydratedFieldset>
-              <Field id="time-off-type" label="Tipo" error={errors.type}>
+              <Field id="time-off-type" label={t("common.type")} error={errors.type}>
                 <Select
                   value={values.type}
                   onValueChange={(type) =>
@@ -336,7 +340,7 @@ function TimeOffDialog({
                   <SelectContent>
                     {TIME_OFF_TYPES.map((type) => (
                       <SelectItem key={type} value={type}>
-                        {TIME_OFF_TYPE_LABELS[type]}
+                        {t(`professionals.ui.timeOffTypes.${type}`)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -344,15 +348,13 @@ function TimeOffDialog({
               </Field>
               <div className="flex items-center justify-between gap-3">
                 <div className="grid gap-0.5">
-                  <Label htmlFor="time-off-all-day">Dia inteiro</Label>
-                  <span className="text-muted-foreground text-xs">
-                    Do início do primeiro dia ao fim do último.
-                  </span>
+                  <Label htmlFor="time-off-all-day">{t("professionals.ui.allDay")}</Label>
+                  <span className="text-muted-foreground text-xs">{t("professionals.ui.allDayHint")}</span>
                 </div>
                 <Switch id="time-off-all-day" checked={values.allDay} onCheckedChange={setAllDay} />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field id="time-off-start" label="Início" error={errors.startsAt}>
+                <Field id="time-off-start" label={t("common.start")} error={errors.startsAt}>
                   <Input
                     id="time-off-start"
                     type={inputType}
@@ -365,7 +367,11 @@ function TimeOffDialog({
                     }
                   />
                 </Field>
-                <Field id="time-off-end" label={values.allDay ? "Último dia" : "Fim"} error={errors.endsAt}>
+                <Field
+                  id="time-off-end"
+                  label={values.allDay ? t("professionals.ui.lastDay") : t("common.end")}
+                  error={errors.endsAt}
+                >
                   <Input
                     id="time-off-end"
                     type={inputType}
@@ -377,11 +383,11 @@ function TimeOffDialog({
                   />
                 </Field>
               </div>
-              <Field id="time-off-note" label="Observação (opcional)" error={errors.note}>
+              <Field id="time-off-note" label={t("common.noteOptional")} error={errors.note}>
                 <Textarea
                   id="time-off-note"
                   maxLength={200}
-                  placeholder="Ex.: Congresso Brasileiro de Dermatologia"
+                  placeholder={t("professionals.ui.timeOffNotePlaceholder")}
                   value={values.note}
                   onChange={(event) => setValues((current) => ({ ...current, note: event.target.value }))}
                 />
@@ -389,10 +395,10 @@ function TimeOffDialog({
             </HydratedFieldset>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => close(false)}>
-                Cancelar
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={pending}>
-                {pending ? "Registrando..." : "Registrar ausência"}
+                {pending ? t("common.recording") : t("professionals.ui.registerTimeOff")}
               </Button>
             </DialogFooter>
           </form>

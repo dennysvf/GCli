@@ -108,7 +108,7 @@ describe("time-offs", () => {
       ctx,
       vacation(id, { startsAt: orgDate(-5), endsAt: orgDate(-2) }),
     );
-    expect(!past.ok && past.error.fields?.endsAt).toBe("A ausência não pode terminar no passado.");
+    expect(!past.ok && past.error.fields?.endsAt).toBe("professionals.validation.timeOffEndsInPast");
     const partial = await professionals.createTimeOff(ctx, {
       professionalId: id,
       type: "PERSONAL",

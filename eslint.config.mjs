@@ -1,6 +1,7 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import i18next from "eslint-plugin-i18next";
 
 // Module boundaries (architecture section 4, ADR-002), enforced with no-restricted-imports:
 // - other modules are imported only through their public entry point `@/modules/<name>`;
@@ -23,6 +24,111 @@ const generatedPrisma = {
   group: ["@/generated/**"],
   message: "Only database infrastructure may import the generated Prisma client.",
 };
+
+// JSX attributes that carry identifiers or tokens, not interface text.
+const TECHNICAL_ATTRIBUTES = [
+  "className",
+  "style",
+  "type",
+  "key",
+  "id",
+  "width",
+  "height",
+  "name",
+  "htmlFor",
+  "autoComplete",
+  "value",
+  "defaultValue",
+  "role",
+  "variant",
+  "size",
+  "side",
+  "align",
+  "href",
+  "src",
+  "inputMode",
+  "pattern",
+  "accept",
+  "target",
+  "rel",
+  "method",
+  "action",
+  "orientation",
+  "tabIndex",
+  "color",
+  "sideOffset",
+  "min",
+  "max",
+  "step",
+  "lang",
+  "dir",
+  "colSpan",
+  "scope",
+  "loading",
+  "decoding",
+  "mode",
+  "kind",
+  "tone",
+  "status",
+  "icon",
+  "field",
+  "placement",
+  "viewBox",
+  "fill",
+  "stroke",
+  "d",
+  "xmlns",
+  "data-testid",
+  "data-slot",
+  "data-state",
+  "tag",
+  "idPrefix",
+  "namespace",
+  "locale",
+  "country",
+  "currency",
+  "aria-live",
+  "aria-sort",
+  "aria-haspopup",
+  "aria-current",
+  "aria-orientation",
+  "aria-controls",
+  "aria-describedby",
+  "aria-labelledby",
+  "aria-autocomplete",
+  "aria-checked",
+  "aria-selected",
+  "aria-expanded",
+  "aria-pressed",
+  "aria-invalid",
+  "aria-disabled",
+  "aria-hidden",
+  "aria-busy",
+  "aria-modal",
+  "autoCapitalize",
+  "spellCheck",
+  "enterKeyHint",
+  "crossOrigin",
+  "referrerPolicy",
+  "sizes",
+  "media",
+  "as",
+  "prefetch",
+  "scroll",
+];
+
+// Strings that are identifiers (field names, tokens, permissions, locales), never interface text.
+const TECHNICAL_WORDS = [
+  "[0-9!-/:-@[-`{-~]+",
+  "[A-Z_-]+",
+  /^[A-Z]\d+$/,
+  /^GCli$/,
+  /^[\s·•–—|/,.:;()+×&-]+$/,
+  "^[a-z]+[A-Z][A-Za-z0-9]*$",
+  "^[a-z0-9]+([-.:][A-Za-z0-9]+)+$",
+  "^(email|password|name|version|description|off|rg|up|down|start|end|edit|cancel|details|change|reschedule|short|blue|tag|true|input|trigger|sidebar|separator|reason|note|status|kind|tone|primary|secondary|occupation|observations|specialty)$",
+  /^\p{Emoji}+$/u,
+];
 
 const restrict = (...patterns) => ["error", { patterns }];
 
@@ -91,6 +197,22 @@ export default defineConfig([
         group: ["@/shared/db/**"],
         message: "Routes call use cases; they never query the database.",
       }),
+    },
+  },
+  // ADR-028: interface text lives in the catalogs, never as a literal in JSX.
+  {
+    files: ["src/modules/*/ui/**/*.tsx", "src/app/**/*.tsx", "src/shared/ui/**/*.tsx"],
+    ignores: ["**/*.test.tsx", "src/shared/ui/components/**"],
+    plugins: { i18next },
+    rules: {
+      "i18next/no-literal-string": [
+        "error",
+        {
+          mode: "jsx-only",
+          "jsx-attributes": { exclude: TECHNICAL_ATTRIBUTES },
+          words: { exclude: TECHNICAL_WORDS },
+        },
+      ],
     },
   },
   {

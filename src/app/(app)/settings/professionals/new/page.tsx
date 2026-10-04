@@ -5,11 +5,15 @@ import { requirePermission } from "@/modules/identity/next";
 import { ProfessionalForm, professionals } from "@/modules/professionals";
 import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import { saveProfessionalAction } from "../actions";
-import { ROLE_LABELS } from "../role-labels";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Novo profissional" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return { title: t("professionals.ui.newProfessional") };
+}
 
 export default async function NewProfessionalPage() {
+  const t = await getTranslations();
   const ctx = await requirePermission("professional:manage");
   const [color, users] = await Promise.all([
     professionals.suggestProfessionalColor(ctx),
@@ -19,10 +23,10 @@ export default async function NewProfessionalPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        title="Novo profissional"
+        title={t("professionals.ui.newProfessional")}
         breadcrumb={
           <Link href="/settings/professionals" className="underline-offset-4 hover:underline">
-            Profissionais
+            {t("common.professionals")}
           </Link>
         }
       />
@@ -33,7 +37,7 @@ export default async function NewProfessionalPage() {
           id: user.id,
           name: user.name,
           email: user.email,
-          roleLabel: ROLE_LABELS[user.role] ?? user.role,
+          roleLabel: t(`shell.roles.${user.role}`),
         }))}
         action={saveProfessionalAction}
       />

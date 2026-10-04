@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { parse, TYPE, type MessageFormatElement } from "@formatjs/icu-messageformat-parser";
 import { describe, expect, it } from "vitest";
@@ -58,6 +58,20 @@ function placeholders(elements: MessageFormatElement[], found = new Set<string>(
   return found;
 }
 
+// Source files that may call the translator (tests and generated code excluded).
+function sourceFiles(dir: string): string[] {
+  const files: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) {
+      if (entry !== "generated") files.push(...sourceFiles(path));
+    } else if (/\.(ts|tsx)$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
+      files.push(path);
+    }
+  }
+  return files;
+}
+
 describe("message catalogs", () => {
   const catalogs = loadCatalogs();
 
@@ -101,5 +115,32 @@ describe("message catalogs", () => {
     });
     expect(names).toHaveLength(3);
     expect(new Set(languages).size).toBe(1);
+  });
+  it("F16: every full message key written in the code exists in the three languages", () => {
+    // A key starts with a catalog namespace (a shared section or a module); keys of a namespaced
+    // translator ("auth.title" under useTranslations("identity")) are not full keys and are skipped.
+    const flats = SUPPORTED_LOCALES.map((locale) => {
+      const merged = new Map<string, string>();
+      for (const { name, files } of catalogs) {
+        for (const [key, text] of flatten(files[locale]))
+          merged.set(name === "shared" ? key : `${name}.${key}`, text);
+      }
+      return merged;
+    });
+    const namespaces = new Set([...(flats[0]?.keys() ?? [])].map((key) => key.split(".")[0]));
+    const missing: string[] = [];
+    for (const file of sourceFiles(SRC)) {
+      const text = readFileSync(file, "utf-8");
+      // A namespaced translator makes every key relative to its namespace.
+      if (/(?:use|get)Translations\("/.test(text)) continue;
+      for (const match of text.matchAll(/\b(?:t|translate)\(\s*"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)"/g)) {
+        const key = match[1] ?? "";
+        if (!namespaces.has(key.split(".")[0] ?? "")) continue;
+        flats.forEach((flat, index) => {
+          if (!flat.has(key)) missing.push(`${SUPPORTED_LOCALES[index]}: ${key} (${file.slice(SRC.length)})`);
+        });
+      }
+    }
+    expect(missing).toEqual([]);
   });
 });

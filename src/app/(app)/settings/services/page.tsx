@@ -26,8 +26,12 @@ import {
   saveServiceAction,
   setServiceActiveAction,
 } from "./actions";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Serviços" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return { title: t("common.services") };
+}
 
 const FALLBACK_TIME_ZONE = "America/Sao_Paulo";
 
@@ -36,6 +40,7 @@ function single(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function ServicesPage({ searchParams }: PageProps<"/settings/services">) {
+  const t = await getTranslations();
   const ctx = await requirePermission("setup:read");
   const params = await searchParams;
   const canManage = can(ctx, "setup:manage");
@@ -91,7 +96,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/setting
   return (
     <div className="grid gap-6">
       <PageHeader
-        title="Serviços"
+        title={t("common.services")}
         actions={
           canManage ? (
             <>
@@ -110,7 +115,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/setting
                   scroll={false}
                 >
                   <Plus />
-                  Novo serviço
+                  {t("services.ui.newService")}
                 </Link>
               </Button>
             </>

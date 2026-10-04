@@ -5,6 +5,7 @@ import { useRef, type KeyboardEvent } from "react";
 import { cn } from "@/shared/ui/utils";
 import { PALETTE_COLORS, type PaletteColor } from "@/shared/kernel/palette";
 import { PALETTE } from "./palette";
+import { useTranslations } from "next-intl";
 
 // Radio group of the 16 palette swatches; arrow keys move the selection, as in native radios.
 export function ColorPicker({
@@ -18,6 +19,7 @@ export function ColorPicker({
   onChange: (color: PaletteColor) => void;
   disabled?: boolean;
 }) {
+  const t = useTranslations();
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -31,7 +33,13 @@ export function ColorPicker({
   }
 
   return (
-    <div id={id} role="radiogroup" aria-label="Cor" className="grid grid-cols-8 gap-2" onKeyDown={onKeyDown}>
+    <div
+      id={id}
+      role="radiogroup"
+      aria-label={t("common.color")}
+      className="grid grid-cols-8 gap-2"
+      onKeyDown={onKeyDown}
+    >
       {PALETTE_COLORS.map((color) => {
         const selected = color === value;
         return (
@@ -43,8 +51,8 @@ export function ColorPicker({
             type="button"
             role="radio"
             aria-checked={selected}
-            aria-label={PALETTE[color].label}
-            title={PALETTE[color].label}
+            aria-label={t(`common.colors.${color}`)}
+            title={t(`common.colors.${color}`)}
             tabIndex={selected ? 0 : -1}
             disabled={disabled}
             onClick={() => onChange(color)}

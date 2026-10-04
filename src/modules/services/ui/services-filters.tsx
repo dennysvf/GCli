@@ -6,15 +6,12 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Input } from "@/shared/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 import type { ServiceStatusFilter } from "../application/schemas";
+import { useTranslations } from "next-intl";
 
 const ALL = "all";
 const SEARCH_DELAY_MS = 300;
 
-const STATUS_LABELS: Record<ServiceStatusFilter, string> = {
-  active: "Ativos",
-  inactive: "Inativos",
-  all: "Todos",
-};
+const STATUS_FILTERS: ServiceStatusFilter[] = ["active", "inactive", "all"];
 
 // Filters live in the URL so the list is a Server Component and links can be shared.
 export function ServicesFilters({
@@ -28,6 +25,7 @@ export function ServicesFilters({
   categoryId?: string;
   status: ServiceStatusFilter;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -63,8 +61,8 @@ export function ServicesFilters({
         <Search className="text-muted-foreground absolute top-2.5 left-2.5 size-4" aria-hidden />
         <Input
           type="search"
-          aria-label="Buscar serviço por nome"
-          placeholder="Buscar por nome"
+          aria-label={t("services.ui.searchService")}
+          placeholder={t("common.searchByName")}
           className="pl-8"
           value={text}
           onChange={(event) => setText(event.target.value)}
@@ -74,11 +72,11 @@ export function ServicesFilters({
         value={categoryId ?? ALL}
         onValueChange={(value) => apply({ category: value === ALL ? undefined : value })}
       >
-        <SelectTrigger className="w-48" aria-label="Categoria">
+        <SelectTrigger className="w-48" aria-label={t("common.category")}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>Todas as categorias</SelectItem>
+          <SelectItem value={ALL}>{t("services.ui.allCategories")}</SelectItem>
           {categories.map((category) => (
             <SelectItem key={category.id} value={category.id}>
               {category.name}
@@ -90,13 +88,13 @@ export function ServicesFilters({
         value={status}
         onValueChange={(value) => apply({ status: value === "active" ? undefined : value })}
       >
-        <SelectTrigger className="w-36" aria-label="Status">
+        <SelectTrigger className="w-36" aria-label={t("common.status")}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {(Object.keys(STATUS_LABELS) as ServiceStatusFilter[]).map((value) => (
+          {STATUS_FILTERS.map((value) => (
             <SelectItem key={value} value={value}>
-              {STATUS_LABELS[value]}
+              {t(`common.statusFilter.${value}`)}
             </SelectItem>
           ))}
         </SelectContent>

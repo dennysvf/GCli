@@ -9,17 +9,22 @@ import {
   updateOrganizationAction,
   uploadOrganizationLogoAction,
 } from "./actions";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Organização" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return { title: t("identity.ui.organization") };
+}
 
 export default async function OrganizationSettingsPage() {
+  const t = await getTranslations();
   const ctx = await requirePermission("organization:update");
   const profile = await getOrganizationProfile(ctx);
   if (!profile.ok) notFound();
 
   return (
     <div className="grid gap-6">
-      <PageHeader title="Configurações da organização" />
+      <PageHeader title={t("identity.ui.organizationSettings")} />
       <LogoUploader
         logoUrl={profile.value.logoUrl}
         uploadAction={uploadOrganizationLogoAction}

@@ -14,10 +14,15 @@ import {
   resendInvitationAction,
   revokeInvitationAction,
 } from "./actions";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Usuários" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return { title: t("common.users") };
+}
 
 export default async function UsersPage({ searchParams }: PageProps<"/settings/users">) {
+  const t = await getTranslations();
   const ctx = await requirePermission("user:read");
   const params = await searchParams;
   const search = typeof params.q === "string" ? params.q : undefined;
@@ -33,7 +38,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/settings/u
   return (
     <div className="grid gap-6">
       <PageHeader
-        title="Usuários"
+        title={t("common.users")}
         actions={
           canManage ? <InviteUserDialog action={inviteUserAction} defaultLocale={defaultLocale} /> : null
         }
@@ -42,11 +47,11 @@ export default async function UsersPage({ searchParams }: PageProps<"/settings/u
         <Input
           name="q"
           defaultValue={search}
-          placeholder="Buscar por nome ou e-mail"
-          aria-label="Buscar usuários"
+          placeholder={t("identity.ui.searchUsersPlaceholder")}
+          aria-label={t("identity.ui.searchUsers")}
         />
         <Button type="submit" variant="outline">
-          Buscar
+          {t("common.search")}
         </Button>
       </form>
       <UsersTable
@@ -62,7 +67,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/settings/u
         }}
       />
       {pages > 1 ? (
-        <nav className="flex items-center gap-2 text-sm" aria-label="Paginação">
+        <nav className="flex items-center gap-2 text-sm" aria-label={t("common.pagination")}>
           {Array.from({ length: pages }, (_, index) => index + 1).map((number) => (
             <Link
               key={number}

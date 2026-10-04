@@ -19,8 +19,9 @@ export type FindingCode =
 export type Finding = {
   code: FindingCode;
   severity: Severity;
-  // Values for the message placeholders, already formatted for pt-BR (times in the unit zone).
-  params: Record<string, string>;
+  // Raw values for the message placeholders (instants, names, minute intervals); the browser
+  // formats them in the language of the user (ADR-028).
+  params: Record<string, string | null>;
   range?: { startsAt: string; endsAt: string };
   appointmentId?: string;
 };

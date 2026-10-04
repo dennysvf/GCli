@@ -1,8 +1,8 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Pool } from "pg";
-import { services, SERVICES_DEACTIVATED_WITH_APPOINTMENTS } from "@/modules/services";
+import { services } from "@/modules/services";
 import { db } from "@/shared/db/client";
-import { interpolate } from "@/shared/kernel/action-result";
+import { createTranslator } from "@/shared/i18n/translator";
 import { newId } from "@/shared/kernel/ids";
 import { auditEvents, closeHelpers, errorText, resetDatabase } from "../helpers";
 import {
@@ -173,7 +173,7 @@ describe("services", () => {
 
     const result = await services.setServiceActive(ctx, { serviceId, active: false });
     expect(result.ok && result.value).toEqual({ active: false, futureAppointments: 12 });
-    expect(interpolate(SERVICES_DEACTIVATED_WITH_APPOINTMENTS, { count: 12 })).toBe(
+    expect(createTranslator("pt-BR")("services.ui.deactivatedKept", { count: 12 })).toBe(
       "12 agendamentos futuros deste serviço foram mantidos.",
     );
     expect((await db().service.findUniqueOrThrow({ where: { id: serviceId } })).active).toBe(false);

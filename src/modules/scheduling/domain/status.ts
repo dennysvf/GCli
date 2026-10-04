@@ -65,13 +65,3 @@ export function nextStatuses(from: AppointmentStatus): AppointmentStatus[] {
 // PRD F01 matrix: professionals change only "in progress" and "completed" on their own agenda,
 // plus the 30-minute completion reversal (spec F06).
 export const OWN_STATUS_TRANSITIONS: readonly Transition[] = ["START", "COMPLETE", "REVERT_COMPLETION"];
-
-export const STATUS_LABELS: Record<AppointmentStatus, string> = {
-  SCHEDULED: "Agendado",
-  CONFIRMED: "Confirmado",
-  CHECKED_IN: "Chegou",
-  IN_PROGRESS: "Em atendimento",
-  COMPLETED: "Concluído",
-  NO_SHOW: "Faltou",
-  CANCELLED: "Cancelado",
-};

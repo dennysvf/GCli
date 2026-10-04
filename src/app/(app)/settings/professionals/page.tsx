@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/modules/identity/next";
 import {
   PROFESSIONAL_STATUSES,
-  PROFESSIONALS_NOT_LINKED,
   professionals,
   ProfessionalsFilters,
   ProfessionalsTable,
@@ -14,18 +13,23 @@ import {
 import { can } from "@/shared/authz/permissions";
 import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import { Button } from "@/shared/ui/components/button";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Profissionais" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return { title: t("common.professionals") };
+}
 
 export default async function ProfessionalsPage({ searchParams }: PageProps<"/settings/professionals">) {
+  const t = await getTranslations();
   const ctx = await requirePermission("professional:read");
   // PRD F01 matrix: Professional-role users see only their own profile.
   if (!can(ctx, "professional:read-all")) {
     if (ctx.linkedProfessionalId) redirect(`/settings/professionals/${ctx.linkedProfessionalId}`);
     return (
       <div className="grid gap-6">
-        <PageHeader title="Profissionais" />
-        <p className="text-muted-foreground">{PROFESSIONALS_NOT_LINKED}</p>
+        <PageHeader title={t("common.professionals")} />
+        <p className="text-muted-foreground">{t("professionals.ui.notLinked")}</p>
       </div>
     );
   }
@@ -41,14 +45,14 @@ export default async function ProfessionalsPage({ searchParams }: PageProps<"/se
   return (
     <div className="grid gap-6">
       <PageHeader
-        title="Profissionais"
-        meta={`${items.length} ${items.length === 1 ? "profissional" : "profissionais"}`}
+        title={t("common.professionals")}
+        meta={`${items.length} ${items.length === 1 ? t("professionals.ui.professionalSingular") : t("professionals.ui.professionalPlural")}`}
         actions={
           canManage ? (
             <Button asChild>
               <Link href="/settings/professionals/new">
                 <Plus />
-                Novo profissional
+                {t("professionals.ui.newProfessional")}
               </Link>
             </Button>
           ) : null

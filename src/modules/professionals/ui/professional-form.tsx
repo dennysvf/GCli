@@ -110,7 +110,7 @@ export function ProfessionalForm({
             id: current.id,
             name: current.name,
             email: "",
-            roleLabel: "usuário inativo ou com perfil não vinculável",
+            roleLabel: t("professionals.ui.userNotLinkable"),
           },
         ]
       : linkableUsers;
@@ -120,7 +120,12 @@ export function ProfessionalForm({
       const result = await action(
         professional ? { ...values, professionalId: professional.id, version: professional.version } : values,
       );
-      if (handleActionResult(result, { setError: form.setError, successMessage: "Profissional salvo." })) {
+      if (
+        handleActionResult(result, {
+          setError: form.setError,
+          successMessage: t("professionals.ui.professionalSaved"),
+        })
+      ) {
         draft.clear();
         if (!professional) router.push(`/settings/professionals/${result.data.professionalId}?tab=services`);
         else router.refresh();
@@ -147,29 +152,31 @@ export function ProfessionalForm({
   return (
     <form onSubmit={onSubmit} className="grid max-w-2xl gap-4" noValidate>
       <HydratedFieldset disabled={readOnly}>
-        <Field id="professional-full-name" label="Nome completo" error={errors.fullName?.message}>
+        <Field id="professional-full-name" label={t("common.fullName")} error={errors.fullName?.message}>
           {text("fullName", "professional-full-name", { autoComplete: "off" })}
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
             id="professional-display-name"
-            label="Nome de exibição (opcional)"
+            label={t("professionals.ui.displayName")}
             error={errors.displayName?.message}
-            hint="Aparece na agenda. Ex.: Dra. Ana Lima"
+            hint={t("professionals.ui.displayNameHint")}
           >
             {text("displayName", "professional-display-name")}
           </Field>
           <Field
             id="professional-specialty"
-            label="Especialidade (opcional)"
+            label={t("professionals.ui.specialtyOptional")}
             error={errors.specialty?.message}
           >
-            {text("specialty", "professional-specialty", { placeholder: "Ex.: Fisioterapia ortopédica" })}
+            {text("specialty", "professional-specialty", {
+              placeholder: t("professionals.ui.specialtyPlaceholder"),
+            })}
           </Field>
         </div>
 
         <fieldset className="grid gap-4 rounded-lg border p-4">
-          <legend className="px-1 text-sm font-semibold">Registro no conselho</legend>
+          <legend className="px-1 text-sm font-semibold">{t("professionals.ui.councilRegistration")}</legend>
           <label className="flex items-center gap-2 text-sm">
             <Controller
               control={form.control}
@@ -182,7 +189,7 @@ export function ProfessionalForm({
                 />
               )}
             />
-            Este profissional não tem conselho
+            {t("professionals.ui.noCouncil")}
           </label>
           {hasNoCouncil ? null : (
             <div className="grid gap-4">
@@ -196,7 +203,7 @@ export function ProfessionalForm({
                   <div key={row.id} className="grid gap-3 rounded-md border p-3 sm:grid-cols-3">
                     <Field
                       id={`registration-${index}-country`}
-                      label="País"
+                      label={t("common.country")}
                       error={rowErrors?.country?.message}
                     >
                       <Controller
@@ -234,14 +241,18 @@ export function ProfessionalForm({
                     </Field>
                     <Field
                       id={`registration-${index}-type`}
-                      label="Conselho"
+                      label={t("professionals.ui.council")}
                       error={rowErrors?.councilType?.message}
                     >
                       <Controller
                         control={form.control}
                         name={`registrations.${index}.councilType`}
                         render={({ field }) => (
-                          <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                          <Select
+                            value={field.value}
+                            onValueChange={(next) => next && field.onChange(next)}
+                            disabled={readOnly}
+                          >
                             <SelectTrigger id={`registration-${index}-type`} className="w-full">
                               <SelectValue />
                             </SelectTrigger>
@@ -259,7 +270,7 @@ export function ProfessionalForm({
                     {spec?.needsName ? (
                       <Field
                         id={`registration-${index}-other`}
-                        label="Nome do conselho"
+                        label={t("professionals.ui.councilName")}
                         error={rowErrors?.councilOtherName?.message}
                       >
                         <Input
@@ -274,7 +285,7 @@ export function ProfessionalForm({
                     {npiOnly ? null : (
                       <Field
                         id={`registration-${index}-number`}
-                        label="Número"
+                        label={t("common.number")}
                         error={rowErrors?.number?.message}
                       >
                         <Input
@@ -299,7 +310,7 @@ export function ProfessionalForm({
                             render={({ field }) => (
                               <Select
                                 value={field.value ?? ""}
-                                onValueChange={field.onChange}
+                                onValueChange={(next) => next && field.onChange(next)}
                                 disabled={readOnly}
                               >
                                 <SelectTrigger id={`registration-${index}-region`} className="w-full">
@@ -343,10 +354,10 @@ export function ProfessionalForm({
                           type="button"
                           variant="ghost"
                           onClick={() => registrations.remove(index)}
-                          aria-label="Remover registro"
+                          aria-label={t("professionals.ui.removeRegistration")}
                         >
                           <Trash2 />
-                          Remover registro
+                          {t("professionals.ui.removeRegistration")}
                         </Button>
                       </div>
                     )}
@@ -375,7 +386,7 @@ export function ProfessionalForm({
                     }
                   >
                     <Plus />
-                    Adicionar registro
+                    {t("professionals.ui.addRegistration")}
                   </Button>
                 </div>
               )}
@@ -389,7 +400,7 @@ export function ProfessionalForm({
           render={({ field }) => (
             <DocumentInput
               idPrefix="professional-document"
-              label="Documento (opcional)"
+              label={t("patients.ui.documentOptional")}
               readOnly={readOnly}
               defaultCountry={defaultCountry}
               value={field.value}
@@ -401,7 +412,7 @@ export function ProfessionalForm({
         />
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="professional-phone" label="Telefone (opcional)" error={errors.phone?.message}>
+          <Field id="professional-phone" label={t("common.phoneOptional")} error={errors.phone?.message}>
             <Controller
               control={form.control}
               name="phone"
@@ -416,12 +427,12 @@ export function ProfessionalForm({
               )}
             />
           </Field>
-          <Field id="professional-email" label="E-mail (opcional)" error={errors.email?.message}>
+          <Field id="professional-email" label={t("common.emailOptional")} error={errors.email?.message}>
             {text("email", "professional-email", { type: "email" })}
           </Field>
         </div>
 
-        <Field id="professional-color" label="Cor na agenda" error={errors.color?.message}>
+        <Field id="professional-color" label={t("services.ui.agendaColor")} error={errors.color?.message}>
           <Controller
             control={form.control}
             name="color"
@@ -438,9 +449,9 @@ export function ProfessionalForm({
 
         <Field
           id="professional-user"
-          label="Usuário vinculado (opcional)"
+          label={t("professionals.ui.linkedUser")}
           error={errors.linkedUserId?.message}
-          hint="O usuário vinculado vê a própria agenda e registra os próprios atendimentos e ausências."
+          hint={t("professionals.ui.linkedUserHint")}
         >
           <Controller
             control={form.control}
@@ -455,7 +466,7 @@ export function ProfessionalForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NO_USER}>Nenhum</SelectItem>
+                  <SelectItem value={NO_USER}>{t("common.none")}</SelectItem>
                   {userOptions.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.name} ({user.roleLabel})
@@ -470,7 +481,11 @@ export function ProfessionalForm({
         {readOnly ? null : (
           <div>
             <Button type="submit" disabled={pending}>
-              {pending ? "Salvando..." : professional ? "Salvar alterações" : "Cadastrar profissional"}
+              {pending
+                ? t("common.saving")
+                : professional
+                  ? t("common.saveChanges")
+                  : t("professionals.ui.register")}
             </Button>
           </div>
         )}

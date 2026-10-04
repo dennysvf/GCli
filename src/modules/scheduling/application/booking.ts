@@ -3,14 +3,12 @@ import { withTransaction } from "@/shared/db/transaction";
 import { parseTime } from "@/shared/kernel/calendar-date";
 import type { DomainError } from "@/shared/kernel/errors";
 import { fail, ok, type Result } from "@/shared/kernel/result";
-import { interpolate } from "@/shared/kernel/action-result";
 import { localTime } from "../domain/agenda-time";
 import { isAlignedStart, rangeAt } from "../domain/agenda-time";
 import type { AvailabilityDecision } from "../domain/appointment";
 import type { Resolution } from "../domain/conflicts/check";
 import type { Finding } from "../domain/conflicts/types";
 import { SchedulingErrors } from "../domain/errors";
-import { findingMessages } from "../notices";
 import type {
   OrganizationInfo,
   PatientInfo,
@@ -137,7 +135,8 @@ export function startInstant(
 export type FindingDto = {
   code: string;
   severity: Finding["severity"];
-  message: string;
+  // Message values; the browser writes the text in the language of the user (ADR-028).
+  params: Finding["params"];
   range?: { startsAt: string; endsAt: string };
   appointmentId?: string;
 };
@@ -146,7 +145,7 @@ export function findingDtos(findings: Finding[]): FindingDto[] {
   return findings.map((finding) => ({
     code: finding.code,
     severity: finding.severity,
-    message: interpolate(findingMessages[finding.code] ?? finding.code, finding.params),
+    params: finding.params,
     ...(finding.range ? { range: finding.range } : {}),
     ...(finding.appointmentId ? { appointmentId: finding.appointmentId } : {}),
   }));

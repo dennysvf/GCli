@@ -72,7 +72,8 @@ export type PriceChangeItem = {
   currency: Currency;
   previousAmountMinor: number | null;
   amountMinor: number;
-  changedBy: { id: string; name: string } | null;
+  // name is null when the author no longer exists; the interface writes the text.
+  changedBy: { id: string; name: string | null } | null;
 };
 
 export type SaveServiceResult = { serviceId: string; version: number; priceChanged: boolean };
@@ -480,9 +481,7 @@ export async function listPriceHistory(
               currency,
               previousAmountMinor: previousAmountMinor === null ? null : Number(previousAmountMinor),
               amountMinor: Number(amountMinor),
-              changedBy: changedById
-                ? { id: changedById, name: names.get(changedById) ?? "Usuário removido" }
-                : null,
+              changedBy: changedById ? { id: changedById, name: names.get(changedById) ?? null } : null,
             },
           ],
     ),

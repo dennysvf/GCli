@@ -18,8 +18,8 @@ import { Textarea } from "@/shared/ui/components/textarea";
 import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import type { TermsVersion } from "../application/terms";
-import { PATIENTS_TERMS_PUBLISHED } from "../notices";
-import { formatDateTimeBR } from "./format";
+import { useTranslations } from "next-intl";
+import { useFormatters } from "@/shared/ui/i18n/use-formatters";
 
 // Privacy terms (PRD F05): the Administrator publishes numbered versions; a new version leaves the
 // patients' earlier consents pending. Published versions cannot be edited.
@@ -30,6 +30,8 @@ export function TermsPanel({
   versions: TermsVersion[];
   action: (input: { text: string }) => Promise<ActionResult<{ version: number }>>;
 }) {
+  const t = useTranslations();
+  const format = useFormatters();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [text, setText] = useState(versions[0]?.text ?? "");
@@ -45,7 +47,7 @@ export function TermsPanel({
         setError(result.error.fields.text);
         return;
       }
-      if (handleActionResult(result, { successMessage: PATIENTS_TERMS_PUBLISHED })) router.refresh();
+      if (handleActionResult(result, { successMessage: t("patients.ui.termsPublished") })) router.refresh();
     });
 
   return (
@@ -53,10 +55,12 @@ export function TermsPanel({
       <Field
         id="terms-text"
         label={
-          versions.length > 0 ? `Texto da nova versão (atual: v${versions[0]?.version})` : "Texto dos termos"
+          versions.length > 0
+            ? t("patients.ui.newTermsText", { version: versions[0]?.version ?? 0 })
+            : t("patients.ui.termsText")
         }
         error={error}
-        hint="Entre 50 e 20.000 caracteres. Versões publicadas não podem ser alteradas."
+        hint={t("patients.ui.termsTextHint")}
       >
         <Textarea
           id="terms-text"
@@ -68,23 +72,28 @@ export function TermsPanel({
       </Field>
       <div>
         <Button onClick={() => setConfirming(true)} disabled={pending || text.trim().length === 0}>
-          {pending ? "Publicando..." : "Publicar nova versão"}
+          {pending ? t("common.publishing") : t("patients.ui.publishNewVersion")}
         </Button>
       </div>
 
       <section aria-labelledby="terms-history" className="grid gap-2">
         <h2 id="terms-history" className="section-title">
-          Versões publicadas
+          {t("patients.ui.publishedVersions")}
         </h2>
         {versions.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nenhuma versão publicada ainda.</p>
+          <p className="text-muted-foreground text-sm">{t("patients.ui.noPublishedVersions")}</p>
         ) : (
           <ul className="divide-y border-y">
             {versions.map((version) => (
               <li key={version.id} className="grid gap-1 py-2 text-sm">
-                <span className="font-semibold">Versão {version.version}</span>
+                <span className="font-semibold">
+                  {t("common.version")} {version.version}
+                </span>
                 <span className="text-muted-foreground text-xs">
-                  Publicada em {formatDateTimeBR(version.publishedAt)} por {version.publishedByName ?? "—"}
+                  {t("patients.ui.publishedOnBy", {
+                    date: format.dateTime(version.publishedAt),
+                    name: version.publishedByName ?? "—",
+                  })}
                 </span>
               </li>
             ))}
@@ -95,16 +104,13 @@ export function TermsPanel({
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Publicar nova versão dos termos?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Todos os pacientes passam a ter consentimento pendente até registrarem o consentimento desta
-              versão.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("patients.ui.publishConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("patients.ui.publishConfirmBody")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={publish}>
-              Publicar versão {(versions[0]?.version ?? 0) + 1}
+              {t("patients.ui.publishVersion")} {(versions[0]?.version ?? 0) + 1}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

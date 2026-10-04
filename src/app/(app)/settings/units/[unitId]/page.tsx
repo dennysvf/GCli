@@ -19,12 +19,17 @@ import {
   updateRoomAction,
   updateUnitAction,
 } from "../actions";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Unidade" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return { title: t("common.unit") };
+}
 
 const TABS = ["dados", "horario", "salas", "fechamentos"] as const;
 
 export default async function UnitPage({ params, searchParams }: PageProps<"/settings/units/[unitId]">) {
+  const t = await getTranslations();
   const ctx = await requirePermission("setup:read");
   const { unitId } = await params;
   const { tab } = await searchParams;
@@ -45,12 +50,12 @@ export default async function UnitPage({ params, searchParams }: PageProps<"/set
         title={unit.value.name}
         titleAddon={
           <Stamp variant={unit.value.active ? "success" : "neutral"}>
-            {unit.value.active ? "Ativa" : "Inativa"}
+            {unit.value.active ? t("common.activeFeminine") : t("common.inactiveFeminine")}
           </Stamp>
         }
         breadcrumb={
           <Link href="/settings/units" className="underline-offset-4 hover:underline">
-            Unidades
+            {t("common.units")}
           </Link>
         }
         actions={
@@ -61,10 +66,10 @@ export default async function UnitPage({ params, searchParams }: PageProps<"/set
       />
       <Tabs defaultValue={activeTab}>
         <TabsList>
-          <TabsTrigger value="dados">Dados</TabsTrigger>
-          <TabsTrigger value="horario">Horário de funcionamento</TabsTrigger>
-          <TabsTrigger value="salas">Salas</TabsTrigger>
-          <TabsTrigger value="fechamentos">Fechamentos</TabsTrigger>
+          <TabsTrigger value="dados">{t("common.data")}</TabsTrigger>
+          <TabsTrigger value="horario">{t("units.ui.businessHours")}</TabsTrigger>
+          <TabsTrigger value="salas">{t("common.rooms")}</TabsTrigger>
+          <TabsTrigger value="fechamentos">{t("units.ui.closures")}</TabsTrigger>
         </TabsList>
         <TabsContent value="dados" className="pt-4">
           <UnitForm
@@ -76,9 +81,7 @@ export default async function UnitPage({ params, searchParams }: PageProps<"/set
           />
         </TabsContent>
         <TabsContent value="horario" className="pt-4">
-          <p className="text-muted-foreground mb-4 text-sm">
-            Horários no fuso da unidade. Até dois intervalos por dia, em múltiplos de 5 minutos.
-          </p>
+          <p className="text-muted-foreground mb-4 text-sm">{t("units.ui.businessHoursHint")}</p>
           <BusinessHoursForm
             unitId={unitId}
             initial={hours.ok ? hours.value : []}

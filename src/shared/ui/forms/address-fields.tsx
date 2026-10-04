@@ -119,7 +119,11 @@ export function AddressFields<T extends FieldValues & AddressForm>({
               control={form.control}
               name="address.region"
               render={({ field }) => (
-                <Select value={field.value ?? ""} onValueChange={field.onChange} disabled={readOnly}>
+                <Select
+                  value={field.value ?? ""}
+                  onValueChange={(next) => next && field.onChange(next)}
+                  disabled={readOnly}
+                >
                   <SelectTrigger id={id("region")} className="w-full">
                     <SelectValue />
                   </SelectTrigger>

@@ -109,7 +109,7 @@ export async function getWorkingCalendar(
     to < from ||
     daysBetween(from, to) >= WORKING_CALENDAR_MAX_DAYS
   ) {
-    return fail(ProfessionalsErrors.validation({ to: "Informe um período de até 62 dias." }));
+    return fail(ProfessionalsErrors.validation({ to: "professionals.validation.periodTooLong" }));
   }
   const [units, timeZone] = await Promise.all([
     deps.units.listUnits(ctx, { activeOnly: false }),

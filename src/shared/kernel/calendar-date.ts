@@ -32,12 +32,6 @@ export function weekStart(date: string): string {
   return addDays(date, 1 - isoWeekday(date));
 }
 
-// "02/11/2026" (design system 7.1: Brazilian formats).
-export function formatDateBR(date: string): string {
-  const [year, month, day] = date.split("-");
-  return `${day}/${month}/${year}`;
-}
-
 // "14:30" from minutes after midnight.
 export function formatMinute(minute: number): string {
   const hours = Math.floor(minute / 60);

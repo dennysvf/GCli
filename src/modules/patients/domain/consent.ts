@@ -2,13 +2,6 @@
 // they consent again. Computed from the latest consent and the current terms version.
 export type ConsentStatus = "OK" | "PENDING" | "MISSING" | "NO_TERMS";
 
-export const CONSENT_STATUS_LABELS: Record<ConsentStatus, string> = {
-  OK: "Consentimento ok",
-  PENDING: "Consentimento pendente",
-  MISSING: "Sem consentimento",
-  NO_TERMS: "Termos não publicados",
-};
-
 export function consentStatus(
   latestConsentVersion: number | null,
   currentTermsVersion: number | null,
@@ -25,9 +18,3 @@ export function isRecordComplete(documentNumber: string | null, status: ConsentS
 
 export const CONSENT_METHODS = ["PAPER_UPLOADED", "VERBAL", "DIGITAL"] as const;
 export type ConsentMethod = (typeof CONSENT_METHODS)[number];
-
-export const CONSENT_METHOD_LABELS: Record<ConsentMethod, string> = {
-  PAPER_UPLOADED: "Assinado em papel",
-  VERBAL: "Verbal, confirmado pela equipe",
-  DIGITAL: "Digital",
-};

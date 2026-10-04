@@ -16,6 +16,13 @@ const range = (start: string, end: string) => {
   return result.value;
 };
 
+const when = (start: string, end: string) => ({
+  start: at(start).toISOString(),
+  end: at(end).toISOString(),
+  timeZone: TZ,
+  onDate: DATE,
+});
+
 function context(overrides: Partial<ConflictContext> = {}): ConflictContext {
   return {
     timeZone: TZ,
@@ -70,8 +77,9 @@ describe("conflict rules", () => {
       ["SCHEDULING_ROOM_CONFLICT", "BLOCKING"],
       ["SCHEDULING_PROFESSIONAL_CONFLICT", "OVERBOOKABLE"],
     ]);
-    expect(findings[1]?.params).toEqual({ professional: "Dra. Ana", start: "14:00", end: "14:50" });
-    expect(findings[0]?.params).toEqual({ room: "Sala 2", start: "14:00", end: "15:00" });
+    // The params are raw values (instants, zone, date of the draft); the browser writes the text.
+    expect(findings[1]?.params).toEqual({ professional: "Dra. Ana", ...when("14:00", "14:50") });
+    expect(findings[0]?.params).toEqual({ room: "Sala 2", ...when("14:00", "15:00") });
   });
 
   it("F06: touching appointments do not conflict", () => {
@@ -119,7 +127,7 @@ describe("conflict rules", () => {
       expect.objectContaining({
         code: "SCHEDULING_PATIENT_OVERLAP",
         severity: "WARNING",
-        params: { professional: "Dr. Bruno", start: "14:00", end: "14:50" },
+        params: { professional: "Dr. Bruno", ...when("14:00", "14:50") },
       }),
     ]);
     expect(isFree(findings)).toBe(true);

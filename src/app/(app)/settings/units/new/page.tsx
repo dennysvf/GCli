@@ -5,10 +5,15 @@ import { getOrganizationProfile } from "@/modules/identity";
 import { requirePermission } from "@/modules/identity/next";
 import { UnitForm } from "@/modules/units";
 import { createUnitAction } from "../actions";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Nova unidade" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return { title: t("units.ui.newUnit") };
+}
 
 export default async function NewUnitPage() {
+  const t = await getTranslations();
   const ctx = await requirePermission("setup:manage");
   const profile = await getOrganizationProfile(ctx);
   // ADR-019: a new unit starts with the organization's time zone.
@@ -18,10 +23,10 @@ export default async function NewUnitPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        title="Nova unidade"
+        title={t("units.ui.newUnit")}
         breadcrumb={
           <Link href="/settings/units" className="underline-offset-4 hover:underline">
-            Unidades
+            {t("common.units")}
           </Link>
         }
       />

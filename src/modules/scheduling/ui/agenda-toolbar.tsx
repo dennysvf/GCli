@@ -14,7 +14,8 @@ import {
 import { Input } from "@/shared/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
-import { APPOINTMENT_STATUSES, STATUS_LABELS, type AppointmentStatus } from "../domain/status";
+import { APPOINTMENT_STATUSES, type AppointmentStatus } from "../domain/status";
+import { useTranslations } from "next-intl";
 
 export type AgendaViewKind = "day" | "week" | "list";
 export type AgendaBy = "professional" | "room";
@@ -57,6 +58,7 @@ export function AgendaToolbar({
   onAvailability: () => void;
   pdfHref: (professionalId: string) => string;
 }) {
+  const t = useTranslations();
   const toggle = <T extends string>(list: T[], value: T, checked: boolean) =>
     checked ? [...list, value] : list.filter((item) => item !== value);
   const filterCount = state.professionalIds.length + state.serviceIds.length + state.statuses.length;
@@ -65,18 +67,30 @@ export function AgendaToolbar({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <div className="flex items-center gap-1">
-        <Button type="button" variant="ghost" size="icon-sm" aria-label="Anterior" onClick={() => onStep(-1)}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("common.previous")}
+          onClick={() => onStep(-1)}
+        >
           <ChevronLeft />
         </Button>
         <Button type="button" variant="secondary" size="sm" onClick={onToday}>
-          Hoje
+          {t("common.today")}
         </Button>
-        <Button type="button" variant="ghost" size="icon-sm" aria-label="Próximo" onClick={() => onStep(1)}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("common.nextMasculine")}
+          onClick={() => onStep(1)}
+        >
           <ChevronRight />
         </Button>
         <Input
           type="date"
-          aria-label="Data"
+          aria-label={t("common.date")}
           className="h-8 w-40"
           value={state.date}
           onChange={(event) => event.target.value && onChange({ date: event.target.value })}
@@ -84,16 +98,16 @@ export function AgendaToolbar({
       </div>
       <Tabs value={state.view} onValueChange={(view) => onChange({ view: view as AgendaViewKind })}>
         <TabsList>
-          <TabsTrigger value="day">Dia</TabsTrigger>
-          <TabsTrigger value="week">Semana</TabsTrigger>
-          <TabsTrigger value="list">Lista</TabsTrigger>
+          <TabsTrigger value="day">{t("scheduling.ui.viewDay")}</TabsTrigger>
+          <TabsTrigger value="week">{t("scheduling.ui.viewWeek")}</TabsTrigger>
+          <TabsTrigger value="list">{t("scheduling.ui.viewList")}</TabsTrigger>
         </TabsList>
       </Tabs>
       {!ownOnly && state.view !== "list" ? (
         <Tabs value={state.by} onValueChange={(by) => onChange({ by: by as AgendaBy, focusId: "" })}>
           <TabsList>
-            <TabsTrigger value="professional">Profissionais</TabsTrigger>
-            <TabsTrigger value="room">Salas</TabsTrigger>
+            <TabsTrigger value="professional">{t("common.professionals")}</TabsTrigger>
+            <TabsTrigger value="room">{t("common.rooms")}</TabsTrigger>
           </TabsList>
         </Tabs>
       ) : null}
@@ -101,7 +115,9 @@ export function AgendaToolbar({
         <Select value={state.focusId || focusList[0]?.id} onValueChange={(focusId) => onChange({ focusId })}>
           <SelectTrigger
             size="sm"
-            aria-label={state.by === "room" ? "Sala da semana" : "Profissional da semana"}
+            aria-label={
+              state.by === "room" ? t("scheduling.ui.weekRoom") : t("scheduling.ui.weekProfessional")
+            }
           >
             <SelectValue />
           </SelectTrigger>
@@ -118,13 +134,14 @@ export function AgendaToolbar({
         <DropdownMenuTrigger asChild>
           <Button type="button" variant="ghost" size="sm">
             <Filter />
-            Filtros{filterCount > 0 ? ` (${filterCount})` : ""}
+            {t("scheduling.ui.filters")}
+            {filterCount > 0 ? ` (${filterCount})` : ""}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="max-h-96 overflow-y-auto">
           {!ownOnly ? (
             <>
-              <DropdownMenuLabel>Profissionais</DropdownMenuLabel>
+              <DropdownMenuLabel>{t("common.professionals")}</DropdownMenuLabel>
               {professionals.map((item) => (
                 <DropdownMenuCheckboxItem
                   key={item.id}
@@ -140,7 +157,7 @@ export function AgendaToolbar({
               <DropdownMenuSeparator />
             </>
           ) : null}
-          <DropdownMenuLabel>Serviços</DropdownMenuLabel>
+          <DropdownMenuLabel>{t("common.services")}</DropdownMenuLabel>
           {services.map((item) => (
             <DropdownMenuCheckboxItem
               key={item.id}
@@ -154,7 +171,7 @@ export function AgendaToolbar({
             </DropdownMenuCheckboxItem>
           ))}
           <DropdownMenuSeparator />
-          <DropdownMenuLabel>Status</DropdownMenuLabel>
+          <DropdownMenuLabel>{t("common.status")}</DropdownMenuLabel>
           {APPOINTMENT_STATUSES.map((status) => (
             <DropdownMenuCheckboxItem
               key={status}
@@ -164,7 +181,7 @@ export function AgendaToolbar({
                 onChange({ statuses: toggle(state.statuses, status, checked === true) })
               }
             >
-              {STATUS_LABELS[status]}
+              {t(`scheduling.ui.status.${status}`)}
             </DropdownMenuCheckboxItem>
           ))}
           {filterCount > 0 ? (
@@ -173,7 +190,7 @@ export function AgendaToolbar({
               <DropdownMenuItem
                 onSelect={() => onChange({ professionalIds: [], serviceIds: [], statuses: [] })}
               >
-                Limpar filtros
+                {t("scheduling.ui.clearFilters")}
               </DropdownMenuItem>
             </>
           ) : null}
@@ -182,7 +199,7 @@ export function AgendaToolbar({
       {canManage ? (
         <Button type="button" variant="ghost" size="sm" onClick={onAvailability}>
           <Search />
-          Próximo horário livre
+          {t("scheduling.ui.nextFreeSlot")}
         </Button>
       ) : null}
       {professionals.length > 0 ? (
@@ -190,11 +207,11 @@ export function AgendaToolbar({
           <DropdownMenuTrigger asChild>
             <Button type="button" variant="ghost" size="sm">
               <Printer />
-              Imprimir agenda
+              {t("scheduling.ui.printAgenda")}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuLabel>Agenda do dia de</DropdownMenuLabel>
+            <DropdownMenuLabel>{t("scheduling.ui.dayAgendaOf")}</DropdownMenuLabel>
             {professionals.map((item) => (
               <DropdownMenuItem key={item.id} asChild>
                 <a href={pdfHref(item.id)} target="_blank" rel="noopener">
