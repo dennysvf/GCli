@@ -390,7 +390,7 @@ model ServicePriceChange {
 
   service Service @relation(fields: [serviceId], references: [id], onDelete: Restrict, map: "fk_price_change_service")
 
-  @@index([serviceId, changedAt(sort: Desc)], map: "ix_price_change_service_time")
+  @@index([serviceId, currency, changedAt(sort: Desc)], map: "ix_price_change_service_time")
   @@map("service_price_change")
 }
 
@@ -449,6 +449,7 @@ model ProfessionalRegistration {
 
   professional Professional @relation(fields: [professionalId], references: [id], onDelete: Restrict, map: "fk_registration_professional")
 
+  @@unique([professionalId, country], map: "uq_registration_professional_country")
   @@index([organizationId, professionalId], map: "ix_registration_professional")
   @@map("professional_registration")
 }
