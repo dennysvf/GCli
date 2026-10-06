@@ -463,6 +463,16 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 - *Why:* Units in Portugal, Spain, Chile or the United States change offset during the year, so a fixed offset would shift or overlap intervals for part of it. The conversions `Intl` provides are enough; no date library is needed.
 - *Trade-off:* The check does more work (one conversion per interval and date), which is small for the 53-week horizon. Tests pin real 2026 and 2027 transitions.
 
+**ADR-031 — Direct presigned uploads for clinical attachments (refines ADR-009 and ADR-023)**
+- *Decision:* Clinical attachments (up to 20 MB, up to 10 per note) go from the browser straight to the private bucket through a presigned PUT URL that signs the content type and size. The server issues the URL after authorization, and a confirmation step reads the object metadata and its first bytes (magic bytes) before creating the record; a mismatch deletes the object. The browser reaches the bucket through the optional `S3_PUBLIC_ENDPOINT` (default `S3_ENDPOINT`), which is added to `connect-src` and `img-src` in the CSP, and the bucket has a CORS rule that allows `PUT` and `GET` from `APP_URL`.
+- *Why:* ADR-023 limited server uploads to 10 MB and named F07 as the feature that could adopt direct uploads. Twenty-megabyte files would otherwise load the web process, and the browser can show progress per file.
+- *Trade-off:* More moving parts (CSP, CORS, a public endpoint, an intent table and a cleanup job for unconfirmed uploads). The signed size and the magic-byte check keep the server in control of what is stored.
+
+**ADR-032 — Clinical notes as sanitized HTML with a database lock (complements ADR-005 and section 6)**
+- *Decision:* Notes and addenda are stored as HTML sanitized on the server against a strict allowlist (`p`, `br`, `strong`, `em`, `h2`, `h3`, `ul`, `ol`, `li`, no attributes), plus a derived plain text used for limits, previews and exports. A note stores `locks_at = created_at + 24 h`; a `BEFORE UPDATE` trigger refuses content changes after that instant. Editing a finalized note uses an edit draft that only the author sees; publishing it stores the replaced content as a version. A job finalizes drafts that expire.
+- *Why:* The PRD says a locked note is locked permanently, which the database should guarantee even if the application has a bug. One version per real edit, not per autosave, keeps the history meaningful.
+- *Trade-off:* Sanitizing happens on every write and read, and the trigger compares against the transaction start time, so a save that begins milliseconds before the lock may commit.
+
 ## 13. Evolution to SaaS
 
 The V1 design keeps these steps additive, with no rewrites:

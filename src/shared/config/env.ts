@@ -21,6 +21,8 @@ const envSchema = z.object({
   SMTP_PASSWORD: z.string().optional(),
   SMTP_FROM: z.string().min(3),
   S3_ENDPOINT: z.url().optional(),
+  // Storage URL that browsers can reach, for direct uploads and downloads (ADR-031).
+  S3_PUBLIC_ENDPOINT: z.url().optional(),
   S3_REGION: z.string().min(1),
   S3_BUCKET: z.string().min(1),
   S3_ACCESS_KEY_ID: z.string().min(1),

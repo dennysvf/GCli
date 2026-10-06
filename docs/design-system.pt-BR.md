@@ -395,6 +395,18 @@ A agenda (F06) parte da seção 10.1. Estas regras cobrem o que aquela seção n
 - **Atraso e histórico:** o atraso segue a seção 10.1. O painel do agendamento lista o histórico de status numa tabela compacta (Status como carimbo, Data e hora, Por), do mais recente para o mais antigo.
 - **Agenda impressa (PDF):** A4 retrato em fundo branco, nome e logo da clínica no canto superior esquerdo, o profissional, a unidade e a data como título na fonte serifada, a régua dupla abaixo, e uma tabela com linhas horizontais finas (Horário, Paciente, Telefone, Serviço, Sala, Status, Observações). Rodapé: "Gerado em {data hora} por {usuário}" à esquerda e o número da página à direita, no tamanho `meta`. Nenhuma cor além da tinta.
 
+### 5.12 Prontuário
+
+O prontuário (F07) é o único lugar em que a interface se comporta como um documento. Estas regras cobrem o que as outras seções não mostram.
+- **Tela dividida:** uma coluna esquerda de 360 px com o cabeçalho do paciente e a lista de notas anteriores, e o editor ou leitor na coluna direita, na coluna de leitura da seção 3.3 (72 caracteres). Abaixo do ponto de quebra `md` as colunas se empilham, com o editor primeiro e a lista abaixo.
+- **Cabeçalho do paciente:** o nome na fonte serifada, a idade em `meta`, e o alerta clínico como carimbo de perigo que traz o texto do alerta. "Editar alertas" é um botão ghost que abre um diálogo com um textarea e um contador de caracteres.
+- **Lista de notas:** uma tabela compacta (Data, Profissional, Serviço, primeiros 150 caracteres em `meta`). O estado é escrito como texto em carimbos ("Rascunho", "Bloqueado", "3 adendos"), nunca só por cor. A linha selecionada tem o fundo `paper-1` e uma linha de 2 px em `ink-blue` na borda esquerda.
+- **Editor:** a barra de ferramentas fica acima do texto, numa faixa `paper-1`. Os botões são ghost com texto e ícone, e o atalho aparece na dica (Negrito, Itálico, Título, Lista, Lista numerada). O contador de caracteres é `meta`, passa ao tom de atenção a 90% e ao tom de perigo no limite. "Finalizar registro" é o único botão primário da tela; no modo de edição, "Salvar alterações" ocupa o lugar dele e "Descartar alterações" é um botão ghost.
+- **Linha de status do salvamento:** acima do editor, em `meta`: "Rascunho salvo às 14:32", "Salvando…", "Finalizado — editável até 29/09 14:10" ou "Bloqueado". As condições de offline e de conflito usam o alerta de página de atenção logo abaixo, com o texto do PRD. O status é uma região viva (`aria-live="polite"`).
+- **Notas travadas e somente leitura:** o texto aparece na coluna de leitura sem borda, e um alerta informativo informa quando a nota foi travada. "Adicionar adendo" é um botão secundário abaixo do texto.
+- **Adendos:** abaixo do texto original, separados por uma linha fina, cada um com "Adendo de {autor} em {data hora}" em `body-strong` seguido do texto. Nenhuma ação é mostrada neles, porque não podem mudar.
+- **Anexos:** uma área de soltar tracejada em `rule-strong` com o texto "Arraste arquivos ou escolha" e um botão secundário como alternativa de teclado. Cada arquivo é uma linha com miniatura (ou ícone de PDF), nome, tamanho, um status em texto ("Enviando 45%", "Processando", "Pronto", "Falhou") e uma barra de progresso. Anexos marcados como engano ficam ocultos até marcar "Mostrar anexos ocultos", e então levam o carimbo neutro "Anexado por engano".
+
 ## 6. Detalhes visuais
 
 ### 6.1 Bordas e raios

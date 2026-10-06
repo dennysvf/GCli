@@ -1,0 +1,30 @@
+{
+  "errors": {
+    "CLINICAL_NOTE_NOT_FOUND": "Registro clínico não encontrado.",
+    "CLINICAL_APPOINTMENT_STATUS_INVALID": "O registro só pode ser criado quando o paciente chegou, está em atendimento ou o atendimento foi concluído.",
+    "CLINICAL_NOT_APPOINTMENT_PROFESSIONAL": "Somente o profissional do atendimento pode escrever este registro.",
+    "CLINICAL_STANDALONE_NOT_ALLOWED": "Registros avulsos são permitidos apenas para pacientes que você já atendeu.",
+    "CLINICAL_NOT_AUTHOR": "Somente o autor pode alterar este registro.",
+    "CLINICAL_NOTE_TOO_LONG": "O registro pode ter no máximo 50.000 caracteres.",
+    "CLINICAL_NOTE_EMPTY": "Escreva o registro antes de finalizar.",
+    "CLINICAL_NOTE_LOCKED": "Este registro foi bloqueado em {date} às {time}. Utilize um adendo para complementar.",
+    "CLINICAL_NOTE_STALE": "Este registro foi alterado em outra janela. Recarregue para ver a versão mais recente.",
+    "CLINICAL_NOTE_NOT_FINALIZED": "Finalize o registro antes de editá-lo.",
+    "CLINICAL_NOTE_ALREADY_FINALIZED": "Este registro já foi finalizado. Use Editar para alterá-lo.",
+    "CLINICAL_NO_EDIT_IN_PROGRESS": "Não há alterações em andamento neste registro.",
+    "CLINICAL_ADDENDUM_BEFORE_LOCK": "Adendos podem ser adicionados após o bloqueio do registro.",
+    "CLINICAL_ADDENDUM_TOO_LONG": "O adendo pode ter no máximo 10.000 caracteres.",
+    "CLINICAL_ADDENDUM_EMPTY": "Escreva o adendo antes de salvar.",
+    "CLINICAL_ATTACHMENT_UNSUPPORTED": "Arquivo não suportado. Envie PDF, JPG, PNG ou HEIC de até 20 MB.",
+    "CLINICAL_ATTACHMENT_LIMIT": "Este registro já tem 10 anexos. Marque um anexo como enviado por engano para liberar espaço.",
+    "CLINICAL_ATTACHMENTS_CLOSED": "Anexos só podem ser adicionados enquanto o registro pode ser editado.",
+    "CLINICAL_ATTACHMENT_NOT_FOUND": "Anexo não encontrado.",
+    "CLINICAL_UPLOAD_NOT_FOUND": "O envio do arquivo não foi concluído. Tente enviar novamente.",
+    "CLINICAL_ATTACHMENT_ERROR_WINDOW_EXPIRED": "O prazo de 24 horas para marcar este anexo como enviado por engano terminou.",
+    "CLINICAL_ALERT_TOO_LONG": "Os alertas podem ter no máximo 500 caracteres."
+  },
+  "validation": {
+    "required": "Preencha este campo.",
+    "invalid": "Valor inválido."
+  }
+}

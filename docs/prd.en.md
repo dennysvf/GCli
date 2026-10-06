@@ -453,9 +453,10 @@ The differentiator is configurability without complexity: the same product serve
 - One clinical note per appointment, created by the appointment's professional (or a user linked to that professional profile) when status is Chegou, Em atendimento, or Concluído. Standalone notes (without appointment) are allowed for patients with at least one past appointment with the professional, labeled "Registro avulso".
 - Rich text editor (bold, italic, lists, headings), max 50,000 characters.
 - Autosave of drafts every 10 seconds and on blur; draft visible only to its author.
-- Finalize ("Finalizar registro") makes the note visible to other authorized professionals. The author can edit the finalized note for 24 hours after its creation; after that it is locked permanently. Every edit within the 24 hours stores a version (previous content kept).
+- Finalize ("Finalizar registro") makes the note visible to other authorized professionals. The author can edit the finalized note for 24 hours after its creation; after that it is locked permanently. Every edit within the 24 hours stores a version (previous content kept). A draft that was never finalized is finalized automatically when the 24 hours end (marked "Finalizado automaticamente"), so the encounter record is never left hidden or editable.
 - Addenda: after locking, the author or another authorized professional can add addenda (max 10,000 chars each) with their own author and timestamp; addenda are immutable.
-- Clinical attachments: PDF, JPG, PNG, HEIC (converted to JPG), max 20 MB per file, max 10 files per note; stored in private object storage, served through short-lived signed URLs (5 minutes).
+- Clinical attachments: PDF, JPG, PNG, HEIC (converted to JPG), max 20 MB per file, max 10 files per note, added only while the note is editable (files that arrive later go to the patient's documents, F08); stored in private object storage, served through short-lived signed URLs (5 minutes).
+- Clinical alerts: each patient can have a short clinical alert text (max 500 chars, e.g., "Alergia a dipirona") edited by authorized professionals, with history, shown in the record header and never outside clinical screens.
 - Access: only Professionals with at least one appointment with the patient (and Administrator/Manager users linked to such a professional). Every read of a note is written to the audit log (F01).
 - Notes and attachments are never deleted; an attachment added in error can be marked "Anexado por engano" within 24 hours, which hides it from default view but keeps it in the record.
 

@@ -1,0 +1,30 @@
+{
+  "errors": {
+    "CLINICAL_NOTE_NOT_FOUND": "Clinical record not found.",
+    "CLINICAL_APPOINTMENT_STATUS_INVALID": "The record can only be created once the patient has arrived, is being seen or the appointment is completed.",
+    "CLINICAL_NOT_APPOINTMENT_PROFESSIONAL": "Only the professional of the appointment can write this record.",
+    "CLINICAL_STANDALONE_NOT_ALLOWED": "Standalone records are only allowed for patients you have already seen.",
+    "CLINICAL_NOT_AUTHOR": "Only the author can change this record.",
+    "CLINICAL_NOTE_TOO_LONG": "The record can have at most 50,000 characters.",
+    "CLINICAL_NOTE_EMPTY": "Write the record before finalizing.",
+    "CLINICAL_NOTE_LOCKED": "This record was locked on {date} at {time}. Use an addendum to add information.",
+    "CLINICAL_NOTE_STALE": "This record was changed in another window. Reload to see the latest version.",
+    "CLINICAL_NOTE_NOT_FINALIZED": "Finalize the record before editing it.",
+    "CLINICAL_NOTE_ALREADY_FINALIZED": "This record is already finalized. Use Edit to change it.",
+    "CLINICAL_NO_EDIT_IN_PROGRESS": "There are no changes in progress on this record.",
+    "CLINICAL_ADDENDUM_BEFORE_LOCK": "Addenda can be added once the record is locked.",
+    "CLINICAL_ADDENDUM_TOO_LONG": "The addendum can have at most 10,000 characters.",
+    "CLINICAL_ADDENDUM_EMPTY": "Write the addendum before saving.",
+    "CLINICAL_ATTACHMENT_UNSUPPORTED": "Unsupported file. Upload a PDF, JPG, PNG or HEIC of up to 20 MB.",
+    "CLINICAL_ATTACHMENT_LIMIT": "This record already has 10 attachments. Mark an attachment as added by mistake to free a place.",
+    "CLINICAL_ATTACHMENTS_CLOSED": "Attachments can only be added while the record can be edited.",
+    "CLINICAL_ATTACHMENT_NOT_FOUND": "Attachment not found.",
+    "CLINICAL_UPLOAD_NOT_FOUND": "The file upload was not completed. Try uploading again.",
+    "CLINICAL_ATTACHMENT_ERROR_WINDOW_EXPIRED": "The 24-hour period to mark this attachment as added by mistake has ended.",
+    "CLINICAL_ALERT_TOO_LONG": "Alerts can have at most 500 characters."
+  },
+  "validation": {
+    "required": "Fill in this field.",
+    "invalid": "Invalid value."
+  }
+}

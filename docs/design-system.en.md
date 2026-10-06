@@ -397,6 +397,18 @@ The agenda (F06) builds on section 10.1. These rules cover the parts that sectio
 - **Lateness and history:** lateness follows section 10.1. The appointment panel lists the status history as a compact table (Status as a stamp, Data e hora, Por), newest first.
 - **Printed agenda (PDF):** A4 portrait on white, clinic name and logo at the top left, the professional, unit and date as the title in the serif face, the double rule below it, then a table with fine horizontal rules (Horário, Paciente, Telefone, Serviço, Sala, Status, Observações). Footer: "Gerado em {data hora} por {usuário}" on the left and the page number on the right, in `meta` size. No color besides ink.
 
+### 5.12 Clinical record
+
+The clinical record (F07) is the one place where the interface behaves like a document. These rules cover what the other sections do not show.
+- **Split screen:** a left column of 360 px with the patient header and the list of previous notes, and the editor or reader in the right column, in the reading column of section 3.3 (72 characters). Below the `md` breakpoint the columns stack with the editor first and the list below it.
+- **Patient header:** the name in the serif face, the age in `meta`, and the clinical alert as a danger stamp that carries the alert text. "Editar alertas" is a ghost button that opens a dialog with a textarea and a character counter.
+- **Notes list:** a compact table (Data, Profissional, Serviço, first 150 characters as `meta`). State is written as text in stamps ("Rascunho", "Bloqueado", "3 adendos"), never by color alone. The selected row has the `paper-1` background and a 2 px `ink-blue` rule on its left edge.
+- **Editor:** the toolbar sits above the text on a `paper-1` strip. Buttons are text-and-icon ghost buttons with the shortcut in the tooltip (Negrito, Itálico, Título, Lista, Lista numerada). The character counter is `meta`, turns to the warning tone at 90% and to the danger tone at the limit. "Finalizar registro" is the only primary button of the screen; in edit mode "Salvar alterações" takes its place and "Descartar alterações" is a ghost button.
+- **Save status line:** above the editor in `meta`: "Rascunho salvo às 14:32", "Salvando…", "Finalizado — editável até 29/09 14:10" or "Bloqueado". The offline and stale conditions use the warning page alert below it, with the text of the PRD. The status is a live region (`aria-live="polite"`).
+- **Locked and read-only notes:** the text is shown in the reading column without a border, and an info alert states when the note was locked. "Adicionar adendo" is a secondary button under the text.
+- **Addenda:** below the original text, separated by a fine rule, each with "Adendo de {autor} em {data hora}" in `body-strong` followed by the text. No actions are shown on them, because they cannot change.
+- **Attachments:** a dashed `rule-strong` drop zone with the text "Arraste arquivos ou escolha" and a secondary button as the keyboard alternative. Each file is a row with a thumbnail (or a PDF icon), name, size, a text status ("Enviando 45%", "Processando", "Pronto", "Falhou") and a progress bar. Attachments marked as mistakes are hidden until "Mostrar anexos ocultos" is checked, and then carry the neutral stamp "Anexado por engano".
+
 ## 6. Visual details
 
 ### 6.1 Borders and radii

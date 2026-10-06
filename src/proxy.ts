@@ -15,16 +15,28 @@ function isPublic(pathname: string): boolean {
   );
 }
 
+// Origin of the storage that browsers upload clinical files to and load thumbnails from (ADR-031).
+function storageOrigin(): string {
+  const endpoint = process.env.S3_PUBLIC_ENDPOINT ?? process.env.S3_ENDPOINT;
+  if (!endpoint) return "";
+  try {
+    return ` ${new URL(endpoint).origin}`;
+  } catch {
+    return "";
+  }
+}
+
 function contentSecurityPolicy(nonce: string): string {
   const isDev = process.env.NODE_ENV === "development";
+  const storage = storageOrigin();
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
     // Radix UI positions popovers with inline style attributes, which nonces cannot cover.
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data:",
+    `img-src 'self' blob: data:${storage}`,
     "font-src 'self'",
-    `connect-src 'self'${process.env.NEXT_PUBLIC_SENTRY_DSN ? " https://*.sentry.io https://*.ingest.sentry.io" : ""}`,
+    `connect-src 'self'${storage}${process.env.NEXT_PUBLIC_SENTRY_DSN ? " https://*.sentry.io https://*.ingest.sentry.io" : ""}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
