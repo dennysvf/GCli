@@ -613,6 +613,10 @@ npm run setup:admin -- --org-name "My Clinic" --admin-name "Your Name" --admin-e
 # 6. App and worker (two terminals)
 npm run dev          # http://localhost:3001
 npm run dev:worker   # sends outbox emails
+
+# 7. Optional, after accepting the invitation: demo services, professionals, patients and
+#    appointments (users rita@ and beatriz@clinicademo.com.br, password Demo2026senha)
+npm run seed:demo
 ```
 
 Open **Mailpit** at http://localhost:8025, click the invitation link, set your password, and you are in.
