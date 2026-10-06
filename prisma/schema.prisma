@@ -27,16 +27,23 @@ model Organization {
   updatedAt              DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   updatedById            String?  @map("updated_by_id") @db.Uuid
 
-  users               User[]
-  invitations         Invitation[]
-  units               Unit[]
-  serviceCategories   ServiceCategory[]
-  services            Service[]
-  professionals       Professional[]
-  patients            Patient[]
-  appointments        Appointment[]
-  appointmentSeries   AppointmentSeries[]
-  cancellationReasons CancellationReason[]
+  users                User[]
+  invitations          Invitation[]
+  units                Unit[]
+  serviceCategories    ServiceCategory[]
+  services             Service[]
+  professionals        Professional[]
+  patients             Patient[]
+  appointments         Appointment[]
+  appointmentSeries    AppointmentSeries[]
+  cancellationReasons  CancellationReason[]
+  clinicalNotes        ClinicalNote[]
+  clinicalNoteVersions ClinicalNoteVersion[]
+  clinicalAddenda      ClinicalNoteAddendum[]
+  clinicalAttachments  ClinicalAttachment[]
+  clinicalUploads      ClinicalAttachmentUpload[]
+  clinicalAlerts       ClinicalAlert[]
+  clinicalAlertChanges ClinicalAlertChange[]
 
   @@map("organization")
 }
@@ -427,6 +434,7 @@ model Professional {
   schedules     ProfessionalSchedule[]
   timeOffs      ProfessionalTimeOff[]
   appointments  Appointment[]
+  clinicalNotes ClinicalNote[]
 
   @@index([organizationId, active], map: "ix_professional_org_active")
   @@map("professional")
@@ -578,6 +586,8 @@ model Patient {
   tags           PatientTag[]
   consents       ConsentRecord[]
   appointments   Appointment[]
+  clinicalNotes  ClinicalNote[]
+  clinicalAlerts ClinicalAlert[]
 
   @@index([organizationId, normalizedName, birthDate], map: "ix_patient_org_identity")
   @@index([organizationId, active, normalizedName], map: "ix_patient_org_active_name")
@@ -727,6 +737,7 @@ model Appointment {
   cancellationReason CancellationReason?       @relation(fields: [cancellationReasonId], references: [id], onDelete: Restrict, map: "fk_appointment_cancellation_reason")
   statusChanges      AppointmentStatusChange[]
   reschedules        AppointmentReschedule[]
+  clinicalNotes      ClinicalNote[]
 
   @@index([organizationId, unitId, startsAt], map: "ix_appointment_org_unit_start")
   @@index([organizationId, professionalId, startsAt], map: "ix_appointment_org_professional_start")
@@ -819,4 +830,161 @@ model CancellationReason {
 
   @@index([organizationId, active, sortOrder], map: "ix_cancellation_reason_org_active")
   @@map("cancellation_reason")
+}
+
+// F07 Clinical encounter records. The partial unique index, CHECKs, the lock trigger and the
+// append-only grants are written in raw SQL in the migration (spec F07 section 6, ADR-032).
+
+model ClinicalNote {
+  id                  String    @id @db.Uuid
+  organizationId      String    @map("organization_id") @db.Uuid
+  patientId           String    @map("patient_id") @db.Uuid
+  appointmentId       String?   @map("appointment_id") @db.Uuid
+  kind                String    @db.VarChar(12)
+  professionalId      String    @map("professional_id") @db.Uuid
+  authorUserId        String    @map("author_user_id") @db.Uuid
+  status              String    @default("DRAFT") @db.VarChar(10)
+  contentHtml         String    @map("content_html")
+  contentText         String    @map("content_text")
+  characters          Int
+  draftSavedAt        DateTime  @default(now()) @map("draft_saved_at") @db.Timestamptz(6)
+  locksAt             DateTime  @map("locks_at") @db.Timestamptz(6)
+  finalizedAt         DateTime? @map("finalized_at") @db.Timestamptz(6)
+  finalizedById       String?   @map("finalized_by_id") @db.Uuid
+  autoFinalized       Boolean   @default(false) @map("auto_finalized")
+  editDraftHtml       String?   @map("edit_draft_html")
+  editDraftText       String?   @map("edit_draft_text")
+  editDraftCharacters Int?      @map("edit_draft_characters")
+  editStartedAt       DateTime? @map("edit_started_at") @db.Timestamptz(6)
+  version             Int       @default(1)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization               @relation(fields: [organizationId], references: [id], map: "fk_clinical_note_org")
+  patient      Patient                    @relation(fields: [patientId], references: [id], onDelete: Restrict, map: "fk_clinical_note_patient")
+  appointment  Appointment?               @relation(fields: [appointmentId], references: [id], onDelete: Restrict, map: "fk_clinical_note_appointment")
+  professional Professional               @relation(fields: [professionalId], references: [id], onDelete: Restrict, map: "fk_clinical_note_professional")
+  versions     ClinicalNoteVersion[]
+  addenda      ClinicalNoteAddendum[]
+  attachments  ClinicalAttachment[]
+  uploads      ClinicalAttachmentUpload[]
+
+  @@index([organizationId, patientId, createdAt(sort: Desc)], map: "ix_clinical_note_org_patient_created")
+  @@index([organizationId, professionalId], map: "ix_clinical_note_org_professional")
+  @@map("clinical_note")
+}
+
+model ClinicalNoteVersion {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  noteId         String   @map("note_id") @db.Uuid
+  versionNumber  Int      @map("version_number") @db.SmallInt
+  contentHtml    String   @map("content_html")
+  contentText    String   @map("content_text")
+  characters     Int
+  replacedAt     DateTime @default(now()) @map("replaced_at") @db.Timestamptz(6)
+  replacedById   String   @map("replaced_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_clinical_version_org")
+  note         ClinicalNote @relation(fields: [noteId], references: [id], onDelete: Restrict, map: "fk_clinical_version_note")
+
+  @@unique([noteId, versionNumber], map: "uq_clinical_version_note_number")
+  @@map("clinical_note_version")
+}
+
+model ClinicalNoteAddendum {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  noteId         String   @map("note_id") @db.Uuid
+  authorUserId   String   @map("author_user_id") @db.Uuid
+  professionalId String   @map("professional_id") @db.Uuid
+  contentHtml    String   @map("content_html")
+  contentText    String   @map("content_text")
+  characters     Int
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_clinical_addendum_org")
+  note         ClinicalNote @relation(fields: [noteId], references: [id], onDelete: Restrict, map: "fk_clinical_addendum_note")
+
+  @@index([noteId, createdAt], map: "ix_clinical_addendum_note")
+  @@map("clinical_note_addendum")
+}
+
+model ClinicalAttachment {
+  id                String    @id @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  noteId            String    @map("note_id") @db.Uuid
+  uploadedById      String    @map("uploaded_by_id") @db.Uuid
+  fileName          String    @map("file_name") @db.VarChar(255)
+  sourceContentType String    @map("source_content_type") @db.VarChar(20)
+  sourceObjectKey   String    @map("source_object_key") @db.VarChar(200)
+  objectKey         String?   @map("object_key") @db.VarChar(200)
+  contentType       String?   @map("content_type") @db.VarChar(20)
+  thumbnailKey      String?   @map("thumbnail_key") @db.VarChar(200)
+  sizeBytes         Int       @map("size_bytes")
+  status            String    @db.VarChar(10)
+  markedInErrorAt   DateTime? @map("marked_in_error_at") @db.Timestamptz(6)
+  markedInErrorById String?   @map("marked_in_error_by_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_clinical_attachment_org")
+  note         ClinicalNote @relation(fields: [noteId], references: [id], onDelete: Restrict, map: "fk_clinical_attachment_note")
+
+  @@index([noteId, createdAt], map: "ix_clinical_attachment_note")
+  @@map("clinical_attachment")
+}
+
+model ClinicalAttachmentUpload {
+  id                  String    @id @db.Uuid
+  organizationId      String    @map("organization_id") @db.Uuid
+  noteId              String    @map("note_id") @db.Uuid
+  userId              String    @map("user_id") @db.Uuid
+  objectKey           String    @map("object_key") @db.VarChar(200)
+  fileName            String    @map("file_name") @db.VarChar(255)
+  declaredContentType String    @map("declared_content_type") @db.VarChar(20)
+  declaredSize        Int       @map("declared_size")
+  expiresAt           DateTime  @map("expires_at") @db.Timestamptz(6)
+  consumedAt          DateTime? @map("consumed_at") @db.Timestamptz(6)
+  attachmentId        String?   @map("attachment_id") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_clinical_upload_org")
+  note         ClinicalNote @relation(fields: [noteId], references: [id], onDelete: Restrict, map: "fk_clinical_upload_note")
+
+  @@map("clinical_attachment_upload")
+}
+
+model ClinicalAlert {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  patientId      String   @map("patient_id") @db.Uuid
+  text           String   @db.VarChar(500)
+  version        Int      @default(1)
+  updatedById    String   @map("updated_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization          @relation(fields: [organizationId], references: [id], map: "fk_clinical_alert_org")
+  patient      Patient               @relation(fields: [patientId], references: [id], onDelete: Restrict, map: "fk_clinical_alert_patient")
+  changes      ClinicalAlertChange[]
+
+  @@unique([organizationId, patientId], map: "uq_clinical_alert_org_patient")
+  @@map("clinical_alert")
+}
+
+model ClinicalAlertChange {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  alertId        String   @map("alert_id") @db.Uuid
+  previousText   String   @map("previous_text") @db.VarChar(500)
+  changedById    String   @map("changed_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], map: "fk_clinical_alert_change_org")
+  alert        ClinicalAlert @relation(fields: [alertId], references: [id], onDelete: Restrict, map: "fk_clinical_alert_change_alert")
+
+  @@index([alertId, createdAt], map: "ix_clinical_alert_change_alert")
+  @@map("clinical_alert_change")
 }

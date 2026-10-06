@@ -27,7 +27,8 @@ export async function resetDatabase(): Promise<void> {
     professional_time_off, patient, referral_source, tag, patient_tag, privacy_terms_version,
     consent_record, consent_upload,
     appointment, appointment_status_change, appointment_reschedule, appointment_series,
-    cancellation_reason CASCADE`);
+    cancellation_reason, clinical_note, clinical_note_version, clinical_note_addendum, clinical_attachment,
+    clinical_attachment_upload, clinical_alert, clinical_alert_change CASCADE`);
 }
 
 export async function closeHelpers(): Promise<void> {

@@ -39,6 +39,14 @@ const TENANT_MODELS = new Set<string>([
   "AppointmentReschedule",
   "AppointmentSeries",
   "CancellationReason",
+  // F07
+  "ClinicalNote",
+  "ClinicalNoteVersion",
+  "ClinicalNoteAddendum",
+  "ClinicalAttachment",
+  "ClinicalAttachmentUpload",
+  "ClinicalAlert",
+  "ClinicalAlertChange",
 ]);
 // The organization row itself is scoped by its id.
 const ORGANIZATION_MODEL = "Organization";
