@@ -8,8 +8,11 @@ import {
   type SavePatientResult,
 } from "@/modules/patients/client";
 import { toast } from "sonner";
-import { formatCents } from "@/shared/kernel/money";
-import { interpolate, type ActionResult } from "@/shared/kernel/action-result";
+import { useLocale } from "next-intl";
+import { formatLocale, formatMoney } from "@/shared/i18n/format";
+import type { Locale } from "@/shared/i18n/locales";
+import type { CountryCode, Currency } from "@/shared/kernel/countries/codes";
+import type { ActionResult } from "@/shared/kernel/action-result";
 import type { PaletteColor } from "@/shared/kernel/palette";
 import { Button } from "@/shared/ui/components/button";
 import { Checkbox } from "@/shared/ui/components/checkbox";
@@ -41,19 +44,19 @@ import type { BookingOptions } from "../application/booking-options";
 import type { FindingDto } from "../application/booking";
 import type { BookSeriesResult, SeriesPreview } from "../application/series";
 import { formatMinute, parseTime } from "@/shared/kernel/calendar-date";
-import { SCHEDULING_TOASTS } from "../messages";
 import { ConflictFindings, hasBlocking, needsOverbooking } from "./conflict-findings";
-import { longDate, slotTimes } from "./format";
+import { slotTimes, useAgendaFormat } from "./format";
 import { PatientPicker } from "./patient-picker";
 import { RecurrenceFields, recurrenceInput, type RecurrenceState } from "./recurrence-fields";
 import { allResolved, SeriesConflicts, type Resolution } from "./series-conflicts";
+import { useTranslations } from "next-intl";
 
 export type ServiceOption = {
   id: string;
   name: string;
   categoryName: string;
   durationMinutes: number;
-  priceCents: number;
+  prices: { currency: string; amountMinor: number }[];
   color: string;
 };
 
@@ -89,6 +92,8 @@ const NO_ROOM = "__none__";
 export function BookingPanel({
   draft,
   unitId,
+  currency,
+  country,
   granularity,
   services,
   canRegisterPatient,
@@ -99,6 +104,9 @@ export function BookingPanel({
 }: {
   draft: BookingDraft;
   unitId: string;
+  // Currency and country of the unit: the price shown is the service price in that currency.
+  currency: Currency;
+  country: CountryCode;
   granularity: number;
   services: ServiceOption[];
   canRegisterPatient: boolean;
@@ -107,6 +115,8 @@ export function BookingPanel({
   onClose: () => void;
   onBooked: () => void;
 }) {
+  const fmt = useAgendaFormat();
+  const t = useTranslations();
   const [pending, startTransition] = useTransition();
   const [patient, setPatient] = useState<{ id: string; displayName: string } | null>(null);
   const [newPatient, setNewPatient] = useState(false);
@@ -133,6 +143,13 @@ export function BookingPanel({
   const [series, setSeries] = useState<SeriesPreview | null>(null);
   const [resolutions, setResolutions] = useState<Resolution[]>([]);
 
+  const locale = useLocale() as Locale;
+  const priceText = (item: ServiceOption) => {
+    const price = item.prices.find((entry) => entry.currency === currency);
+    return price
+      ? formatMoney({ amountMinor: price.amountMinor, currency }, formatLocale(locale, country))
+      : "—";
+  };
   const service = services.find((item) => item.id === serviceId);
   const grouped = useMemo(() => {
     const groups = new Map<string, ServiceOption[]>();
@@ -230,14 +247,14 @@ export function BookingPanel({
   function submit() {
     setErrors({});
     if (!patient) {
-      setErrors({ patientId: "Selecione o paciente." });
+      setErrors({ patientId: t("scheduling.ui.selectPatient") });
       return;
     }
     startTransition(async () => {
       if (!repeat) {
         const result = await actions.book(baseInput());
         if (!result.ok) return fail(result);
-        toast.success(SCHEDULING_TOASTS.booked);
+        toast.success(t("scheduling.ui.toasts.booked"));
         onBooked();
         return;
       }
@@ -252,9 +269,7 @@ export function BookingPanel({
       }
       const result = await actions.bookSeries(input);
       if (!result.ok) return fail(result);
-      toast.success(
-        interpolate(SCHEDULING_TOASTS.seriesBooked, { count: result.data.appointmentIds.length }),
-      );
+      toast.success(t("scheduling.ui.toasts.seriesBooked", { count: result.data.appointmentIds.length }));
       onBooked();
     });
   }
@@ -267,15 +282,16 @@ export function BookingPanel({
     <Sheet open onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Agendar consulta</SheetTitle>
-          <SheetDescription>{longDate(date)}</SheetDescription>
+          <SheetTitle>{t("scheduling.ui.bookAppointment")}</SheetTitle>
+          <SheetDescription>{fmt.longDate(date)}</SheetDescription>
         </SheetHeader>
         {/* The quick registration has its own form, so the patient block stays outside the booking form. */}
         <div className="grid gap-4 px-6">
-          <Field id="booking-patient" label="Paciente" error={errors.patientId}>
+          <Field id="booking-patient" label={t("common.patient")} error={errors.patientId}>
             {newPatient ? (
               <div className="grid gap-2 rounded-md border p-3">
                 <QuickPatientForm
+                  defaultCountry={country}
                   today={patientForm.today}
                   referralSources={patientForm.referralSources}
                   tags={patientForm.tags}
@@ -292,7 +308,7 @@ export function BookingPanel({
                   className="justify-self-start"
                   onClick={() => setNewPatient(false)}
                 >
-                  Voltar para a busca
+                  {t("scheduling.ui.backToSearch")}
                 </Button>
               </div>
             ) : (
@@ -314,7 +330,7 @@ export function BookingPanel({
             submit();
           }}
         >
-          <Field id="booking-service" label="Serviço" error={errors.serviceId}>
+          <Field id="booking-service" label={t("common.service")} error={errors.serviceId}>
             <Select
               value={serviceId}
               onValueChange={(value) => {
@@ -324,7 +340,7 @@ export function BookingPanel({
               }}
             >
               <SelectTrigger id="booking-service" className="w-full">
-                <SelectValue placeholder="Escolha o serviço" />
+                <SelectValue placeholder={t("scheduling.ui.chooseService")} />
               </SelectTrigger>
               <SelectContent>
                 {grouped.map(([category, items]) => (
@@ -339,7 +355,11 @@ export function BookingPanel({
                             PALETTE[(item.color in PALETTE ? item.color : "slate") as PaletteColor].swatch,
                           )}
                         />
-                        {item.name} · {item.durationMinutes} min · {formatCents(item.priceCents)}
+                        {t("scheduling.ui.serviceOption", {
+                          name: item.name,
+                          minutes: item.durationMinutes,
+                          price: priceText(item),
+                        })}
                       </SelectItem>
                     ))}
                   </SelectGroup>
@@ -348,11 +368,13 @@ export function BookingPanel({
             </Select>
           </Field>
 
-          <Field id="booking-professional" label="Profissional" error={errors.professionalId}>
+          <Field id="booking-professional" label={t("common.professional")} error={errors.professionalId}>
             <Select value={professionalId} onValueChange={setProfessionalId} disabled={!options}>
               <SelectTrigger id="booking-professional" className="w-full">
                 <SelectValue
-                  placeholder={serviceId ? "Escolha o profissional" : "Escolha o serviço primeiro"}
+                  placeholder={
+                    serviceId ? t("scheduling.ui.chooseProfessional") : t("scheduling.ui.chooseServiceFirst")
+                  }
                 />
               </SelectTrigger>
               <SelectContent>
@@ -371,16 +393,14 @@ export function BookingPanel({
               </SelectContent>
             </Select>
             {options && options.professionals.length === 0 ? (
-              <p className="text-muted-foreground text-xs">
-                Nenhum profissional desta unidade realiza este serviço.
-              </p>
+              <p className="text-muted-foreground text-xs">{t("scheduling.ui.noProfessionalForService")}</p>
             ) : null}
           </Field>
 
           {options && (options.requiresRoom || options.rooms.length > 0) ? (
             <Field
               id="booking-room"
-              label={options.requiresRoom ? "Sala" : "Sala (opcional)"}
+              label={options.requiresRoom ? t("common.room") : t("scheduling.ui.roomOptional")}
               error={errors.roomId}
             >
               <Select
@@ -388,10 +408,12 @@ export function BookingPanel({
                 onValueChange={(value) => setRoomId(value === NO_ROOM ? "" : value)}
               >
                 <SelectTrigger id="booking-room" className="w-full">
-                  <SelectValue placeholder="Escolha a sala" />
+                  <SelectValue placeholder={t("scheduling.ui.chooseRoom")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {!options.requiresRoom ? <SelectItem value={NO_ROOM}>Sem sala</SelectItem> : null}
+                  {!options.requiresRoom ? (
+                    <SelectItem value={NO_ROOM}>{t("scheduling.ui.noRoom")}</SelectItem>
+                  ) : null}
                   {options.rooms.map((room) => (
                     <SelectItem key={room.id} value={room.id}>
                       {room.name}
@@ -403,7 +425,7 @@ export function BookingPanel({
           ) : null}
 
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field id="booking-date" label="Data" error={errors.date}>
+            <Field id="booking-date" label={t("common.date")} error={errors.date}>
               <Input
                 id="booking-date"
                 type="date"
@@ -411,7 +433,7 @@ export function BookingPanel({
                 onChange={(event) => setDate(event.target.value)}
               />
             </Field>
-            <Field id="booking-time" label="Horário" error={errors.startTime}>
+            <Field id="booking-time" label={t("professionals.ui.scheduleSingular")} error={errors.startTime}>
               <Select value={startTime} onValueChange={setStartTime}>
                 <SelectTrigger id="booking-time" className="w-full">
                   <SelectValue />
@@ -425,7 +447,11 @@ export function BookingPanel({
                 </SelectContent>
               </Select>
             </Field>
-            <Field id="booking-duration" label="Duração (min)" error={errors.durationMinutes}>
+            <Field
+              id="booking-duration"
+              label={t("scheduling.ui.durationMinutes")}
+              error={errors.durationMinutes}
+            >
               <Input
                 id="booking-duration"
                 type="number"
@@ -440,11 +466,11 @@ export function BookingPanel({
           </div>
           {service ? (
             <p className="text-muted-foreground text-sm tabular-nums">
-              {startTime}–{endTime} · {formatCents(service.priceCents)}
+              {startTime}–{endTime} · {priceText(service)}
             </p>
           ) : null}
 
-          <Field id="booking-notes" label="Observações para a recepção" error={errors.notes}>
+          <Field id="booking-notes" label={t("scheduling.ui.notesForFrontDesk")} error={errors.notes}>
             <Textarea
               id="booking-notes"
               maxLength={500}
@@ -462,7 +488,7 @@ export function BookingPanel({
                 setResolutions([]);
               }}
             />
-            Repetir agendamento
+            {t("scheduling.ui.repeatAppointment")}
           </label>
           {repeat ? (
             <RecurrenceFields
@@ -498,7 +524,11 @@ export function BookingPanel({
               type="submit"
               disabled={pending || blocked || awaitingOverbooking || seriesPending || newPatient}
             >
-              {pending ? "Agendando..." : repeat && series ? "Agendar sessões" : "Agendar"}
+              {pending
+                ? t("scheduling.ui.booking")
+                : repeat && series
+                  ? t("scheduling.ui.bookSessions")
+                  : t("scheduling.ui.book")}
             </Button>
           </SheetFooter>
         </form>

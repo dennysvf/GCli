@@ -3,7 +3,9 @@ import {
   DURATION_OPTIONS,
   formatDuration,
   isValidDuration,
-  isValidPriceCents,
+  isValidPriceMinor,
+  maxPriceMinor,
+  priceIn,
   resolveAllowedRooms,
 } from "./service-rules";
 
@@ -16,9 +18,25 @@ describe("service rules", () => {
     expect(DURATION_OPTIONS).toHaveLength(96);
   });
 
-  it("F03: price must be between 0 and 9 999 999 cents", () => {
-    for (const cents of [0, 18000, 9_999_999]) expect(isValidPriceCents(cents)).toBe(true);
-    for (const cents of [-1, 10_000_000, 1.5]) expect(isValidPriceCents(cents)).toBe(false);
+  it("F03: price must be between 0 and 99,999.99 in the currency", () => {
+    for (const cents of [0, 18000, 9_999_999]) expect(isValidPriceMinor(cents, "BRL")).toBe(true);
+    for (const cents of [-1, 10_000_000, 1.5]) expect(isValidPriceMinor(cents, "BRL")).toBe(false);
+  });
+
+  it("F16: the price limit follows the minor units of the currency", () => {
+    expect(maxPriceMinor("EUR")).toBe(9_999_999);
+    expect(maxPriceMinor("CLP")).toBe(99_999);
+    expect(isValidPriceMinor(99_999, "CLP")).toBe(true);
+    expect(isValidPriceMinor(100_000, "CLP")).toBe(false);
+  });
+
+  it("F16: the price of a currency is looked up among the service prices", () => {
+    const prices = [
+      { currency: "BRL", amountMinor: 25000 },
+      { currency: "EUR", amountMinor: 6000 },
+    ] as const;
+    expect(priceIn(prices, "EUR")).toBe(6000);
+    expect(priceIn(prices, "USD")).toBeNull();
   });
 
   it("F03: durations are formatted for display", () => {

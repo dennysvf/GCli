@@ -81,12 +81,8 @@ export function registerSchedulingPorts(): void {
 }
 
 export { SCHEDULING_EVENTS, type AppointmentEventPayload } from "./domain/events";
-export { APPOINTMENT_STATUSES, nextStatuses, STATUS_LABELS, type AppointmentStatus } from "./domain/status";
-export {
-  CANCELLATION_ORIGIN_LABELS,
-  CANCELLATION_ORIGINS,
-  type CancellationOrigin,
-} from "./domain/appointment";
+export { APPOINTMENT_STATUSES, nextStatuses, type AppointmentStatus } from "./domain/status";
+export { CANCELLATION_ORIGINS, type CancellationOrigin } from "./domain/appointment";
 export { LIST_PAGE_SIZE, POLLING_INTERVAL_MS } from "./domain/limits";
 export { SERIES_SCOPES, type SeriesScope } from "./application/schemas";
 export type {
@@ -102,7 +98,7 @@ export type { FindingDto } from "./application/booking";
 export type { SeriesPreview, OccurrencePreview } from "./application/series";
 export type { CancellationReasonItem } from "./application/cancellation-reasons";
 export type { AvailableSlotDto } from "./application/find-available-slots";
-export { schedulingMessages, findingMessages, SCHEDULING_LABELS, SCHEDULING_TOASTS } from "./messages";
+export { schedulingCatalog } from "./messages/catalog";
 export { AgendaView, type AgendaActions, type AgendaViewProps } from "./ui/agenda-view";
 export type { AgendaBy, AgendaViewKind, ToolbarState } from "./ui/agenda-toolbar";
 export type { ServiceOption, PatientFormData } from "./ui/booking-panel";

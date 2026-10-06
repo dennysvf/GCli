@@ -98,14 +98,14 @@ describe("closures", () => {
       endsOn: isoDaysFromToday(1),
       reason: "Reforma",
     });
-    expect(!past.ok && past.error.fields?.startsOn).toContain("passado");
+    expect(!past.ok && past.error.fields?.startsOn).toBe("units.validation.closureStartInPast");
     const reversed = await units.createClosure(ctx, {
       unitId,
       startsOn: isoDaysFromToday(5),
       endsOn: isoDaysFromToday(4),
       reason: "Reforma",
     });
-    expect(!reversed.ok && reversed.error.fields?.endsOn).toContain("posterior");
+    expect(!reversed.ok && reversed.error.fields?.endsOn).toBe("units.validation.endBeforeStart");
   });
 
   it("F02: future closures can be deleted and past ones cannot", async () => {

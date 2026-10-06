@@ -9,8 +9,9 @@ import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import type { CancellationReasonItem } from "../application/cancellation-reasons";
 import type { AppointmentDetails } from "../application/queries";
-import { CANCELLATION_ORIGIN_LABELS, CANCELLATION_ORIGINS } from "../domain/appointment";
+import { CANCELLATION_ORIGINS } from "../domain/appointment";
 import type { SeriesScope } from "./series-scope-dialog";
+import { useTranslations } from "next-intl";
 
 // Cancellation (PRD F06): origin and a reason from the configurable list are required, plus an
 // optional text.
@@ -29,6 +30,7 @@ export function CancelForm({
   onCancelled: () => void;
   onBack: () => void;
 }) {
+  const t = useTranslations();
   const [origin, setOrigin] = useState("");
   const [reasonId, setReasonId] = useState("");
   const [note, setNote] = useState("");
@@ -64,37 +66,37 @@ export function CancelForm({
     >
       <h3 className="section-title">
         {scope === "THIS"
-          ? "Cancelar agendamento"
+          ? t("scheduling.ui.cancelAppointment")
           : scope === "THIS_AND_FOLLOWING"
-            ? "Cancelar esta e as próximas sessões"
-            : "Cancelar todas as sessões futuras"}
+            ? t("scheduling.ui.cancelThisAndNext")
+            : t("scheduling.ui.cancelAllFuture")}
       </h3>
-      <Field id="cancel-origin" label="Origem" error={errors.origin}>
+      <Field id="cancel-origin" label={t("scheduling.ui.origin")} error={errors.origin}>
         <Select value={origin} onValueChange={setOrigin}>
           <SelectTrigger
             id="cancel-origin"
             className="w-full"
             aria-invalid={errors.origin ? true : undefined}
           >
-            <SelectValue placeholder="Quem cancelou?" />
+            <SelectValue placeholder={t("scheduling.ui.whoCancelled")} />
           </SelectTrigger>
           <SelectContent>
             {CANCELLATION_ORIGINS.map((value) => (
               <SelectItem key={value} value={value}>
-                {CANCELLATION_ORIGIN_LABELS[value]}
+                {t(`scheduling.ui.origins.${value}`)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </Field>
-      <Field id="cancel-reason" label="Motivo" error={errors.reasonId}>
+      <Field id="cancel-reason" label={t("common.reason")} error={errors.reasonId}>
         <Select value={reasonId} onValueChange={setReasonId}>
           <SelectTrigger
             id="cancel-reason"
             className="w-full"
             aria-invalid={errors.reasonId ? true : undefined}
           >
-            <SelectValue placeholder="Escolha o motivo" />
+            <SelectValue placeholder={t("scheduling.ui.chooseReason")} />
           </SelectTrigger>
           <SelectContent>
             {reasons.map((reason) => (
@@ -105,7 +107,7 @@ export function CancelForm({
           </SelectContent>
         </Select>
       </Field>
-      <Field id="cancel-note" label="Detalhes (opcional)" error={errors.note}>
+      <Field id="cancel-note" label={t("scheduling.ui.detailsOptional")} error={errors.note}>
         <Textarea
           id="cancel-note"
           maxLength={500}
@@ -115,10 +117,10 @@ export function CancelForm({
       </Field>
       <div className="flex gap-2">
         <Button type="button" variant="secondary" onClick={onBack}>
-          Voltar
+          {t("common.back")}
         </Button>
         <Button type="submit" variant="destructive" disabled={pending}>
-          {pending ? "Cancelando..." : "Cancelar agendamento"}
+          {pending ? t("scheduling.ui.cancelling") : t("scheduling.ui.cancelAppointment")}
         </Button>
       </div>
     </form>

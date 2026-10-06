@@ -11,7 +11,7 @@ afterAll(closeHelpers);
 describe("units", () => {
   it("F02: administrator creates a unit with business hours and rooms", async () => {
     const ctx = await managerContext();
-    const unitId = await createUnitOrThrow(ctx, { cnpj: "12.ABC.345/01DE-35" });
+    const unitId = await createUnitOrThrow(ctx, { taxId: "12.ABC.345/01DE-35" });
     const hours = await units.replaceBusinessHours(ctx, {
       unitId,
       days: fullWeek([
@@ -32,9 +32,11 @@ describe("units", () => {
     const unit = await units.getUnit(ctx, unitId);
     expect(unit.ok && unit.value).toMatchObject({
       name: "Unidade Centro",
-      cnpj: "12ABC34501DE35",
-      phone: "1133334444",
-      address: { cep: "01310100", state: "SP", city: "São Paulo" },
+      country: "BR",
+      currency: "BRL",
+      taxId: "12ABC34501DE35",
+      phone: "+551133334444",
+      address: { country: "BR", postalCode: "01310100", region: "SP", city: "São Paulo" },
     });
     const week = await units.getBusinessHours(ctx, unitId);
     expect(week.ok && week.value[0]?.intervals).toHaveLength(2);
@@ -51,12 +53,13 @@ describe("units", () => {
     expect(!duplicate.ok && duplicate.error.code).toBe("UNITS_NAME_TAKEN");
   });
 
-  it("F02: invalid unit CNPJ is rejected", async () => {
+  it("F02: an invalid unit tax ID is rejected", async () => {
     const ctx = await managerContext();
-    const result = await units.createUnit(ctx, { ...BASE_UNIT, cnpj: "11.222.333/0001-82" });
+    const result = await units.createUnit(ctx, { ...BASE_UNIT, taxId: "11.222.333/0001-82" });
     expect(!result.ok && result.error).toMatchObject({
-      code: "UNITS_INVALID_CNPJ",
-      fields: { cnpj: "CNPJ inválido." },
+      code: "TAX_ID_INVALID",
+      fields: { taxId: "errors.TAX_ID_INVALID" },
+      params: { type: "CNPJ" },
     });
   });
 
@@ -135,7 +138,7 @@ describe("units", () => {
       ]),
     });
     expect(!result.ok && result.error.code).toBe("UNITS_INVALID_HOURS");
-    expect(!result.ok && result.error.fields?.["days.1"]).toContain("Terça");
+    expect(!result.ok && result.error.fields?.["days.1"]).toBe("units.validation.hours.secondAfterFirst");
   });
 
   it("F02: front desk can read units but not change them", async () => {

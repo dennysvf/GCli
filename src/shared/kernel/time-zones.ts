@@ -1,27 +1,13 @@
-// Brazilian IANA time zones offered for the organization (F01) and for each unit (F02, ADR-019).
-export const BRAZIL_TIME_ZONES = [
-  "America/Sao_Paulo",
-  "America/Manaus",
-  "America/Cuiaba",
-  "America/Campo_Grande",
-  "America/Porto_Velho",
-  "America/Boa_Vista",
-  "America/Rio_Branco",
-  "America/Eirunepe",
-  "America/Belem",
-  "America/Santarem",
-  "America/Araguaina",
-  "America/Fortaleza",
-  "America/Recife",
-  "America/Maceio",
-  "America/Bahia",
-  "America/Noronha",
-] as const;
+// The zone lists live in the country profiles (PRD F16); Brazil's list stays exported for the
+// features written before the profiles existed.
+import { BRAZIL_TIME_ZONES } from "./countries/br";
 
+export { BRAZIL_TIME_ZONES };
 export type BrazilTimeZone = (typeof BRAZIL_TIME_ZONES)[number];
 
+// "America/Argentina/Buenos_Aires" -> "Buenos Aires": the city is the last path segment.
 export function timeZoneLabel(zone: string): string {
-  return zone.replace("America/", "").replaceAll("_", " ");
+  return (zone.split("/").at(-1) ?? zone).replaceAll("_", " ");
 }
 
 // Calendar date (YYYY-MM-DD) of an instant in a time zone.

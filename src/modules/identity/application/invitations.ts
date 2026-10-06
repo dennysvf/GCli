@@ -1,6 +1,7 @@
 import { authorize } from "@/shared/authz/guard";
 import type { AnyContext, RequestContext, SystemContext } from "@/shared/context/types";
 import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
+import type { Locale } from "@/shared/i18n/locales";
 import { CommonErrors } from "@/shared/kernel/errors";
 import { newId } from "@/shared/kernel/ids";
 import { fail, ok, type Result } from "@/shared/kernel/result";
@@ -36,17 +37,21 @@ async function seatsInUse(uow: UnitOfWork, now: Date): Promise<number> {
 async function queueInvitationEmail(
   deps: IdentityDeps,
   uow: UnitOfWork,
-  invitation: { email: string; name: string; organizationId: string },
+  invitation: { email: string; name: string; organizationId: string; locale: string },
   token: string,
   expiresAt: Date,
 ) {
   const organizationName = (await deps.directory.findOrganizationName(invitation.organizationId)) ?? "";
+  const organization = await uow.tx.organization.findFirst({ select: { timeZone: true } });
   await uow.outbox.add("email.invitation", {
     to: invitation.email,
     name: invitation.name,
     organizationName,
     url: invitationUrl(deps, token),
     expiresAt: expiresAt.toISOString(),
+    // The email is written in the language chosen for the invitation (PRD F16).
+    locale: invitation.locale,
+    timeZone: organization?.timeZone ?? "America/Sao_Paulo",
   });
 }
 
@@ -54,7 +59,7 @@ async function queueInvitationEmail(
 export async function createInvitation(
   deps: IdentityDeps,
   ctx: AnyContext,
-  input: { name: string; email: string; role: Role },
+  input: { name: string; email: string; role: Role; locale?: Locale | undefined },
 ): Promise<Result<{ invitationId: string; expiresAt: Date; url: string }>> {
   if (await deps.directory.findUserByEmail(input.email)) return fail(IdentityErrors.emailInUse());
   const now = deps.clock();
@@ -68,6 +73,11 @@ export async function createInvitation(
     const expiresAt = expiry(now);
     const id = newId();
     const organizationId = ctx.organizationId ?? "";
+    // Without a choice, the invitation uses the organization default language.
+    const locale =
+      input.locale ??
+      (await uow.tx.organization.findFirst({ select: { defaultLocale: true } }))?.defaultLocale ??
+      "pt-BR";
     await uow.tx.invitation.create({
       data: {
         id,
@@ -75,12 +85,13 @@ export async function createInvitation(
         email: input.email,
         name: input.name,
         role: input.role,
+        locale,
         tokenHash: hashToken(token),
         expiresAt,
         invitedById: ctx.kind === "user" ? ctx.user.id : null,
       },
     });
-    await queueInvitationEmail(deps, uow, { ...input, organizationId }, token, expiresAt);
+    await queueInvitationEmail(deps, uow, { ...input, organizationId, locale }, token, expiresAt);
     await uow.audit.record({
       action: "CREATE",
       entityType: "invitation",

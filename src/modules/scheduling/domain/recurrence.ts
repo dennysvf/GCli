@@ -37,7 +37,7 @@ export function validateSeriesRule(rule: SeriesRule): Record<string, string> | n
     problems["recurrence.weekdays"] = "Escolha de 1 a 6 dias da semana.";
   }
   if ((rule.endsAfter === null) === (rule.endsOn === null)) {
-    problems["recurrence.endsAfter"] = "Informe o número de sessões ou a data final.";
+    problems["recurrence.endsAfter"] = "scheduling.validation.recurrenceEndRequired";
   }
   if (
     rule.endsAfter !== null &&
@@ -45,13 +45,13 @@ export function validateSeriesRule(rule: SeriesRule): Record<string, string> | n
       rule.endsAfter < SERIES_MIN_OCCURRENCES ||
       rule.endsAfter > SERIES_MAX_OCCURRENCES)
   ) {
-    problems["recurrence.endsAfter"] = "Use de 2 a 52 sessões.";
+    problems["recurrence.endsAfter"] = "scheduling.validation.recurrenceCount";
   }
   if (rule.endsOn !== null) {
     if (rule.endsOn < rule.firstDate) {
-      problems["recurrence.endsOn"] = "A data final deve ser depois da primeira sessão.";
+      problems["recurrence.endsOn"] = "scheduling.validation.recurrenceEndAfterStart";
     } else if (rule.endsOn > addMonths(rule.firstDate, SERIES_MAX_MONTHS)) {
-      problems["recurrence.endsOn"] = "A data final deve estar em até 12 meses.";
+      problems["recurrence.endsOn"] = "scheduling.validation.recurrenceEndTooFar";
     }
   }
   return Object.keys(problems).length > 0 ? problems : null;
@@ -75,10 +75,10 @@ export function expandSeries(rule: SeriesRule): Result<Occurrence[], Record<stri
     }
   }
   if (occurrences.length > SERIES_MAX_OCCURRENCES) {
-    return fail({ "recurrence.endsOn": "Use no máximo 52 sessões." });
+    return fail({ "recurrence.endsOn": "scheduling.validation.recurrenceMaxSessions" });
   }
   if (occurrences.length < SERIES_MIN_OCCURRENCES) {
-    return fail({ "recurrence.weekdays": "A série precisa de pelo menos 2 sessões." });
+    return fail({ "recurrence.weekdays": "scheduling.validation.recurrenceMinSessions" });
   }
   return ok(occurrences);
 }

@@ -458,7 +458,7 @@ The "now" line on the agenda moves every minute without animation (it jumps to t
 | Say what happened and what to do | "Este horário já está ocupado. Escolha outro horário ou outra sala." | "Erro 409: conflito." |
 | Use the clinic's terms | "Faltou", "Atendimento", "Caixa" | "No-show", "Encounter", "Ledger" |
 | Numbers as digits | "3 pacientes", "12 agendamentos" | "três pacientes" |
-| Brazilian formats | "05/10/2026", "14:30", "R$ 1.234,56" | "Oct 5", "2:30 PM", "R$1234.56" |
+| Formats of the user's language and country (7.5) | pt-BR: "05/10/2026", "14:30", "R$ 1.234,56" | "Oct 5", "2:30 PM", "R$1234.56" |
 | Short durations | "30 min", "1h 30min" | "1,5 hora" |
 | Never blame the user | "Não encontramos este CEP." | "Você digitou um CEP inválido." |
 
@@ -488,6 +488,28 @@ Structure: **what is missing** + **why** (if not obvious) + **the action**.
 - Filtered list: "Nenhum serviço encontrado para "derma"." + "Limpar busca" link.
 - Day agenda with no appointments: "Nenhum agendamento para hoje nesta unidade." + "Agendar consulta".
 - For users who cannot create: the first sentence only, no button.
+
+### 7.5 Languages, glossary and number formats
+
+The interface exists in `pt-BR` (the source text), `en` and `es` (neutral Latin American Spanish, "ustedes"). Text lives in catalogs (ADR-028); the rules above apply to every language, and the examples in this section stay in pt-BR unless noted.
+
+- **One key per text.** Never concatenate sentences from pieces; use a message with parameters, because word order changes between languages.
+- **Glossary.** The same term in all screens and languages:
+
+| pt-BR | en | es |
+|---|---|---|
+| Agendamento | Appointment | Cita |
+| Encaixe | Overbooking | Sobrecupo |
+| Prontuário | Clinical record | Historia clínica |
+| Caixa | Cash register | Caja |
+| Faltou | No-show | No asistió |
+| Recepção | Front desk | Recepción |
+| Unidade | Unit | Sede |
+
+- **Formats follow the user's language and the unit's country**, through the formatters, never by hand: pt-BR "05/10/2026", "14:30", "R$ 1.234,56"; en-US "10/05/2026", "2:30 PM", "$1,234.56"; es-MX "05/10/2026", "14:30", "$1,234.56"; es-CL "$1.235" (no decimals).
+- **Never translate clinic data:** service, unit, room, reason, note and person names stay as typed.
+- **Language names** are always written in their own language: "Português (Brasil)", "English", "Español".
+- **Space for longer text.** English and Spanish are often 20–30% longer than Portuguese in buttons and table headings; layouts must wrap or grow, never truncate meaning.
 
 ---
 

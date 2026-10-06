@@ -55,10 +55,11 @@ export function planSchedule(
   return { ok: true, close };
 }
 
+// Catalog keys of the field errors (professionals.validation.*).
 export const VALIDITY_MESSAGES = {
-  startInPast: "A vigência deve começar hoje ou depois.",
-  startLocked: "A data de início de um horário vigente não pode ser alterada.",
-  endBeforeStart: "A data de término deve ser igual ou posterior ao início e a hoje.",
+  startInPast: "professionals.validation.startInPast",
+  startLocked: "professionals.validation.startLocked",
+  endBeforeStart: "professionals.validation.validityEndBeforeStart",
 } as const;
 
 // Field errors for a schedule's dates. `current` is the stored schedule when editing.

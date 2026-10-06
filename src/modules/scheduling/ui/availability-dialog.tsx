@@ -15,7 +15,8 @@ import { Field } from "@/shared/ui/forms/field";
 import { fetchJson } from "@/shared/ui/query/query-provider";
 import type { AvailableSlotDto } from "../application/find-available-slots";
 import type { ServiceOption } from "./booking-panel";
-import { shortDate, weekdayShort } from "./format";
+import { useAgendaFormat } from "./format";
+import { useTranslations } from "next-intl";
 
 const ANY = "__any__";
 
@@ -36,6 +37,8 @@ export function AvailabilityDialog({
   professionals: { id: string; label: string }[];
   onPick: (slot: AvailableSlotDto, serviceId: string) => void;
 }) {
+  const fmt = useAgendaFormat();
+  const t = useTranslations();
   const [serviceId, setServiceId] = useState("");
   const [professionalId, setProfessionalId] = useState(ANY);
   const [slots, setSlots] = useState<AvailableSlotDto[] | null>(null);
@@ -64,8 +67,8 @@ export function AvailabilityDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Próximo horário livre</DialogTitle>
-          <DialogDescription>Os 10 primeiros horários livres nos próximos 60 dias.</DialogDescription>
+          <DialogTitle>{t("scheduling.ui.nextFreeSlot")}</DialogTitle>
+          <DialogDescription>{t("scheduling.ui.availabilityHint")}</DialogDescription>
         </DialogHeader>
         <form
           className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
@@ -74,10 +77,10 @@ export function AvailabilityDialog({
             void search();
           }}
         >
-          <Field id="availability-service" label="Serviço">
+          <Field id="availability-service" label={t("common.service")}>
             <Select value={serviceId} onValueChange={setServiceId}>
               <SelectTrigger id="availability-service" className="w-full">
-                <SelectValue placeholder="Escolha o serviço" />
+                <SelectValue placeholder={t("scheduling.ui.chooseService")} />
               </SelectTrigger>
               <SelectContent>
                 {services.map((service) => (
@@ -88,13 +91,13 @@ export function AvailabilityDialog({
               </SelectContent>
             </Select>
           </Field>
-          <Field id="availability-professional" label="Profissional">
+          <Field id="availability-professional" label={t("common.professional")}>
             <Select value={professionalId} onValueChange={setProfessionalId}>
               <SelectTrigger id="availability-professional" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ANY}>Qualquer profissional</SelectItem>
+                <SelectItem value={ANY}>{t("scheduling.ui.anyProfessional")}</SelectItem>
                 {professionals.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
                     {item.label}
@@ -104,24 +107,22 @@ export function AvailabilityDialog({
             </Select>
           </Field>
           <Button type="submit" variant="secondary" disabled={!serviceId || loading}>
-            {loading ? "Buscando..." : "Buscar"}
+            {loading ? t("common.searching") : t("common.search")}
           </Button>
         </form>
-        {failed ? (
-          <p className="text-destructive text-sm">Não foi possível buscar agora. Tente novamente.</p>
-        ) : null}
+        {failed ? <p className="text-destructive text-sm">{t("patients.ui.searchFailed")}</p> : null}
         {slots && slots.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nenhum horário livre nos próximos 60 dias.</p>
+          <p className="text-muted-foreground text-sm">{t("scheduling.ui.noFreeSlots")}</p>
         ) : null}
         {slots && slots.length > 0 ? (
           <div className="border-y">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Horário</TableHead>
-                  <TableHead>Profissional</TableHead>
-                  <TableHead>Sala</TableHead>
+                  <TableHead>{t("common.date")}</TableHead>
+                  <TableHead>{t("professionals.ui.scheduleSingular")}</TableHead>
+                  <TableHead>{t("common.professional")}</TableHead>
+                  <TableHead>{t("common.room")}</TableHead>
                   <TableHead className="w-24" />
                 </TableRow>
               </TableHeader>
@@ -129,14 +130,14 @@ export function AvailabilityDialog({
                 {slots.map((slot) => (
                   <TableRow key={`${slot.startsAt}-${slot.professionalId}`}>
                     <TableCell className="tabular-nums">
-                      {weekdayShort(slot.date)}, {shortDate(slot.date)}
+                      {fmt.weekdayShort(slot.date)}, {fmt.shortDate(slot.date)}
                     </TableCell>
                     <TableCell className="tabular-nums">{slot.startTime}</TableCell>
                     <TableCell>{slot.professionalName}</TableCell>
                     <TableCell>{slot.roomName ?? "—"}</TableCell>
                     <TableCell>
                       <Button type="button" variant="ghost" size="sm" onClick={() => onPick(slot, serviceId)}>
-                        Agendar
+                        {t("scheduling.ui.book")}
                       </Button>
                     </TableCell>
                   </TableRow>

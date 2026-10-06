@@ -5,6 +5,7 @@ import { units } from "@/modules/units";
 import { closeHelpers, resetDatabase } from "../helpers";
 import {
   createProfessionalOrThrow,
+  registration,
   createServiceOrThrow,
   createUnitWithHours,
   h,
@@ -63,8 +64,13 @@ describe("professionals public API", () => {
     const centro = await createUnitWithHours(ctx);
     const serviceId = await createServiceOrThrow(ctx);
     const enabled = await createProfessionalOrThrow(ctx, { fullName: "Bruno Reis", displayName: null });
-    const notEnabled = await createProfessionalOrThrow(ctx, { councilNumber: "222" });
-    const inactive = await createProfessionalOrThrow(ctx, { councilNumber: "333", fullName: "Carla Souza" });
+    const notEnabled = await createProfessionalOrThrow(ctx, {
+      registrations: [registration({ number: "222" })],
+    });
+    const inactive = await createProfessionalOrThrow(ctx, {
+      registrations: [registration({ number: "333" })],
+      fullName: "Carla Souza",
+    });
     for (const professionalId of [enabled, inactive]) {
       await professionals.replaceEnabledServices(ctx, {
         professionalId,
@@ -100,15 +106,22 @@ describe("professionals public API", () => {
     const ctx = await professionalsContext();
     const id = await createProfessionalOrThrow(ctx);
     const credentials = await professionals.getProfessionalCredentials(ctx, id);
+    const expected = {
+      country: "BR",
+      councilType: "CRM",
+      councilOtherName: null,
+      number: "123456",
+      region: "SP",
+      npi: null,
+      label: "CRM",
+      formatted: "CRM 123456/SP",
+    };
     expect(credentials.ok && credentials.value).toEqual({
       fullName: "Ana Paula Lima",
       displayName: "Dra. Ana Lima",
       specialty: "Dermatologia",
-      councilType: "CRM",
-      councilLabel: "CRM",
-      councilNumber: "123456",
-      councilState: "SP",
-      formattedRegistration: "CRM 123456/SP",
+      registrations: [expected],
+      registration: expected,
     });
     const summaries = await professionals.getProfessionals(ctx, { ids: [id] });
     expect(summaries.ok && summaries.value).toEqual([
@@ -120,7 +133,7 @@ describe("professionals public API", () => {
     const ctx = await professionalsContext();
     const serviceId = await createServiceOrThrow(ctx);
     const first = await createProfessionalOrThrow(ctx);
-    const second = await createProfessionalOrThrow(ctx, { councilNumber: "222" });
+    const second = await createProfessionalOrThrow(ctx, { registrations: [registration({ number: "222" })] });
     for (const professionalId of [first, second]) {
       await professionals.replaceEnabledServices(ctx, {
         professionalId,

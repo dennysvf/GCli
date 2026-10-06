@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -24,6 +25,7 @@ export function SignInForm({
   next?: string;
   action: (input: SignInValues) => Promise<ActionResult<{ redirectTo: string }>>;
 }) {
+  const t = useTranslations("identity.auth");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const form = useForm<SignInValues>({
@@ -47,7 +49,7 @@ export function SignInForm({
   return (
     <form onSubmit={onSubmit} className="grid gap-4" noValidate>
       <HydratedFieldset>
-        <Field id="email" label="E-mail" error={errors.email?.message}>
+        <Field id="email" label={t("email")} error={errors.email?.message}>
           <Input
             id="email"
             type="email"
@@ -56,7 +58,7 @@ export function SignInForm({
             {...form.register("email")}
           />
         </Field>
-        <Field id="password" label="Senha" error={errors.password?.message}>
+        <Field id="password" label={t("password")} error={errors.password?.message}>
           <Input
             id="password"
             type="password"
@@ -66,7 +68,7 @@ export function SignInForm({
           />
         </Field>
         <Button type="submit" disabled={pending}>
-          {pending ? "Entrando..." : "Entrar"}
+          {pending ? t("signIn.submitting") : t("signIn.submit")}
         </Button>
       </HydratedFieldset>
     </form>
@@ -80,6 +82,7 @@ export function ForgotPasswordForm({
 }: {
   action: (input: ForgotValues) => Promise<ActionResult<{ message: string }>>;
 }) {
+  const t = useTranslations("identity.auth");
   const [pending, startTransition] = useTransition();
   const [sent, setSent] = useState<string | null>(null);
   const form = useForm<ForgotValues>({
@@ -104,11 +107,11 @@ export function ForgotPasswordForm({
   return (
     <form onSubmit={onSubmit} className="grid gap-4" noValidate>
       <HydratedFieldset>
-        <Field id="email" label="E-mail" error={form.formState.errors.email?.message}>
+        <Field id="email" label={t("email")} error={form.formState.errors.email?.message}>
           <Input id="email" type="email" autoComplete="username" {...form.register("email")} />
         </Field>
         <Button type="submit" disabled={pending}>
-          {pending ? "Enviando..." : "Enviar link de redefinição"}
+          {pending ? t("forgot.submitting") : t("forgot.submit")}
         </Button>
       </HydratedFieldset>
     </form>
@@ -127,6 +130,7 @@ export function NewPasswordForm({
   submitLabel: string;
   action: (input: NewPasswordValues) => Promise<ActionResult<{ redirectTo: string }>>;
 }) {
+  const t = useTranslations("identity.auth");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const form = useForm<NewPasswordValues>({
@@ -151,14 +155,14 @@ export function NewPasswordForm({
       <HydratedFieldset>
         <Field
           id="password"
-          label="Nova senha"
+          label={t("newPassword")}
           error={errors.password?.message}
-          hint="Mínimo de 10 caracteres, com pelo menos uma letra e um número."
+          hint={t("passwordHint")}
         >
           <PasswordInput id="password" aria-invalid={!!errors.password} {...form.register("password")} />
           <PasswordStrength value={password} />
         </Field>
-        <Field id="confirmPassword" label="Confirme a senha" error={errors.confirmPassword?.message}>
+        <Field id="confirmPassword" label={t("confirmPassword")} error={errors.confirmPassword?.message}>
           <PasswordInput
             id="confirmPassword"
             aria-invalid={!!errors.confirmPassword}
@@ -166,7 +170,7 @@ export function NewPasswordForm({
           />
         </Field>
         <Button type="submit" disabled={pending}>
-          {pending ? "Salvando..." : submitLabel}
+          {pending ? t("saving") : submitLabel}
         </Button>
       </HydratedFieldset>
     </form>

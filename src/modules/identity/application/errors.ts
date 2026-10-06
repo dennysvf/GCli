@@ -13,6 +13,8 @@ export const IdentityErrors = {
   invitationNotPending: () => domainError("IDENTITY_INVITATION_NOT_PENDING", 409),
   userLimit: () => domainError("IDENTITY_USER_LIMIT", 422),
   userNotFound: () => domainError("IDENTITY_USER_NOT_FOUND", 404),
-  invalidCnpj: () => domainError("ORG_INVALID_CNPJ", 400, { cnpj: "CNPJ inválido." }),
+  // The type is the tax ID abbreviation of the country ("CNPJ", "NIF", "RUT"...), the same in every language.
+  invalidTaxId: (type: string) =>
+    domainError("TAX_ID_INVALID", 400, { taxId: "errors.TAX_ID_INVALID" }, { type }),
   logoInvalid: () => domainError("ORG_LOGO_INVALID", 400),
 } as const;

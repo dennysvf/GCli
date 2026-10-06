@@ -4,6 +4,7 @@ import { Search, X } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { Button } from "@/shared/ui/components/button";
 import { Input } from "@/shared/ui/components/input";
+import { useTranslations } from "next-intl";
 
 type Result = { id: string; displayName: string; age: number; mobilePhone: string };
 
@@ -26,6 +27,7 @@ export function PatientPicker({
   canRegister: boolean;
   error?: string;
 }) {
+  const t = useTranslations();
   const listId = useId();
   const [text, setText] = useState("");
   const [results, setResults] = useState<Result[] | null>(null);
@@ -64,10 +66,10 @@ export function PatientPicker({
           variant="ghost"
           size="sm"
           onClick={() => onChange(null)}
-          aria-label="Trocar paciente"
+          aria-label={t("scheduling.ui.changePatient")}
         >
           <X />
-          Trocar
+          {t("scheduling.ui.change")}
         </Button>
       </div>
     );
@@ -86,7 +88,7 @@ export function PatientPicker({
           aria-autocomplete="list"
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-error` : undefined}
-          placeholder="Nome, CPF ou telefone"
+          placeholder={t("patients.ui.nameDocumentPhone")}
           className="pl-8"
           autoFocus
           value={text}
@@ -110,12 +112,12 @@ export function PatientPicker({
         <ul
           id={listId}
           role="listbox"
-          aria-label="Pacientes encontrados"
+          aria-label={t("scheduling.ui.patientsFound")}
           className="divide-y rounded-md border"
         >
           {items.length === 0 ? (
             <li className="text-muted-foreground px-3 py-2 text-sm">
-              {results === null ? "Buscando..." : `Nenhum paciente encontrado para "${term}".`}
+              {results === null ? t("common.searching") : t("patients.ui.noPatientsFound", { term })}
             </li>
           ) : (
             items.map((item, index) => (
@@ -131,18 +133,18 @@ export function PatientPicker({
               >
                 <span className="block text-sm font-semibold">{item.displayName}</span>
                 <span className="text-muted-foreground text-xs">
-                  {item.age} anos · final {item.mobilePhone.slice(-4)}
+                  {t("patients.ui.ageAndMobileEnding", { age: item.age, digits: item.mobilePhone.slice(-4) })}
                 </span>
               </li>
             ))
           )}
         </ul>
       ) : (
-        <p className="text-muted-foreground text-xs">Digite pelo menos 3 caracteres.</p>
+        <p className="text-muted-foreground text-xs">{t("patients.ui.typeAtLeast3")}</p>
       )}
       {canRegister ? (
         <Button type="button" variant="link" className="justify-self-start" onClick={onNewPatient}>
-          Novo paciente
+          {t("patients.ui.newPatient")}
         </Button>
       ) : null}
     </div>

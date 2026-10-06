@@ -1,11 +1,12 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Pool } from "pg";
-import { services, servicesMessages, SERVICES_DEACTIVATED_WITH_APPOINTMENTS } from "@/modules/services";
+import { services } from "@/modules/services";
 import { db } from "@/shared/db/client";
-import { interpolate } from "@/shared/kernel/action-result";
+import { createTranslator } from "@/shared/i18n/translator";
 import { newId } from "@/shared/kernel/ids";
-import { auditEvents, closeHelpers, resetDatabase } from "../helpers";
+import { auditEvents, closeHelpers, errorText, resetDatabase } from "../helpers";
 import {
+  brl,
   createCategoryOrThrow,
   createServiceOrThrow,
   createUnitWithRooms,
@@ -20,16 +21,16 @@ afterEach(() => {
 });
 afterAll(closeHelpers);
 
-const DURATION_MESSAGE = "A duração deve ser entre 5 e 480 minutos, em múltiplos de 5.";
-const PRICE_MESSAGE = "O preço deve ser entre R$ 0,00 e R$ 99.999,99.";
+const DURATION_MESSAGE = "services.validation.duration";
+const PRICE_MESSAGE = "services.validation.priceRange?max=99999.99&currency=BRL";
 
 describe("services", () => {
   it("F03: a service is saved only with a valid duration and price", async () => {
     const ctx = await servicesContext();
     const categoryId = await createCategoryOrThrow(ctx);
     const valid = [
-      { durationMinutes: 5, priceCents: 0 },
-      { durationMinutes: 480, priceCents: 9_999_999 },
+      { durationMinutes: 5, prices: brl(0) },
+      { durationMinutes: 480, prices: brl(9_999_999) },
     ];
     for (const [index, values] of valid.entries()) {
       const result = await services.createService(
@@ -48,11 +49,14 @@ describe("services", () => {
         fields: { durationMinutes: DURATION_MESSAGE },
       });
     }
-    for (const priceCents of [-1, 10_000_000]) {
-      const result = await services.createService(ctx, serviceInput(categoryId, { priceCents, name: "Y" }));
+    for (const amountMinor of [-1, 10_000_000]) {
+      const result = await services.createService(
+        ctx,
+        serviceInput(categoryId, { prices: [{ currency: "BRL", amountMinor }], name: "Y" }),
+      );
       expect(!result.ok && result.error).toMatchObject({
         code: "VALIDATION_FAILED",
-        fields: { priceCents: PRICE_MESSAGE },
+        fields: { "prices.0.amountMinor": PRICE_MESSAGE },
       });
     }
     expect(await db().service.count()).toBe(2);
@@ -66,14 +70,21 @@ describe("services", () => {
       categoryId,
       name: "Direto",
       durationMinutes: 30,
-      priceCents: 100,
       color: "blue",
     };
     await expect(
       db().service.create({ data: { ...base, id: newId(), durationMinutes: 7 } }),
     ).rejects.toThrow();
-    await expect(db().service.create({ data: { ...base, id: newId(), priceCents: -1 } })).rejects.toThrow();
     await expect(db().service.create({ data: { ...base, id: newId(), color: "brown" } })).rejects.toThrow();
+    // The price lives in service_price: negative amounts and unknown currencies are rejected.
+    const serviceId = await createServiceOrThrow(ctx, categoryId, { name: "Com preço" });
+    const price = { serviceId, organizationId: ctx.organizationId };
+    await expect(
+      db().servicePrice.create({ data: { ...price, currency: "EUR", amountMinor: -1n } }),
+    ).rejects.toThrow();
+    await expect(
+      db().servicePrice.create({ data: { ...price, currency: "XXX", amountMinor: 100n } }),
+    ).rejects.toThrow();
   });
 
   it("F03: a price change creates a history entry and keeps earlier prices", async () => {
@@ -81,18 +92,18 @@ describe("services", () => {
     const categoryId = await createCategoryOrThrow(ctx, "Procedimentos");
     const serviceId = await createServiceOrThrow(ctx, categoryId, {
       name: "Limpeza de pele",
-      priceCents: 18000,
+      prices: brl(18000),
     });
 
     const unchanged = await services.updateService(ctx, {
-      ...serviceInput(categoryId, { name: "Limpeza de pele", priceCents: 18000, durationMinutes: 60 }),
+      ...serviceInput(categoryId, { name: "Limpeza de pele", prices: brl(18000), durationMinutes: 60 }),
       serviceId,
       version: 1,
     });
     expect(unchanged.ok && unchanged.value).toEqual({ serviceId, version: 2, priceChanged: false });
 
     const changed = await services.updateService(ctx, {
-      ...serviceInput(categoryId, { name: "Limpeza de pele", priceCents: 20000, durationMinutes: 60 }),
+      ...serviceInput(categoryId, { name: "Limpeza de pele", prices: brl(20000), durationMinutes: 60 }),
       serviceId,
       version: 2,
     });
@@ -100,14 +111,24 @@ describe("services", () => {
 
     const history = await services.listPriceHistory(ctx, serviceId);
     expect(history.ok && history.value).toMatchObject([
-      { previousPriceCents: 18000, priceCents: 20000, changedBy: { id: ctx.user.id, name: "Ana Souza" } },
-      { previousPriceCents: null, priceCents: 18000, changedBy: { id: ctx.user.id, name: "Ana Souza" } },
+      {
+        currency: "BRL",
+        previousAmountMinor: 18000,
+        amountMinor: 20000,
+        changedBy: { id: ctx.user.id, name: "Ana Souza" },
+      },
+      {
+        currency: "BRL",
+        previousAmountMinor: null,
+        amountMinor: 18000,
+        changedBy: { id: ctx.user.id, name: "Ana Souza" },
+      },
     ]);
     const service = await services.getService(ctx, serviceId);
-    expect(service.ok && service.value.priceCents).toBe(20000);
+    expect(service.ok && service.value.prices).toEqual(brl(20000));
 
     const [, priceUpdate] = await auditEvents({ action: "UPDATE", entityId: serviceId });
-    expect(priceUpdate?.changes).toMatchObject({ priceCents: { before: 18000, after: 20000 } });
+    expect(priceUpdate?.changes).toMatchObject({ prices: { before: "BRL 18000", after: "BRL 20000" } });
     expect((await auditEvents({ action: "CREATE", entityId: serviceId })).length).toBe(1);
   });
 
@@ -117,7 +138,7 @@ describe("services", () => {
     await createServiceOrThrow(ctx, categoryId);
     const app = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
     try {
-      await expect(app.query("UPDATE service_price_change SET price_cents = 1")).rejects.toThrow(
+      await expect(app.query("UPDATE service_price_change SET amount_minor = 1")).rejects.toThrow(
         /permission denied/,
       );
       await expect(app.query("DELETE FROM service_price_change")).rejects.toThrow(/permission denied/);
@@ -130,7 +151,7 @@ describe("services", () => {
   it("F03: a deactivated service is not offered for booking but stays readable", async () => {
     const ctx = await servicesContext();
     const categoryId = await createCategoryOrThrow(ctx);
-    const kept = await createServiceOrThrow(ctx, categoryId, { name: "Retorno", priceCents: 0 });
+    const kept = await createServiceOrThrow(ctx, categoryId, { name: "Retorno", prices: brl(0) });
     const retired = await createServiceOrThrow(ctx, categoryId, { name: "Consulta antiga" });
     expect((await services.setServiceActive(ctx, { serviceId: retired, active: false })).ok).toBe(true);
 
@@ -152,7 +173,7 @@ describe("services", () => {
 
     const result = await services.setServiceActive(ctx, { serviceId, active: false });
     expect(result.ok && result.value).toEqual({ active: false, futureAppointments: 12 });
-    expect(interpolate(SERVICES_DEACTIVATED_WITH_APPOINTMENTS, { count: 12 })).toBe(
+    expect(createTranslator("pt-BR")("services.ui.deactivatedKept", { count: 12 })).toBe(
       "12 agendamentos futuros deste serviço foram mantidos.",
     );
     expect((await db().service.findUniqueOrThrow({ where: { id: serviceId } })).active).toBe(false);
@@ -204,7 +225,7 @@ describe("services", () => {
       );
       expect(!result.ok && result.error).toMatchObject({
         code: "SERVICES_INVALID_ROOMS",
-        fields: { allowedRoomIds: "Selecione apenas salas ativas." },
+        fields: { allowedRoomIds: "services.errors.SERVICES_INVALID_ROOMS" },
       });
     }
     expect(await db().service.count()).toBe(0);
@@ -218,9 +239,14 @@ describe("services", () => {
     const duplicate = await services.createService(ctx, serviceInput(categoryId, { name: "consulta" }));
     expect(!duplicate.ok && duplicate.error).toMatchObject({
       code: "SERVICES_NAME_TAKEN",
-      fields: { name: "Já existe um serviço com este nome." },
+      fields: { name: "services.errors.SERVICES_NAME_TAKEN" },
     });
-    expect(servicesMessages.SERVICES_NAME_TAKEN).toBe("Já existe um serviço com este nome.");
+    expect(duplicate.ok ? "" : errorText("services", duplicate.error)).toBe(
+      "Já existe um serviço com este nome.",
+    );
+    expect(duplicate.ok ? "" : errorText("services", duplicate.error, "en")).toBe(
+      "A service with this name already exists.",
+    );
   });
 
   it("F03: the 501st active service is rejected, on create and on reactivation", async () => {
@@ -235,7 +261,6 @@ describe("services", () => {
         categoryId,
         name: `Serviço ${index}`,
         durationMinutes: 30,
-        priceCents: 1000,
         color: "blue",
       })),
     });
@@ -278,15 +303,15 @@ describe("services", () => {
   it("F03: concurrent edits are rejected with a stale version", async () => {
     const ctx = await servicesContext();
     const categoryId = await createCategoryOrThrow(ctx);
-    const serviceId = await createServiceOrThrow(ctx, categoryId, { priceCents: 1000 });
+    const serviceId = await createServiceOrThrow(ctx, categoryId, { prices: brl(1000) });
     const first = await services.updateService(ctx, {
-      ...serviceInput(categoryId, { priceCents: 2000 }),
+      ...serviceInput(categoryId, { prices: brl(2000) }),
       serviceId,
       version: 1,
     });
     expect(first.ok).toBe(true);
     const stale = await services.updateService(ctx, {
-      ...serviceInput(categoryId, { priceCents: 3000 }),
+      ...serviceInput(categoryId, { prices: brl(3000) }),
       serviceId,
       version: 1,
     });

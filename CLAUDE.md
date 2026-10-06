@@ -18,15 +18,16 @@ GCli is a clinic management platform: a modular monolith built with Next.js (App
 - **Tenancy:** always use `forTenant(organizationId)`. Never import the unscoped Prisma client outside `src/shared/db`.
 - **Authorization:** every use case starts with an `authz` check. Hiding UI is not protection.
 - **Audit:** every mutation calls `audit.record()` inside the same transaction. Clinical note reads are audited.
-- **Errors:** expected failures return `Result<T, DomainError>` with a stable `code`. User-facing messages are pt-BR, taken from the PRD, and stored in the module's `messages.ts`.
-- **Money:** use integer cents through `Money`, never floats. Store timestamps as UTC `timestamptz`; calendar logic uses the unit time zone (ADR-019; the organization zone is only the default for new units).
+- **Errors:** expected failures return `Result<T, DomainError>` with a stable `code`. Errors carry message keys and parameters, never text; the boundary translates them (ADR-028). The pt-BR catalog follows the PRD messages and lives in `src/modules/<module>/messages/`.
+- **Money:** use integer minor units plus a currency through `Money`, never floats, and never add across currencies (ADR-029). Store timestamps as UTC `timestamptz`; calendar logic uses the unit time zone (ADR-019) and converts local times with `zonedTimeToUtc` (ADR-030).
+- **Languages and countries:** every interface text is a catalog message in `pt-BR`, `en` and `es`, never a literal in JSX. Dates, numbers and money go through the formatters. Documents, phones, addresses and councils follow the country profile (ADR-028, ADR-029).
 - **Data:** no hard deletes of referenced records. Invariants that matter under concurrency (double booking, idempotent payments, one cash register per day) are also enforced by database constraints in raw SQL migrations.
 - **Interface:** follow the design system for every screen. Use tokens and semantic classes (`bg-primary`, `text-muted-foreground`, `bg-paper-1`), never hard-coded colors (the F03 service palette is the only exception). One primary button per screen, states written as text, tables instead of card grids, WCAG 2.2 AA. Extend the design system document before introducing a new visual pattern.
 - **Secrets and personal data:** never commit secrets. Never log personal data (CPF, name, email, phone, clinical content); log IDs.
 
 ## Conventions
 
-- Code, identifiers, commits, technical docs, and URL paths (`/settings/users`) are in English. UI text is in pt-BR.
+- Code, identifiers, commits, technical docs, and URL paths (`/settings/users`) are in English. UI text lives in the pt-BR, en and es catalogs (pt-BR is the source).
 - Feature specs and plans live in `docs/<feature-id>-<kebab-name>/` (`spec.md`, `plan.md`) and are the input for implementation.
 - TypeScript strict; no `any`; no non-null `!` outside tests.
 - Use cases are verbs (`CheckInAppointment`); events are past tense (`AppointmentCheckedIn`).

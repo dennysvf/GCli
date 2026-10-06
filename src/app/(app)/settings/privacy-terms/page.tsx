@@ -3,19 +3,21 @@ import { requirePermission } from "@/modules/identity/next";
 import { patients, TermsPanel } from "@/modules/patients";
 import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import { publishTermsVersionAction } from "./actions";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Termos de privacidade" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return { title: t("patients.ui.privacyTerms") };
+}
 
 export default async function PrivacyTermsPage() {
+  const t = await getTranslations();
   const ctx = await requirePermission("lgpd:manage");
   const versions = await patients.listTermsVersions(ctx);
 
   return (
     <div className="grid gap-6">
-      <PageHeader
-        title="Termos de privacidade"
-        meta="Texto apresentado aos pacientes para o consentimento (LGPD)."
-      />
+      <PageHeader title={t("patients.ui.privacyTerms")} meta={t("patients.ui.privacyTermsHint")} />
       <TermsPanel versions={versions.ok ? versions.value : []} action={publishTermsVersionAction} />
     </div>
   );

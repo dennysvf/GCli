@@ -6,8 +6,11 @@ import { CommonErrors } from "@/shared/kernel/errors";
 import { newId } from "@/shared/kernel/ids";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import { parseInput } from "@/shared/kernel/validation";
-import { addDays, formatDateBR } from "../domain/dates";
-import { utcOffsetMinutes } from "../domain/time-zone-offsets";
+import { formatDate, formatLocale } from "@/shared/i18n/format";
+import { messageKey } from "@/shared/i18n/message-key";
+import { createTranslator, type Translator } from "@/shared/i18n/translator";
+import type { Locale } from "@/shared/i18n/locales";
+import { addDays } from "../domain/dates";
 import {
   isScheduleDeletable,
   planSchedule,
@@ -23,12 +26,7 @@ import {
   validateIntervals,
   type WorkingInterval,
 } from "../domain/working-hours";
-import {
-  crossUnitConflictMessage,
-  crossUnitConflictParams,
-  formatBusinessDay,
-  outsideBusinessHoursMessage,
-} from "../domain/working-hours-text";
+import { businessDayHours, crossUnitConflictParams } from "../domain/working-hours-text";
 import { fromDbDate, toDbDate, violatedConstraint } from "./db-values";
 import { ProfessionalsErrors } from "./errors";
 import { canViewProfessional } from "./policies";
@@ -128,38 +126,50 @@ export async function listSchedules(
 
 // Rules that need the units' data: active units, business hours (PRD F04: rejected with the
 // unit's hours in the message) and no overlap across units in real time (ADR-021).
-function checkIntervals(intervals: WorkingInterval[], units: Map<string, UnitInfo>, validFrom: string) {
+function checkIntervals(
+  intervals: WorkingInterval[],
+  units: Map<string, UnitInfo>,
+  validFrom: string,
+  locale: Locale,
+  t: Translator,
+) {
   const shape = validateIntervals(intervals);
   if (shape) return ProfessionalsErrors.invalidIntervals(shape);
 
   const inactive: Record<string, string> = {};
   intervals.forEach((interval, index) => {
     if (!units.get(interval.unitId)?.active)
-      inactive[`intervals.${index}`] = "Selecione apenas unidades ativas.";
+      inactive[`intervals.${index}`] = "professionals.errors.PROFESSIONALS_INVALID_UNITS";
   });
   if (Object.keys(inactive).length > 0) return ProfessionalsErrors.invalidUnits(inactive);
 
   const weeks = new Map([...units.values()].map((unit) => [unit.id, unit.businessHours]));
   const outside = findOutsideBusinessHours(intervals, weeks);
   const first = outside[0];
+  // "08:00–12:00" or, on a closed day, "closed on Mondays" in the requester's language.
+  const hoursText = (day: Parameters<typeof businessDayHours>[0], weekday: number) =>
+    businessDayHours(day) ?? t("professionals.hours.closedOn", { weekday: String(weekday) });
   if (first) {
     const fields = Object.fromEntries(
-      outside.map((item) => [`intervals.${item.index}`, outsideBusinessHoursMessage(item.day, item.weekday)]),
+      outside.map((item) => [
+        `intervals.${item.index}`,
+        messageKey("professionals.errors.PROFESSIONALS_OUTSIDE_BUSINESS_HOURS", {
+          hours: hoursText(item.day, item.weekday),
+        }),
+      ]),
     );
-    return ProfessionalsErrors.outsideBusinessHours(fields, formatBusinessDay(first.day, first.weekday));
+    return ProfessionalsErrors.outsideBusinessHours(fields, { hours: hoursText(first.day, first.weekday) });
   }
 
-  const reference = new Date(`${validFrom}T12:00:00.000Z`);
-  const offsets = new Map(
-    [...units.values()].map((unit) => [unit.id, utcOffsetMinutes(unit.timeZone, reference)]),
-  );
-  const conflict = findCrossUnitConflict(intervals, offsets);
+  // Compared as real instants on each date of the first 53 weeks (ADR-030).
+  const zones = new Map([...units.values()].map((unit) => [unit.id, unit.timeZone]));
+  const conflict = findCrossUnitConflict(intervals, zones, validFrom);
   const other = conflict ? intervals[conflict.conflictWith] : undefined;
   if (conflict && other) {
     const unitName = units.get(other.unitId)?.name ?? "";
     return ProfessionalsErrors.crossUnitConflict(
-      { [`intervals.${conflict.index}`]: crossUnitConflictMessage(unitName, other) },
-      crossUnitConflictParams(unitName, other),
+      { [`intervals.${conflict.index}`]: "professionals.errors.PROFESSIONALS_CROSS_UNIT_CONFLICT" },
+      crossUnitConflictParams(unitName, other, formatDate(conflict.date, formatLocale(locale))),
     );
   }
   return null;
@@ -181,7 +191,8 @@ export async function saveSchedule(
     deps.units.listUnits(ctx, { activeOnly: false }),
   ]);
   const units = new Map(unitList.map((unit) => [unit.id, unit]));
-  const invalid = checkIntervals(intervals, units, validFrom);
+  const t = createTranslator(ctx.locale);
+  const invalid = checkIntervals(intervals, units, validFrom, ctx.locale, t);
   if (invalid) return fail(invalid);
 
   try {
@@ -189,6 +200,37 @@ export async function saveSchedule(
       const professional = await uow.tx.professional.findFirst({ where: { id: professionalId } });
       if (!professional) return fail(ProfessionalsErrors.notFound());
       if (!professional.active) return fail(ProfessionalsErrors.inactive());
+
+      // PRD F16: working in a unit needs a registration in the unit's country, unless the
+      // professional has no council.
+      if (!professional.hasNoCouncil) {
+        const registered = new Set(
+          (
+            await uow.tx.professionalRegistration.findMany({
+              where: { professionalId },
+              select: { country: true },
+            })
+          ).map((registration) => registration.country),
+        );
+        const missing: Record<string, string> = {};
+        let firstMissing: UnitInfo | undefined;
+        intervals.forEach((interval, index) => {
+          const unit = units.get(interval.unitId);
+          if (unit && !registered.has(unit.country)) {
+            missing[`intervals.${index}`] = "professionals.errors.PROFESSIONALS_REGISTRATION_REQUIRED";
+            firstMissing ??= unit;
+          }
+        });
+        if (firstMissing) {
+          return fail(
+            ProfessionalsErrors.registrationRequired(
+              missing,
+              t(`countries.names.${firstMissing.country}`),
+              firstMissing.name,
+            ),
+          );
+        }
+      }
 
       const rows = await uow.tx.professionalSchedule.findMany({
         where: { professionalId },
@@ -204,7 +246,11 @@ export async function saveSchedule(
       const dateErrors = validateValidity(period, current, date);
       if (dateErrors) return fail(ProfessionalsErrors.validation(dateErrors));
       const plan = planSchedule(rows.filter((row) => row.id !== scheduleId).map(toPeriod), period);
-      if (!plan.ok) return fail(ProfessionalsErrors.scheduleOverlap(formatDateBR(plan.conflictFrom)));
+      if (!plan.ok) {
+        return fail(
+          ProfessionalsErrors.scheduleOverlap(formatDate(plan.conflictFrom, formatLocale(ctx.locale))),
+        );
+      }
 
       // The earlier schedule is closed first: the exclusion constraint is checked per statement.
       if (plan.close) {
@@ -304,7 +350,7 @@ export async function saveSchedule(
   } catch (error) {
     // A concurrent save of an overlapping period (exclusion constraint ex_schedule_no_overlap).
     if (violatedConstraint(error).includes("ex_schedule_no_overlap")) {
-      return fail(ProfessionalsErrors.scheduleOverlap(formatDateBR(validFrom)));
+      return fail(ProfessionalsErrors.scheduleOverlap(formatDate(validFrom, formatLocale(ctx.locale))));
     }
     throw error;
   }

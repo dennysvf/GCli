@@ -2,16 +2,18 @@ import { diffChanges } from "@/shared/audit/diff";
 import { authorize, recordDenial } from "@/shared/authz/guard";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
-import { isValidCpf } from "@/shared/kernel/cpf";
+import { DOCUMENT_SPECS, maskDocument, type DocumentType } from "@/shared/kernel/documents";
+import { isCountryCode, type CountryCode } from "@/shared/kernel/countries/codes";
 import { CommonErrors } from "@/shared/kernel/errors";
 import { newId } from "@/shared/kernel/ids";
 import { fail, ok, type Result } from "@/shared/kernel/result";
+import { formatLocale } from "@/shared/i18n/format";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
 import { parseInput } from "@/shared/kernel/validation";
 import { ageOn, isMinor } from "../domain/age";
 import { consentStatus, isRecordComplete, type ConsentStatus } from "../domain/consent";
 import { MAX_AGE_YEARS, MAX_TAGS_PER_PATIENT } from "../domain/limits";
-import { maskCpf, phoneEnd } from "../domain/masking";
+import { phoneEnd } from "../domain/masking";
 import { abbreviateName, displayName, normalizeName } from "../domain/names";
 import {
   phoneDigits,
@@ -29,6 +31,33 @@ import {
   type PatientValues,
 } from "./schemas";
 
+export type StoredDocument = { country: CountryCode; type: DocumentType; number: string };
+
+// The address as stored: its country is null when the patient has no address (PRD F16).
+export type StoredAddress = {
+  country: CountryCode | null;
+  postalCode: string | null;
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+  district: string | null;
+  city: string | null;
+  region: string | null;
+};
+
+function documentOf(row: {
+  documentCountry: string | null;
+  documentType: string | null;
+  documentNumber: string | null;
+}): StoredDocument | null {
+  if (!row.documentType || !row.documentNumber || !isCountryCode(row.documentCountry)) return null;
+  return {
+    country: row.documentCountry,
+    type: row.documentType as DocumentType,
+    number: row.documentNumber,
+  };
+}
+
 export type PatientDetails = {
   id: string;
   fullName: string;
@@ -37,25 +66,23 @@ export type PatientDetails = {
   birthDate: string;
   age: number;
   sex: Sex;
-  cpf: string | null;
+  document: StoredDocument | null;
   rg: string | null;
+  // E.164.
   mobilePhone: string;
   secondaryPhone: string | null;
   email: string | null;
-  address: {
-    cep: string | null;
-    street: string | null;
-    number: string | null;
-    complement: string | null;
-    district: string | null;
-    city: string | null;
-    state: string | null;
-  };
+  address: StoredAddress;
   occupation: string | null;
   referralSource: { id: string; name: string } | null;
   observations: string | null;
   tags: { id: string; name: string }[];
-  guardian: { name: string; cpf: string | null; relationship: GuardianRelationship; phone: string } | null;
+  guardian: {
+    name: string;
+    document: { type: DocumentType; number: string } | null;
+    relationship: GuardianRelationship;
+    phone: string;
+  } | null;
   active: boolean;
   inactiveReason: InactiveReason | null;
   inactiveNote: string | null;
@@ -70,7 +97,8 @@ export type DuplicateCandidate = {
   patientId: string;
   displayName: string;
   birthDate: string;
-  maskedCpf: string | null;
+  // The document masked as Front Desk sees it (PRD F05, F16).
+  maskedDocument: { type: DocumentType; display: string } | null;
   phoneEnd: string;
   active: boolean;
 };
@@ -135,7 +163,7 @@ export async function loadDetails(
     inactiveReason: row.inactiveReason as InactiveReason | null,
     inactiveNote: row.inactiveNote,
     consentStatus: status,
-    isComplete: isRecordComplete(row.cpf, status),
+    isComplete: isRecordComplete(row.documentNumber, status),
     version: row.version,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -151,24 +179,28 @@ export function identityOf(row: PatientRow, today: string) {
     displayName: displayName(row.fullName, row.socialName),
     birthDate,
     age: ageOn(birthDate, today),
-    cpf: row.cpf,
+    document: documentOf(row),
     mobilePhone: row.mobilePhone,
     secondaryPhone: row.secondaryPhone,
     email: row.email,
     address: {
-      cep: row.cep,
+      country: isCountryCode(row.addressCountry) ? row.addressCountry : null,
+      postalCode: row.postalCode,
       street: row.street,
       number: row.number,
       complement: row.complement,
       district: row.district,
       city: row.city,
-      state: row.state,
+      region: row.region,
     },
     guardian:
       row.guardianName && row.guardianRelationship && row.guardianPhone
         ? {
             name: row.guardianName,
-            cpf: row.guardianCpf,
+            document:
+              row.guardianDocumentType && row.guardianDocumentNumber
+                ? { type: row.guardianDocumentType as DocumentType, number: row.guardianDocumentNumber }
+                : null,
             relationship: row.guardianRelationship as GuardianRelationship,
             phone: row.guardianPhone,
           }
@@ -201,13 +233,10 @@ async function checkFields(
   today: string,
 ) {
   if (values.birthDate > today)
-    return PatientsErrors.validation({ birthDate: "A data de nascimento não pode ser futura." });
+    return PatientsErrors.validation({ birthDate: "patients.validation.birthDateFuture" });
   if (ageOn(values.birthDate, today) > MAX_AGE_YEARS) {
-    return PatientsErrors.validation({ birthDate: "Informe uma data de nascimento válida." });
+    return PatientsErrors.validation({ birthDate: "patients.validation.birthDateInvalid" });
   }
-  if (values.cpf && !isValidCpf(values.cpf)) return PatientsErrors.invalidCpf("cpf");
-  if (values.guardian?.cpf && !isValidCpf(values.guardian.cpf))
-    return PatientsErrors.invalidCpf("guardian.cpf");
   // PRD F05: patients under 18 at registration need a guardian.
   if (isMinor(values.birthDate, today) && !values.guardian) return PatientsErrors.guardianRequired();
   if (values.tagIds.length > MAX_TAGS_PER_PATIENT) return PatientsErrors.tagLimit();
@@ -231,18 +260,28 @@ function columns(values: Omit<PatientValues, "mode" | "confirmDuplicate">) {
     normalizedName: normalizeName(values.fullName),
     birthDate: toDbDate(values.birthDate),
     sex: values.sex,
-    cpf: values.cpf,
+    documentCountry: values.document?.country ?? null,
+    documentType: values.document?.type ?? null,
+    documentNumber: values.document?.number ?? null,
     rg: values.rg,
     mobilePhone: values.mobilePhone ?? "",
     secondaryPhone: values.secondaryPhone,
     phoneDigits: phoneDigits(values.mobilePhone ?? "", values.secondaryPhone),
     email: values.email,
-    ...values.address,
+    addressCountry: values.address?.country ?? null,
+    postalCode: values.address?.postalCode ?? null,
+    street: values.address?.street ?? null,
+    number: values.address?.number ?? null,
+    complement: values.address?.complement ?? null,
+    district: values.address?.district ?? null,
+    city: values.address?.city ?? null,
+    region: values.address?.region ?? null,
     occupation: values.occupation,
     referralSourceId: values.referralSourceId,
     observations: values.observations,
     guardianName: values.guardian?.name ?? null,
-    guardianCpf: values.guardian?.cpf ?? null,
+    guardianDocumentType: values.guardian?.document?.type ?? null,
+    guardianDocumentNumber: values.guardian?.document?.number ?? null,
     guardianRelationship: values.guardian?.relationship ?? null,
     guardianPhone: values.guardian?.phone ?? null,
   };
@@ -256,25 +295,41 @@ function auditView(data: ReturnType<typeof columns>, tagIds: string[]) {
   return { ...view, tagIds: [...tagIds].sort() };
 }
 
-async function cpfOwner(uow: UnitOfWork, cpf: string, exceptId?: string) {
+// A document is unique per type inside the organization (PRD F16): the same number under another
+// type is another document.
+async function documentOwner(
+  uow: UnitOfWork,
+  document: { type: DocumentType; number: string },
+  exceptId?: string,
+) {
   return uow.tx.patient.findFirst({
-    where: { cpf, ...(exceptId ? { id: { not: exceptId } } : {}) },
+    where: {
+      documentType: document.type,
+      documentNumber: document.number,
+      ...(exceptId ? { id: { not: exceptId } } : {}),
+    },
     select: { id: true, fullName: true },
   });
 }
 
-function isCpfViolation(error: unknown): boolean {
+function isDocumentViolation(error: unknown): boolean {
   const candidate = error as { code?: string; message?: string; meta?: unknown };
   return (
     candidate.code === "P2002" ||
-    `${candidate.message ?? ""} ${JSON.stringify(candidate.meta ?? {})}`.includes("uq_patient_org_cpf")
+    `${candidate.message ?? ""} ${JSON.stringify(candidate.meta ?? {})}`.includes("uq_patient_org_document")
   );
 }
 
-async function cpfTakenError(ctx: RequestContext, cpf: string) {
-  const owner = await withTransaction(ctx, async (uow) => ok(await cpfOwner(uow, cpf)));
+async function documentTakenError(ctx: RequestContext, document: { type: DocumentType; number: string }) {
+  const owner = await withTransaction(ctx, async (uow) => ok(await documentOwner(uow, document)));
   const found = owner.ok ? owner.value : null;
-  return found ? PatientsErrors.cpfTaken(abbreviateName(found.fullName), found.id) : null;
+  return found
+    ? PatientsErrors.documentTaken(
+        DOCUMENT_SPECS[document.type].shortLabel,
+        abbreviateName(found.fullName),
+        found.id,
+      )
+    : null;
 }
 
 export async function createPatient(
@@ -293,9 +348,17 @@ export async function createPatient(
     return await withTransaction<CreatePatientResult>(ctx, async (uow) => {
       const invalid = await checkFields(uow, values, today);
       if (invalid) return fail(invalid);
-      if (values.cpf) {
-        const owner = await cpfOwner(uow, values.cpf);
-        if (owner) return fail(PatientsErrors.cpfTaken(abbreviateName(owner.fullName), owner.id));
+      if (values.document) {
+        const owner = await documentOwner(uow, values.document);
+        if (owner) {
+          return fail(
+            PatientsErrors.documentTaken(
+              DOCUMENT_SPECS[values.document.type].shortLabel,
+              abbreviateName(owner.fullName),
+              owner.id,
+            ),
+          );
+        }
       }
       // PRD F05: the same normalized name and birth date warns; the user may create anyway.
       if (!confirmDuplicate) {
@@ -306,7 +369,8 @@ export async function createPatient(
             fullName: true,
             socialName: true,
             birthDate: true,
-            cpf: true,
+            documentType: true,
+            documentNumber: true,
             mobilePhone: true,
             active: true,
           },
@@ -319,7 +383,13 @@ export async function createPatient(
               patientId: match.id,
               displayName: displayName(match.fullName, match.socialName),
               birthDate: fromDbDate(match.birthDate),
-              maskedCpf: match.cpf ? maskCpf(match.cpf) : null,
+              maskedDocument:
+                match.documentType && match.documentNumber
+                  ? {
+                      type: match.documentType as DocumentType,
+                      display: maskDocument(match.documentType as DocumentType, match.documentNumber),
+                    }
+                  : null,
               phoneEnd: phoneEnd(match.mobilePhone),
               active: match.active,
             })),
@@ -353,16 +423,16 @@ export async function createPatient(
       return ok({ kind: "created" as const, patientId: id, version: 1 });
     });
   } catch (error) {
-    if (values.cpf && isCpfViolation(error)) {
-      const taken = await cpfTakenError(ctx, values.cpf);
+    if (values.document && isDocumentViolation(error)) {
+      const taken = await documentTakenError(ctx, values.document);
       if (taken) return fail(taken);
     }
     throw error;
   }
 }
 
-function formatTime(instant: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("pt-BR", { timeZone, hour: "2-digit", minute: "2-digit" }).format(instant);
+function formatTime(instant: Date, timeZone: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { timeZone, hour: "2-digit", minute: "2-digit" }).format(instant);
 }
 
 export async function updatePatient(
@@ -389,14 +459,25 @@ export async function updatePatient(
       // PRD F05: no silent overwrite; the author and time of the newer save are reported.
       if (before.version !== version) {
         return fail(
-          PatientsErrors.staleVersion(before.updatedById ?? "", formatTime(before.updatedAt, timeZone)),
+          PatientsErrors.staleVersion(
+            before.updatedById ?? "",
+            formatTime(before.updatedAt, timeZone, formatLocale(ctx.locale, ctx.organizationCountry)),
+          ),
         );
       }
       const invalid = await checkFields(uow, values, today);
       if (invalid) return fail(invalid);
-      if (values.cpf) {
-        const owner = await cpfOwner(uow, values.cpf, patientId);
-        if (owner) return fail(PatientsErrors.cpfTaken(abbreviateName(owner.fullName), owner.id));
+      if (values.document) {
+        const owner = await documentOwner(uow, values.document, patientId);
+        if (owner) {
+          return fail(
+            PatientsErrors.documentTaken(
+              DOCUMENT_SPECS[values.document.type].shortLabel,
+              abbreviateName(owner.fullName),
+              owner.id,
+            ),
+          );
+        }
       }
       const data = columns(values);
       const updated = await uow.tx.patient.updateMany({
@@ -416,20 +497,23 @@ export async function updatePatient(
         socialName: before.socialName,
         birthDate: fromDbDate(before.birthDate),
         sex: before.sex as Sex,
-        cpf: before.cpf,
+        document: documentOf(before),
         rg: before.rg,
         mobilePhone: before.mobilePhone,
         secondaryPhone: before.secondaryPhone,
         email: before.email,
-        address: {
-          cep: before.cep,
-          street: before.street,
-          number: before.number,
-          complement: before.complement,
-          district: before.district,
-          city: before.city,
-          state: before.state,
-        },
+        address: isCountryCode(before.addressCountry)
+          ? {
+              country: before.addressCountry,
+              postalCode: before.postalCode,
+              street: before.street,
+              number: before.number,
+              complement: before.complement,
+              district: before.district,
+              city: before.city,
+              region: before.region,
+            }
+          : null,
         occupation: before.occupation,
         referralSourceId: before.referralSourceId,
         observations: before.observations,
@@ -437,7 +521,14 @@ export async function updatePatient(
           before.guardianName && before.guardianRelationship && before.guardianPhone
             ? {
                 name: before.guardianName,
-                cpf: before.guardianCpf,
+                document:
+                  before.guardianDocumentType && before.guardianDocumentNumber
+                    ? {
+                        country: DOCUMENT_SPECS[before.guardianDocumentType as DocumentType].country,
+                        type: before.guardianDocumentType as DocumentType,
+                        number: before.guardianDocumentNumber,
+                      }
+                    : null,
                 relationship: before.guardianRelationship as GuardianRelationship,
                 phone: before.guardianPhone,
               }
@@ -471,8 +562,8 @@ export async function updatePatient(
     }
     return saved;
   } catch (error) {
-    if (values.cpf && isCpfViolation(error)) {
-      const taken = await cpfTakenError(ctx, values.cpf);
+    if (values.document && isDocumentViolation(error)) {
+      const taken = await documentTakenError(ctx, values.document);
       if (taken) return fail(taken);
     }
     throw error;

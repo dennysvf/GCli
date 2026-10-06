@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatRegistration, requiresOtherName, requiresRegistration } from "./council";
+import { councilLabel, formatRegistration } from "./council";
 import { checkTimeOff, isTimeOffDeletable, timeOffRange } from "./time-offs";
 
 const NOW = new Date("2026-10-01T12:00:00Z");
@@ -43,21 +43,55 @@ describe("time-offs", () => {
 });
 
 describe("council registration", () => {
-  it("F04: council registration is required unless the type is none", () => {
-    expect(requiresRegistration("NONE")).toBe(false);
-    expect(requiresRegistration("CRM")).toBe(true);
-    expect(requiresRegistration("OTHER")).toBe(true);
-    expect(requiresOtherName("OTHER")).toBe(true);
-    expect(requiresOtherName("CRP")).toBe(false);
-  });
+  const registration = {
+    country: "BR" as const,
+    councilType: "CRM",
+    councilOtherName: null,
+    number: "123456",
+    region: "SP",
+    npi: null,
+  };
 
   it("F04: registration is formatted as CRM 123456/SP", () => {
-    expect(formatRegistration({ type: "CRM", otherName: null, number: "123456", state: "SP" })).toBe(
-      "CRM 123456/SP",
-    );
-    expect(formatRegistration({ type: "OTHER", otherName: "CRFa", number: "1234", state: "SP" })).toBe(
-      "CRFa 1234/SP",
-    );
-    expect(formatRegistration({ type: "NONE", otherName: null, number: null, state: null })).toBe("");
+    expect(formatRegistration(registration, "CRM")).toBe("CRM 123456/SP");
+    expect(
+      formatRegistration(
+        { ...registration, councilType: "OTHER", councilOtherName: "CRFa", number: "1234" },
+        "CRFa",
+      ),
+    ).toBe("CRFa 1234/SP");
+  });
+
+  it("F16: registrations of other countries have no region or add the US NPI", () => {
+    expect(
+      formatRegistration(
+        { ...registration, country: "PT", councilType: "ORDEM_MEDICOS", number: "12345", region: null },
+        "Ordem dos Médicos",
+      ),
+    ).toBe("Ordem dos Médicos 12345");
+    expect(
+      formatRegistration(
+        {
+          ...registration,
+          country: "US",
+          councilType: "STATE_LICENSE",
+          number: "A1234",
+          region: "NY",
+          npi: "1234567893",
+        },
+        "State license",
+      ),
+    ).toBe("State license A1234/NY · NPI 1234567893");
+    expect(
+      formatRegistration(
+        { ...registration, country: "US", councilType: "NPI", number: null, region: null, npi: "1234567893" },
+        "NPI",
+      ),
+    ).toBe("NPI 1234567893");
+  });
+
+  it("the label is the council's name for Outro and the type label otherwise", () => {
+    expect(councilLabel({ councilType: "CRM", councilOtherName: null }, "CRM")).toBe("CRM");
+    expect(councilLabel({ councilType: "OTHER", councilOtherName: "CRFa" }, "Outro")).toBe("CRFa");
   });
 });

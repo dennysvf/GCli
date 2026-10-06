@@ -1,4 +1,6 @@
 // Request context shared by every module (spec F01 sections 3 and 5).
+import type { Locale } from "@/shared/i18n/locales";
+import type { CountryCode } from "@/shared/kernel/countries/codes";
 import type { Role } from "@/shared/kernel/roles";
 
 export { ROLES, type Role } from "@/shared/kernel/roles";
@@ -17,6 +19,10 @@ export type RequestContext = {
   organizationId: string;
   user: RequestUser;
   sessionId: string;
+  // Interface language: the user's preference, else the organization default (PRD F16).
+  locale: Locale;
+  // Headquarters country of the organization; units carry their own country.
+  organizationCountry: CountryCode;
   // Filled by F04 when the user is linked to a professional profile.
   linkedProfessionalId: string | null;
   ipAddress: string | null;

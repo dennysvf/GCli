@@ -26,8 +26,8 @@ export const MAJORITY_AGE = 18;
 export const SEARCH_MIN_LENGTH = 3;
 export const SEARCH_PAGE_SIZE = 20;
 export const HEADER_SEARCH_LIMIT = 8;
-// PRD F05: phone search by the last 8+ digits.
-export const PHONE_SEARCH_MIN_DIGITS = 8;
+// PRD F16: a document or a phone is searched from 5 characters.
+export const DOCUMENT_SEARCH_MIN_LENGTH = 5;
 
 // Spec F05 (ADR-023): signed term files up to 10 MB; unused uploads deleted after 24 hours.
 export const CONSENT_FILE_MAX_BYTES = 10 * 1024 * 1024;

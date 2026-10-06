@@ -5,6 +5,8 @@ import { Alert, AlertDescription } from "@/shared/ui/components/alert";
 import { Button } from "@/shared/ui/components/button";
 import { Textarea } from "@/shared/ui/components/textarea";
 import type { FindingDto } from "../application/booking";
+import { useTranslations } from "next-intl";
+import { useFindingText } from "./finding-text";
 
 // Conflicts in the booking panel (PRD F06 Experience, design system 5.11): red blocks, yellow can
 // be overridden with "Confirmar encaixe" or "Justificar exceção", the patient overlap is information.
@@ -23,6 +25,8 @@ export function ConflictFindings({
   onJustification: (text: string) => void;
   justificationError?: string;
 }) {
+  const findingText = useFindingText();
+  const t = useTranslations();
   if (findings.length === 0) return null;
   const exceptions = findings.filter((finding) => finding.severity === "EXCEPTION");
   return (
@@ -33,15 +37,15 @@ export function ConflictFindings({
           finding.severity === "BLOCKING" ? (
             <Alert key={`${finding.code}-${index}`} variant="destructive">
               <OctagonX aria-hidden />
-              <AlertDescription>{finding.message}</AlertDescription>
+              <AlertDescription>{findingText(finding)}</AlertDescription>
             </Alert>
           ) : finding.severity === "OVERBOOKABLE" ? (
             <Alert key={`${finding.code}-${index}`} variant="warning">
               <AlertTriangle aria-hidden />
               <AlertDescription className="grid gap-2">
-                <span>{finding.message}</span>
+                <span>{findingText(finding)}</span>
                 {overbookingConfirmed ? (
-                  <span className="font-semibold">Encaixe confirmado.</span>
+                  <span className="font-semibold">{t("scheduling.ui.overbookingConfirmed")}</span>
                 ) : (
                   <Button
                     type="button"
@@ -50,7 +54,7 @@ export function ConflictFindings({
                     className="justify-self-start"
                     onClick={onConfirmOverbooking}
                   >
-                    Confirmar encaixe
+                    {t("scheduling.ui.confirmOverbooking")}
                   </Button>
                 )}
               </AlertDescription>
@@ -58,7 +62,7 @@ export function ConflictFindings({
           ) : (
             <Alert key={`${finding.code}-${index}`} variant="info">
               <Info aria-hidden />
-              <AlertDescription>{finding.message}</AlertDescription>
+              <AlertDescription>{findingText(finding)}</AlertDescription>
             </Alert>
           ),
         )}
@@ -67,10 +71,10 @@ export function ConflictFindings({
           <AlertTriangle aria-hidden />
           <AlertDescription className="grid gap-2">
             {exceptions.map((finding, index) => (
-              <span key={`${finding.code}-${index}`}>{finding.message}</span>
+              <span key={`${finding.code}-${index}`}>{findingText(finding)}</span>
             ))}
             <label htmlFor="exception-justification" className="text-foreground text-sm font-semibold">
-              Justificar exceção
+              {t("scheduling.ui.justifyException")}
             </label>
             <Textarea
               id="exception-justification"
@@ -79,7 +83,7 @@ export function ConflictFindings({
               aria-invalid={justificationError ? true : undefined}
               aria-describedby={justificationError ? "exception-justification-error" : undefined}
               onChange={(event) => onJustification(event.target.value)}
-              placeholder="Por que este agendamento é uma exceção?"
+              placeholder={t("scheduling.ui.exceptionWhy")}
             />
             {justificationError ? (
               <span id="exception-justification-error" role="alert" className="text-destructive">

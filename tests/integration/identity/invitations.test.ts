@@ -121,7 +121,7 @@ describe("invitations", () => {
       { token, password: "semnumeros", confirmPassword: "semnumeros" },
       meta(),
     );
-    expect(!result.ok && result.error.fields?.password).toContain("número");
+    expect(!result.ok && result.error.fields?.password).toBe("identity.validation.passwordMissingDigit");
   });
 
   it("F01: inviting an existing email or a second pending invitation is rejected", async () => {

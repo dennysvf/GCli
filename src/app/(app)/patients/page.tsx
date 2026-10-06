@@ -4,7 +4,6 @@ import Link from "next/link";
 import { requirePermission } from "@/modules/identity/next";
 import {
   PATIENT_STATUSES,
-  PATIENTS_NOT_VISIBLE,
   PatientSearchField,
   patients,
   PatientsTable,
@@ -13,12 +12,17 @@ import {
 import { can } from "@/shared/authz/permissions";
 import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import { Button } from "@/shared/ui/components/button";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Pacientes" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return { title: t("common.patients") };
+}
 
 const PAGE_SIZE = 20;
 
 export default async function PatientsPage({ searchParams }: PageProps<"/patients">) {
+  const t = await getTranslations();
   const ctx = await requirePermission("patient:read");
   const params = await searchParams;
   const q = typeof params.q === "string" ? params.q : "";
@@ -35,33 +39,31 @@ export default async function PatientsPage({ searchParams }: PageProps<"/patient
   return (
     <div className="grid gap-6">
       <PageHeader
-        title="Pacientes"
-        meta={result?.ok ? `${result.value.total} encontrados` : undefined}
+        title={t("common.patients")}
+        meta={result?.ok ? t("patients.ui.foundCount", { count: result.value.total }) : undefined}
         actions={
           canManage ? (
             <Button asChild>
               <Link href="/patients/new">
                 <Plus />
-                Novo paciente
+                {t("patients.ui.newPatient")}
               </Link>
             </Button>
           ) : null
         }
       />
       <PatientSearchField q={q} status={status} />
-      {!canManage ? <p className="text-muted-foreground text-sm">{PATIENTS_NOT_VISIBLE}</p> : null}
+      {!canManage ? <p className="text-muted-foreground text-sm">{t("patients.ui.notVisible")}</p> : null}
       {result === null ? (
-        <p className="text-muted-foreground">
-          Busque por nome, CPF ou telefone, com pelo menos 3 caracteres.
-        </p>
+        <p className="text-muted-foreground">{t("patients.ui.searchHint")}</p>
       ) : !result.ok ? (
-        <p className="text-muted-foreground">Digite pelo menos 3 caracteres para buscar.</p>
+        <p className="text-muted-foreground">{t("patients.ui.searchTooShort")}</p>
       ) : result.value.items.length === 0 ? (
         <p className="text-muted-foreground">
-          Nenhum paciente encontrado para &quot;{q.trim()}&quot;.{" "}
+          {t("patients.ui.noPatientsFound", { term: q.trim() })}{" "}
           {canManage ? (
             <Link href="/patients/new" className="text-primary hover:underline">
-              Cadastrar paciente
+              {t("patients.ui.registerPatient")}
             </Link>
           ) : null}
         </p>
@@ -69,18 +71,18 @@ export default async function PatientsPage({ searchParams }: PageProps<"/patient
         <>
           <PatientsTable items={result.value.items} />
           {pages > 1 ? (
-            <nav aria-label="Paginação" className="flex items-center gap-3 text-sm">
+            <nav aria-label={t("common.pagination")} className="flex items-center gap-3 text-sm">
               {page > 1 ? (
                 <Link href={pageHref(page - 1)} className="text-primary hover:underline">
-                  Anterior
+                  {t("common.previous")}
                 </Link>
               ) : null}
               <span className="text-muted-foreground tabular-nums">
-                Página {page} de {pages}
+                {t("patients.ui.pageOf", { page, pages })}
               </span>
               {page < pages ? (
                 <Link href={pageHref(page + 1)} className="text-primary hover:underline">
-                  Próxima
+                  {t("common.next")}
                 </Link>
               ) : null}
             </nav>

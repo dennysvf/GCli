@@ -7,7 +7,6 @@ import { useState, useTransition } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import type { z } from "zod";
-import { maskCep } from "@/shared/kernel/address";
 import type { ActionResult } from "@/shared/kernel/action-result";
 import { Alert, AlertDescription } from "@/shared/ui/components/alert";
 import { Button } from "@/shared/ui/components/button";
@@ -17,7 +16,9 @@ import { Label } from "@/shared/ui/components/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 import { Textarea } from "@/shared/ui/components/textarea";
 import { AddressFields } from "@/shared/ui/forms/address-fields";
-import { CpfInput } from "@/shared/ui/forms/cpf-input";
+import { DocumentInput } from "@/shared/ui/forms/document-input";
+import { COUNTRY_LIST, countryProfile, type CountryCode } from "@/shared/kernel/countries";
+import { useTranslations } from "next-intl";
 import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
@@ -28,12 +29,7 @@ import type { CreatePatientResult, DuplicateCandidate, PatientDetails } from "..
 import { createPatientSchema } from "../application/schemas";
 import { isMinor } from "../domain/age";
 import { MAX_TAGS_PER_PATIENT } from "../domain/limits";
-import {
-  GUARDIAN_RELATIONSHIP_LABELS,
-  GUARDIAN_RELATIONSHIPS,
-  SEX_LABELS,
-  SEXES,
-} from "../domain/patient-fields";
+import { GUARDIAN_RELATIONSHIPS, SEXES } from "../domain/patient-fields";
 import { DuplicateDialog } from "./duplicate-dialog";
 
 type Values = z.input<typeof createPatientSchema>;
@@ -44,43 +40,48 @@ export type SavePatientResult = CreatePatientResult | { patientId: string; versi
 
 const NONE = "none";
 
-// Labels used to list what changed when another user saved first (PRD F05 concurrent edit).
-const FIELD_LABELS: Record<string, string> = {
-  fullName: "Nome completo",
-  socialName: "Nome social",
-  birthDate: "Data de nascimento",
-  sex: "Sexo",
-  cpf: "CPF",
-  rg: "RG",
-  mobilePhone: "Celular",
-  secondaryPhone: "Telefone secundário",
-  email: "E-mail",
-  address: "Endereço",
-  occupation: "Profissão",
-  observations: "Observações",
-  guardian: "Responsável",
-};
+// Fields listed when another user saved first (PRD F05 concurrent edit); labels are in the catalog.
+const COMPARED_FIELDS = [
+  "fullName",
+  "socialName",
+  "birthDate",
+  "sex",
+  "document",
+  "rg",
+  "mobilePhone",
+  "secondaryPhone",
+  "email",
+  "address",
+  "occupation",
+  "observations",
+  "guardian",
+];
 
-function defaultsFrom(patient: PatientDetails | undefined): Values {
+function emptyDocument(country: CountryCode) {
+  return { country, type: countryProfile(country).identityDocuments[0]?.type ?? "CPF", number: "" } as const;
+}
+
+function defaultsFrom(patient: PatientDetails | undefined, defaultCountry: CountryCode): Values {
   return {
     mode: "full",
     fullName: patient?.fullName ?? "",
     socialName: patient?.socialName ?? "",
     birthDate: patient?.birthDate ?? "",
     sex: patient?.sex ?? "NOT_INFORMED",
-    cpf: patient?.cpf ?? "",
+    document: patient?.document ?? emptyDocument(defaultCountry),
     rg: patient?.rg ?? "",
     mobilePhone: patient?.mobilePhone ?? "",
     secondaryPhone: patient?.secondaryPhone ?? "",
     email: patient?.email ?? "",
     address: {
-      cep: maskCep(patient?.address.cep),
+      country: patient?.address.country ?? defaultCountry,
+      postalCode: patient?.address.postalCode ?? "",
       street: patient?.address.street ?? "",
       number: patient?.address.number ?? "",
       complement: patient?.address.complement ?? "",
       district: patient?.address.district ?? "",
       city: patient?.address.city ?? "",
-      state: patient?.address.state ?? "",
+      region: patient?.address.region ?? "",
     },
     occupation: patient?.occupation ?? "",
     referralSourceId: patient?.referralSource?.id ?? null,
@@ -89,17 +90,29 @@ function defaultsFrom(patient: PatientDetails | undefined): Values {
     guardian: patient?.guardian
       ? {
           name: patient.guardian.name,
-          cpf: patient.guardian.cpf ?? "",
+          document: patient.guardian.document
+            ? {
+                country: countryProfile(defaultCountry).identityDocuments.some(
+                  (spec) => spec.type === patient.guardian?.document?.type,
+                )
+                  ? defaultCountry
+                  : (COUNTRY_LIST.find((item) =>
+                      item.identityDocuments.some((spec) => spec.type === patient.guardian?.document?.type),
+                    )?.code ?? defaultCountry),
+                type: patient.guardian.document.type,
+                number: patient.guardian.document.number,
+              }
+            : emptyDocument(defaultCountry),
           relationship: patient.guardian.relationship,
           phone: patient.guardian.phone,
         }
-      : { name: "", cpf: "", relationship: "MOTHER", phone: "" },
+      : { name: "", document: emptyDocument(defaultCountry), relationship: "MOTHER", phone: "" },
     confirmDuplicate: false,
   };
 }
 
 function changedFields(mine: PatientDetails, theirs: PatientDetails): string[] {
-  return Object.keys(FIELD_LABELS).filter(
+  return COMPARED_FIELDS.filter(
     (key) =>
       JSON.stringify((mine as Record<string, unknown>)[key]) !==
       JSON.stringify((theirs as Record<string, unknown>)[key]),
@@ -112,6 +125,7 @@ export function PatientForm({
   patient,
   mode = "full",
   today,
+  defaultCountry,
   referralSources,
   tags,
   readOnly = false,
@@ -121,6 +135,8 @@ export function PatientForm({
   patient?: PatientDetails;
   mode?: "full" | "quick";
   today: string;
+  // The country of the selected unit: the first choice for document, phone and address (PRD F16).
+  defaultCountry: CountryCode;
   referralSources: ListItem[];
   tags: ListItem[];
   readOnly?: boolean;
@@ -136,7 +152,8 @@ export function PatientForm({
   const [candidates, setCandidates] = useState<DuplicateCandidate[] | null>(null);
   const [existingId, setExistingId] = useState<string | null>(null);
   const [conflict, setConflict] = useState<{ message: string; fields: string[] } | null>(null);
-  const defaults = defaultsFrom(patient);
+  const defaults = defaultsFrom(patient, defaultCountry);
+  const t = useTranslations();
   const form = useForm<Values, unknown, Parsed>({
     resolver: zodResolver(createPatientSchema),
     defaultValues: defaults,
@@ -144,6 +161,7 @@ export function PatientForm({
   const draft = useFormDraft(`patient-${patient?.id ?? mode}`, form);
   const { errors } = form.formState;
   const birthDate = useWatch({ control: form.control, name: "birthDate" });
+  const addressCountry = useWatch({ control: form.control, name: "address.country" });
   const selectedTags = useWatch({ control: form.control, name: "tagIds" }) ?? [];
   const showGuardian =
     !!patient?.guardian || (/^\d{4}-\d{2}-\d{2}$/.test(birthDate ?? "") && isMinor(birthDate ?? "", today));
@@ -159,8 +177,11 @@ export function PatientForm({
         ...(patient ? { patientId: patient.id, version: patient.version } : {}),
       };
       const result = await actions.save(input);
-      if (!result.ok && result.error.code === "PATIENTS_CPF_TAKEN") {
-        form.setError("cpf", { type: "server", message: result.error.fields?.cpf ?? result.error.message });
+      if (!result.ok && result.error.code === "PATIENTS_DOCUMENT_TAKEN") {
+        form.setError("document.number", {
+          type: "server",
+          message: result.error.fields?.["document.number"] ?? result.error.message,
+        });
         setExistingId(result.error.fields?.existingPatientId ?? null);
         return;
       }
@@ -169,7 +190,7 @@ export function PatientForm({
         setConflict({
           message: result.error.message,
           fields: current.ok
-            ? changedFields(patient, current.data).map((key) => FIELD_LABELS[key] ?? key)
+            ? changedFields(patient, current.data).map((key) => t(`patients.ui.fieldLabels.${key}`))
             : [],
         });
         return;
@@ -182,7 +203,7 @@ export function PatientForm({
       }
       setCandidates(null);
       draft.clear();
-      toast.success(patient ? "Cadastro salvo." : "Paciente cadastrado.");
+      toast.success(patient ? t("patients.ui.recordSaved") : t("patients.ui.patientRegistered"));
       const patientId = data.patientId;
       if (onCreated) onCreated(patientId, values.socialName?.trim() || values.fullName);
       else if (!patient) router.push(`/patients/${patientId}`);
@@ -205,10 +226,14 @@ export function PatientForm({
 
   const guardianSection = showGuardian ? (
     <fieldset className="grid gap-4 rounded-lg border p-4" data-testid="guardian-section">
-      <legend className="px-1 text-sm font-semibold">Responsável</legend>
-      <p className="text-muted-foreground text-xs">Obrigatório para pacientes menores de 18 anos.</p>
+      <legend className="px-1 text-sm font-semibold">{t("patients.ui.guardian")}</legend>
+      <p className="text-muted-foreground text-xs">{t("patients.ui.guardianRequired")}</p>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="guardian-name" label="Nome do responsável" error={errors.guardian?.name?.message}>
+        <Field
+          id="guardian-name"
+          label={t("patients.ui.guardianName")}
+          error={errors.guardian?.name?.message}
+        >
           <Input
             id="guardian-name"
             readOnly={readOnly}
@@ -216,7 +241,11 @@ export function PatientForm({
             {...form.register("guardian.name")}
           />
         </Field>
-        <Field id="guardian-relationship" label="Parentesco" error={errors.guardian?.relationship?.message}>
+        <Field
+          id="guardian-relationship"
+          label={t("patients.ui.relationship")}
+          error={errors.guardian?.relationship?.message}
+        >
           <Controller
             control={form.control}
             name="guardian.relationship"
@@ -228,7 +257,7 @@ export function PatientForm({
                 <SelectContent>
                   {GUARDIAN_RELATIONSHIPS.map((value) => (
                     <SelectItem key={value} value={value}>
-                      {GUARDIAN_RELATIONSHIP_LABELS[value]}
+                      {t(`patients.ui.relationships.${value}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -236,7 +265,11 @@ export function PatientForm({
             )}
           />
         </Field>
-        <Field id="guardian-phone" label="Telefone do responsável" error={errors.guardian?.phone?.message}>
+        <Field
+          id="guardian-phone"
+          label={t("patients.ui.guardianPhone")}
+          error={errors.guardian?.phone?.message}
+        >
           <Controller
             control={form.control}
             name="guardian.phone"
@@ -244,21 +277,31 @@ export function PatientForm({
               <PhoneInput
                 id="guardian-phone"
                 readOnly={readOnly}
+                defaultCountry={defaultCountry}
                 value={field.value}
                 onChange={field.onChange}
               />
             )}
           />
         </Field>
-        <Field id="guardian-cpf" label="CPF do responsável (opcional)" error={errors.guardian?.cpf?.message}>
+        <div className="sm:col-span-2">
           <Controller
             control={form.control}
-            name="guardian.cpf"
+            name="guardian.document"
             render={({ field }) => (
-              <CpfInput id="guardian-cpf" readOnly={readOnly} value={field.value} onChange={field.onChange} />
+              <DocumentInput
+                idPrefix="guardian-document"
+                label={t("patients.ui.guardianDocument")}
+                readOnly={readOnly}
+                defaultCountry={defaultCountry}
+                value={field.value}
+                onChange={field.onChange}
+                numberError={errors.guardian?.document?.number?.message}
+                typeError={errors.guardian?.document?.type?.message}
+              />
             )}
           />
-        </Field>
+        </div>
       </div>
     </fieldset>
   ) : null;
@@ -269,7 +312,11 @@ export function PatientForm({
         <Alert variant="destructive">
           <AlertDescription>
             <p>{conflict.message}</p>
-            {conflict.fields.length > 0 ? <p>Campos alterados: {conflict.fields.join(", ")}.</p> : null}
+            {conflict.fields.length > 0 ? (
+              <p>
+                {t("patients.ui.changedFields")} {conflict.fields.join(", ")}.
+              </p>
+            ) : null}
             <Button
               type="button"
               variant="outline"
@@ -280,29 +327,33 @@ export function PatientForm({
                 window.location.reload();
               }}
             >
-              Ver versão atual
+              {t("patients.ui.viewCurrentVersion")}
             </Button>
           </AlertDescription>
         </Alert>
       ) : null}
       <HydratedFieldset disabled={readOnly}>
         <fieldset className="grid gap-4">
-          <legend className="sr-only">Identificação</legend>
-          <Field id="patient-full-name" label="Nome completo" error={errors.fullName?.message}>
+          <legend className="sr-only">{t("patients.ui.identification")}</legend>
+          <Field id="patient-full-name" label={t("common.fullName")} error={errors.fullName?.message}>
             {text("fullName", "patient-full-name", { autoComplete: "off" })}
           </Field>
           {mode === "full" ? (
             <Field
               id="patient-social-name"
-              label="Nome social (opcional)"
+              label={t("patients.ui.socialName")}
               error={errors.socialName?.message}
-              hint="Quando preenchido, aparece no lugar do nome completo."
+              hint={t("patients.ui.socialNameHint")}
             >
               {text("socialName", "patient-social-name")}
             </Field>
           ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="patient-birth-date" label="Data de nascimento" error={errors.birthDate?.message}>
+            <Field
+              id="patient-birth-date"
+              label={t("patients.ui.birthDate")}
+              error={errors.birthDate?.message}
+            >
               <Input
                 id="patient-birth-date"
                 type="date"
@@ -313,7 +364,7 @@ export function PatientForm({
                 {...form.register("birthDate")}
               />
             </Field>
-            <Field id="patient-mobile" label="Celular" error={errors.mobilePhone?.message}>
+            <Field id="patient-mobile" label={t("patients.ui.mobile")} error={errors.mobilePhone?.message}>
               <Controller
                 control={form.control}
                 name="mobilePhone"
@@ -321,6 +372,7 @@ export function PatientForm({
                   <PhoneInput
                     id="patient-mobile"
                     readOnly={readOnly}
+                    defaultCountry={defaultCountry}
                     aria-invalid={!!errors.mobilePhone}
                     value={field.value}
                     onChange={field.onChange}
@@ -331,7 +383,7 @@ export function PatientForm({
           </div>
           {mode === "full" ? (
             <div className="grid gap-4 sm:grid-cols-3">
-              <Field id="patient-sex" label="Sexo" error={errors.sex?.message}>
+              <Field id="patient-sex" label={t("patients.ui.sex")} error={errors.sex?.message}>
                 <Controller
                   control={form.control}
                   name="sex"
@@ -347,7 +399,7 @@ export function PatientForm({
                       <SelectContent>
                         {SEXES.map((value) => (
                           <SelectItem key={value} value={value}>
-                            {SEX_LABELS[value]}
+                            {t(`patients.ui.sexes.${value}`)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -355,27 +407,30 @@ export function PatientForm({
                   )}
                 />
               </Field>
-              <Field id="patient-cpf" label="CPF (opcional)" error={errors.cpf?.message}>
+              <div className="sm:col-span-3">
                 <Controller
                   control={form.control}
-                  name="cpf"
+                  name="document"
                   render={({ field }) => (
-                    <CpfInput
-                      id="patient-cpf"
+                    <DocumentInput
+                      idPrefix="patient-document"
+                      label={t("patients.ui.documentOptional")}
                       readOnly={readOnly}
-                      aria-invalid={!!errors.cpf}
+                      defaultCountry={defaultCountry}
                       value={field.value}
                       onChange={field.onChange}
+                      numberError={errors.document?.number?.message}
+                      typeError={errors.document?.type?.message}
                     />
                   )}
                 />
                 {existingId ? (
                   <Link href={`/patients/${existingId}`} className="text-primary text-sm hover:underline">
-                    Abrir cadastro existente
+                    {t("patients.ui.openExisting")}
                   </Link>
                 ) : null}
-              </Field>
-              <Field id="patient-rg" label="RG (opcional)" error={errors.rg?.message}>
+              </div>
+              <Field id="patient-rg" label={t("patients.ui.rgOptional")} error={errors.rg?.message}>
                 {text("rg", "patient-rg")}
               </Field>
             </div>
@@ -387,11 +442,11 @@ export function PatientForm({
         {mode === "full" ? (
           <>
             <fieldset className="grid gap-4">
-              <legend className="mb-2 text-sm font-semibold">Contato</legend>
+              <legend className="mb-2 text-sm font-semibold">{t("patients.ui.contact")}</legend>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
                   id="patient-secondary"
-                  label="Telefone secundário (opcional)"
+                  label={t("patients.ui.secondaryPhone")}
                   error={errors.secondaryPhone?.message}
                 >
                   <Controller
@@ -401,34 +456,71 @@ export function PatientForm({
                       <PhoneInput
                         id="patient-secondary"
                         readOnly={readOnly}
-                        placeholder="(11) 3333-4444"
+                        defaultCountry={defaultCountry}
                         value={field.value}
                         onChange={field.onChange}
                       />
                     )}
                   />
                 </Field>
-                <Field id="patient-email" label="E-mail (opcional)" error={errors.email?.message}>
+                <Field id="patient-email" label={t("common.emailOptional")} error={errors.email?.message}>
                   {text("email", "patient-email", { type: "email" })}
                 </Field>
               </div>
             </fieldset>
 
-            <AddressFields form={form} idPrefix="patient" defaults={defaults.address} readOnly={readOnly} />
+            <Field
+              id="patient-address-country"
+              label={t("units.country")}
+              error={errors.address?.country?.message}
+            >
+              <Controller
+                control={form.control}
+                name="address.country"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? defaultCountry}
+                    onValueChange={(next) => {
+                      field.onChange(next);
+                      form.setValue("address.region", "");
+                    }}
+                    disabled={readOnly}
+                  >
+                    <SelectTrigger id="patient-address-country" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRY_LIST.map((item) => (
+                        <SelectItem key={item.code} value={item.code}>
+                          {t(item.nameKey)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </Field>
+            <AddressFields
+              form={form}
+              idPrefix="patient"
+              country={(addressCountry ?? defaultCountry) as CountryCode}
+              defaults={defaults.address}
+              readOnly={readOnly}
+            />
 
             <fieldset className="grid gap-4">
-              <legend className="mb-2 text-sm font-semibold">Outras informações</legend>
+              <legend className="mb-2 text-sm font-semibold">{t("patients.ui.otherInfo")}</legend>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
                   id="patient-occupation"
-                  label="Profissão (opcional)"
+                  label={t("patients.ui.occupation")}
                   error={errors.occupation?.message}
                 >
                   {text("occupation", "patient-occupation")}
                 </Field>
                 <Field
                   id="patient-referral"
-                  label="Como conheceu a clínica (opcional)"
+                  label={t("patients.ui.referralSourceOptional")}
                   error={errors.referralSourceId?.message}
                 >
                   <Controller
@@ -444,7 +536,7 @@ export function PatientForm({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={NONE}>Não informado</SelectItem>
+                          <SelectItem value={NONE}>{t("patients.ui.notInformed")}</SelectItem>
                           {referralSources
                             .filter((item) => item.active || item.id === field.value)
                             .map((item) => (
@@ -461,9 +553,12 @@ export function PatientForm({
               {tags.length > 0 ? (
                 <Field
                   id="patient-tags"
-                  label="Etiquetas (opcional)"
+                  label={t("patients.ui.tagsOptional")}
                   error={errors.tagIds?.message}
-                  hint={`Até ${MAX_TAGS_PER_PATIENT} etiquetas. ${selectedTags.length} selecionadas.`}
+                  hint={t("patients.ui.tagsHint", {
+                    max: MAX_TAGS_PER_PATIENT,
+                    selected: selectedTags.length,
+                  })}
                 >
                   <Controller
                     control={form.control}
@@ -504,9 +599,9 @@ export function PatientForm({
               ) : null}
               <Field
                 id="patient-observations"
-                label="Observações administrativas (opcional)"
+                label={t("patients.ui.adminNotes")}
                 error={errors.observations?.message}
-                hint="Informações não clínicas, como preferências de horário."
+                hint={t("patients.ui.adminNotesHint")}
               >
                 <Textarea
                   id="patient-observations"
@@ -523,7 +618,11 @@ export function PatientForm({
         {readOnly ? null : (
           <div>
             <Button type="submit" disabled={pending}>
-              {pending ? "Salvando..." : patient ? "Salvar alterações" : "Cadastrar paciente"}
+              {pending
+                ? t("common.saving")
+                : patient
+                  ? t("common.saveChanges")
+                  : t("patients.ui.registerPatient")}
             </Button>
           </div>
         )}

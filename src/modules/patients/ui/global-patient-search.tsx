@@ -8,6 +8,7 @@ import { Input } from "@/shared/ui/components/input";
 import { cn } from "@/shared/ui/utils";
 import type { PatientSearchItem, PatientSearchResult } from "../application/search";
 import { HEADER_SEARCH_LIMIT, SEARCH_MIN_LENGTH } from "../domain/limits";
+import { useTranslations } from "next-intl";
 
 const DEBOUNCE_MS = 250;
 
@@ -27,6 +28,7 @@ function isTyping(target: EventTarget | null): boolean {
 
 // Global patient search (design system 5.10, PRD F05 Experience): "/" focuses it from any screen.
 export function GlobalPatientSearch({ canRegister }: { canRegister: boolean }) {
+  const t = useTranslations();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const listId = useId();
@@ -97,8 +99,8 @@ export function GlobalPatientSearch({ canRegister }: { canRegister: boolean }) {
         aria-expanded={open && view.kind !== "idle"}
         aria-controls={listId}
         aria-autocomplete="list"
-        aria-label="Buscar paciente"
-        placeholder="Buscar paciente (/)"
+        aria-label={t("patients.ui.searchPatient")}
+        placeholder={t("patients.ui.searchPatientShortcut")}
         className="pl-8"
         value={text}
         onChange={(event) => {
@@ -128,21 +130,19 @@ export function GlobalPatientSearch({ canRegister }: { canRegister: boolean }) {
         <div
           id={listId}
           role="listbox"
-          aria-label="Resultados da busca de pacientes"
+          aria-label={t("patients.ui.searchResults")}
           className="bg-popover shadow-floating absolute top-11 z-50 w-full rounded-lg border"
         >
           {view.kind === "short" ? (
-            <p className="text-muted-foreground px-3 py-2 text-sm">Digite pelo menos 3 caracteres.</p>
+            <p className="text-muted-foreground px-3 py-2 text-sm">{t("patients.ui.typeAtLeast3")}</p>
           ) : view.kind === "loading" ? (
-            <p className="text-muted-foreground px-3 py-2 text-sm">Buscando...</p>
+            <p className="text-muted-foreground px-3 py-2 text-sm">{t("common.searching")}</p>
           ) : view.kind === "error" ? (
-            <p className="text-muted-foreground px-3 py-2 text-sm">
-              Não foi possível buscar agora. Tente novamente.
-            </p>
+            <p className="text-muted-foreground px-3 py-2 text-sm">{t("patients.ui.searchFailed")}</p>
           ) : items.length === 0 ? (
             <div className="grid gap-1 px-3 py-2 text-sm">
               <p className="text-muted-foreground">
-                Nenhum paciente encontrado para &quot;{text.trim()}&quot;.
+                {t("patients.ui.noPatientsFound", { term: text.trim() })}
               </p>
               {canRegister ? (
                 <Link
@@ -150,7 +150,7 @@ export function GlobalPatientSearch({ canRegister }: { canRegister: boolean }) {
                   className="text-primary hover:underline"
                   onMouseDown={(e) => e.preventDefault()}
                 >
-                  Cadastrar paciente
+                  {t("patients.ui.registerPatient")}
                 </Link>
               ) : null}
             </div>
@@ -169,7 +169,12 @@ export function GlobalPatientSearch({ canRegister }: { canRegister: boolean }) {
                   >
                     <span className="truncate text-sm font-semibold">{item.displayName}</span>
                     <span className="text-muted-foreground truncate text-xs">
-                      {item.age} anos · {item.cpf ?? `cel. final ${item.mobilePhone.slice(-4)}`}
+                      {t("patients.ui.ageAndDetail", {
+                        age: item.age,
+                        detail:
+                          item.document?.display ??
+                          t("patients.ui.mobileEnding", { digits: item.mobilePhone.slice(-4) }),
+                      })}
                     </span>
                   </button>
                 </li>
@@ -184,7 +189,7 @@ export function GlobalPatientSearch({ canRegister }: { canRegister: boolean }) {
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => go(allHref)}
                 >
-                  Ver todos os resultados ({view.kind === "results" ? view.total : 0})
+                  {t("patients.ui.viewAllResults", { total: view.kind === "results" ? view.total : 0 })}
                 </button>
               </li>
             </ul>

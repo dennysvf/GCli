@@ -1,18 +1,17 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { patients } from "@/modules/patients";
 import { professionals } from "@/modules/professionals";
-import { scheduling, schedulingMessages } from "@/modules/scheduling";
+import { scheduling } from "@/modules/scheduling";
 import { services } from "@/modules/services";
 import { units } from "@/modules/units";
 import { db } from "@/shared/db/client";
-import { interpolate } from "@/shared/kernel/action-result";
-import { auditEvents, closeHelpers, resetDatabase } from "../helpers";
+import { auditEvents, closeHelpers, errorText, resetDatabase } from "../helpers";
 import { booking, bookOrThrow, day, schedulingWorld, type World } from "./support";
 
 beforeEach(resetDatabase);
 afterAll(closeHelpers);
 
-type Finding = { code: string; severity: string; message: string };
+type Finding = { code: string; severity: string; params: Record<string, string | null> };
 const findingsOf = (error: { details?: Record<string, unknown> }) =>
   (error.details?.findings ?? []) as Finding[];
 
@@ -24,21 +23,24 @@ beforeEach(async () => {
 describe("booking", () => {
   it("F06: booking fills duration and price from the service and lists only enabled professionals", async () => {
     const booked = await bookOrThrow(world.desk, booking(world));
-    expect(booked.priceCents).toBe(25_000);
+    expect(booked.price).toEqual({ amountMinor: 25_000, currency: "BRL" });
     expect(new Date(booked.endsAt).getTime() - new Date(booked.startsAt).getTime()).toBe(50 * 60_000);
     const row = await db().appointment.findUniqueOrThrow({ where: { id: booked.appointmentId } });
-    expect(row).toMatchObject({ durationMinutes: 50, priceCents: 25_000, status: "SCHEDULED" });
+    expect(row).toMatchObject({
+      durationMinutes: 50,
+      priceMinor: 25_000n,
+      currency: "BRL",
+      status: "SCHEDULED",
+    });
 
     // A professional without the service enabled is neither listed nor bookable.
     const other = await professionals.createProfessional(world.admin, {
       fullName: "Carla Souza",
       displayName: "Carla Souza",
       specialty: null,
-      councilType: "NONE",
-      councilOtherName: null,
-      councilNumber: null,
-      councilState: null,
-      cpf: null,
+      hasNoCouncil: true,
+      registrations: [],
+      document: null,
       phone: null,
       email: null,
       color: "violet",
@@ -79,7 +81,7 @@ describe("booking", () => {
       expect.objectContaining({
         code: "SCHEDULING_PROFESSIONAL_CONFLICT",
         severity: "OVERBOOKABLE",
-        message: "Dra. Ana já possui atendimento das 14:00 às 14:50. Deseja registrar como encaixe?",
+        params: expect.objectContaining({ professional: "Dra. Ana", timeZone: "America/Sao_Paulo" }),
       }),
     ]);
     const confirmed = await bookOrThrow(world.desk, { ...overlap, confirmOverbooking: true });
@@ -107,7 +109,7 @@ describe("booking", () => {
       expect.objectContaining({
         code: "SCHEDULING_ROOM_CONFLICT",
         severity: "BLOCKING",
-        message: "A Sala 1 está ocupada das 14:00 às 14:50. Escolha outra sala ou horário.",
+        params: expect.objectContaining({ room: "Sala 1", timeZone: "America/Sao_Paulo" }),
       }),
     ]);
     // The database refuses it too, even when the application check is bypassed.
@@ -168,7 +170,7 @@ describe("booking", () => {
     expect(closed.ok ? [] : findingsOf(closed.error)).toContainEqual(
       expect.objectContaining({
         code: "SCHEDULING_UNIT_CLOSED",
-        message: "A unidade está fechada nesta data: Dedetização.",
+        params: { reason: "Dedetização" },
       }),
     );
     const early = await scheduling.bookAppointment(world.desk, booking(world, { startTime: "07:00" }));
@@ -207,7 +209,7 @@ describe("booking", () => {
       true,
     );
     expect(codes).toContain("SCHEDULING_SLOT_TAKEN");
-    expect(interpolate(schedulingMessages.SCHEDULING_SLOT_TAKEN ?? "")).toBe(
+    expect(errorText("scheduling", { code: "SCHEDULING_SLOT_TAKEN" })).toBe(
       "Este horário acabou de ser ocupado por outro agendamento. Atualize a agenda e escolha outro horário.",
     );
     expect(await db().appointment.count({ where: { status: { not: "CANCELLED" } } })).toBe(1);
@@ -248,7 +250,7 @@ describe("booking", () => {
     expect(second.warnings).toEqual([
       expect.objectContaining({
         code: "SCHEDULING_PATIENT_OVERLAP",
-        message: "O paciente já tem agendamento das 10:00 às 10:50 com Dra. Ana.",
+        params: expect.objectContaining({ professional: "Dra. Ana", timeZone: "America/Sao_Paulo" }),
       }),
     ]);
   });

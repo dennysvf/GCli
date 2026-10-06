@@ -1,4 +1,5 @@
 import type { RequestContext } from "@/shared/context/types";
+import type { Currency } from "@/shared/kernel/countries/codes";
 import type { RoomRef } from "../domain/service-rules";
 
 // Future appointments of a service, provided by scheduling (F06). Until F06 exists the default
@@ -22,7 +23,13 @@ export interface UserNames {
   namesOf(ctx: RequestContext, userIds: string[]): Promise<Map<string, string>>;
 }
 
+// Currencies of the active units, provided by units (F02): the prices a service must have.
+export interface CurrenciesInUse {
+  currenciesInUse(ctx: RequestContext): Promise<Currency[]>;
+}
+
 export type ServicesDeps = {
+  currencies: CurrenciesInUse;
   rooms: RoomDirectory;
   users: UserNames;
   appointments: () => ScheduledServiceAppointments;

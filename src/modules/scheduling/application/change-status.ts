@@ -3,7 +3,7 @@ import { fail, ok, type Result } from "@/shared/kernel/result";
 import { parseInput } from "@/shared/kernel/validation";
 import { SchedulingErrors } from "../domain/errors";
 import { appointmentEvent, TRANSITION_EVENTS } from "../domain/events";
-import { resolveTransition, STATUS_LABELS, type AppointmentStatus } from "../domain/status";
+import { resolveTransition, type AppointmentStatus } from "../domain/status";
 import { finishChange, loadAppointment, saveChange } from "./changes";
 import { actorOf, authorizeTransition } from "./policies";
 import type { SchedulingDeps } from "./ports";
@@ -30,7 +30,7 @@ export async function changeAppointmentStatus(
 
   const transition = resolveTransition(before.status, data.to);
   if (!transition || transition === "CANCEL") {
-    return fail(SchedulingErrors.invalidTransition(STATUS_LABELS[before.status], STATUS_LABELS[data.to]));
+    return fail(SchedulingErrors.invalidTransition(before.status, data.to));
   }
   const allowed = await authorizeTransition(ctx, transition, before);
   if (!allowed.ok) return allowed;

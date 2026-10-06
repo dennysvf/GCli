@@ -2,7 +2,7 @@ import { Pool } from "pg";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { patients } from "@/modules/patients";
 import { closeHelpers, createOrganization, resetDatabase } from "../helpers";
-import { createPatientOrThrow, patientsContext, VALID_CPF } from "./support";
+import { createPatientOrThrow, patientsContext, VALID_CPF, cpfDoc } from "./support";
 
 beforeEach(resetDatabase);
 afterAll(closeHelpers);
@@ -28,7 +28,7 @@ async function seedPatients(organizationId: string, count: number) {
     await pool.query(
       `INSERT INTO patient (id, organization_id, full_name, normalized_name, birth_date, mobile_phone, phone_digits, updated_at)
        SELECT uuidv7(), $1::uuid, n.full_name, lower(n.full_name), DATE '1950-01-01' + (i % 25000),
-              '119' || lpad(i::text, 8, '0'), '119' || lpad(i::text, 8, '0'), now()
+              '+55119' || lpad(i::text, 8, '0'), '119' || lpad(i::text, 8, '0'), now()
        FROM generate_series(1, $2) AS i
        CROSS JOIN LATERAL (
          SELECT ($3::text[])[1 + i % 10] || ' ' || ($4::text[])[1 + (i / 10) % 10] || ' ' || i AS full_name
@@ -52,7 +52,7 @@ describe("patient search", () => {
     await seedPatients(ctx.organizationId, 100_000);
     const target = await createPatientOrThrow(ctx, {
       fullName: "João Conceição Brandão",
-      cpf: VALID_CPF,
+      document: cpfDoc(VALID_CPF),
       mobilePhone: "(21) 99123-4567",
     });
 
@@ -83,12 +83,12 @@ describe("patient search", () => {
 
   it("F05: front desk sees CPF masked except the last 5 digits in search results", async () => {
     const frontDesk = await patientsContext("FRONT_DESK");
-    await createPatientOrThrow(frontDesk, { cpf: VALID_CPF });
+    await createPatientOrThrow(frontDesk, { document: cpfDoc(VALID_CPF) });
     const manager = await patientsContext("MANAGER", frontDesk.organizationId);
     const masked = await patients.searchPatients(frontDesk, { q: "maria" });
-    expect(masked.ok && masked.value.items[0]?.cpf).toBe("***.***.247-25");
+    expect(masked.ok && masked.value.items[0]?.document?.display).toBe("***.***.247-25");
     const full = await patients.searchPatients(manager, { q: "maria" });
-    expect(full.ok && full.value.items[0]?.cpf).toBe("529.982.247-25");
+    expect(full.ok && full.value.items[0]?.document?.display).toBe("529.982.247-25");
   });
 
   it("F05: social name is displayed instead of the full name", async () => {

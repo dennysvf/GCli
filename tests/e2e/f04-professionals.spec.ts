@@ -33,9 +33,13 @@ async function addVacation(page: Page, from: string, to: string) {
 
 test("F04: administrator registers a professional and sets services and working hours", async ({ page }) => {
   await sql(
-    `INSERT INTO service (id, organization_id, category_id, name, duration_minutes, price_cents, color, requires_room, updated_at)
-     SELECT gen_random_uuid(), c.organization_id, c.id, 'Consulta dermatológica', 30, 25000, 'blue', false, now()
+    `INSERT INTO service (id, organization_id, category_id, name, duration_minutes, color, requires_room, updated_at)
+     SELECT gen_random_uuid(), c.organization_id, c.id, 'Consulta dermatológica', 30, 'blue', false, now()
      FROM service_category c WHERE c.name = 'Consultas'`,
+  );
+  await sql(
+    `INSERT INTO service_price (organization_id, service_id, currency, amount_minor)
+     SELECT organization_id, id, 'BRL', 25000 FROM service WHERE name = 'Consulta dermatológica'`,
   );
   await signIn(page, ADMIN.email, ADMIN_PASSWORD);
   await expect(page).toHaveURL(/\/dashboard$/);
@@ -46,10 +50,10 @@ test("F04: administrator registers a professional and sets services and working 
   await page.getByLabel("Especialidade (opcional)").fill("Dermatologia");
   await page.getByRole("button", { name: "Cadastrar profissional" }).click();
   // PRD F04: council number and state are required when the council is not "Nenhum".
-  await expect(page.getByText("Informe o número do conselho.")).toBeVisible();
+  await expect(page.getByText("Informe o número do registro.")).toBeVisible();
   await page.getByLabel("Número").fill("123456");
-  await page.getByRole("combobox", { name: "UF" }).click();
-  await page.getByRole("option", { name: "SP", exact: true }).click();
+  await page.getByRole("combobox", { name: "Estado (UF)" }).click();
+  await page.getByRole("option", { name: "São Paulo", exact: true }).click();
   await page.getByRole("button", { name: "Cadastrar profissional" }).click();
   await expect(page).toHaveURL(/\/settings\/professionals\/[0-9a-f-]{36}\?tab=services$/);
   await expect(page.getByText("Dermatologia · CRM 123456/SP")).toBeVisible();
@@ -111,8 +115,8 @@ test("F04: professional manages only their own time-offs", async ({ page, browse
   await page.getByRole("combobox", { name: "Conselho" }).click();
   await page.getByRole("option", { name: "CREFITO" }).click();
   await page.getByLabel("Número").fill("98765-F");
-  await page.getByRole("combobox", { name: "UF" }).click();
-  await page.getByRole("option", { name: "SP", exact: true }).click();
+  await page.getByRole("combobox", { name: "Estado (UF)" }).click();
+  await page.getByRole("option", { name: "São Paulo", exact: true }).click();
   await page.getByRole("combobox", { name: "Usuário vinculado (opcional)" }).click();
   await page.getByRole("option", { name: `${PROFESSIONAL.name} (Profissional)` }).click();
   await page.getByRole("button", { name: "Cadastrar profissional" }).click();

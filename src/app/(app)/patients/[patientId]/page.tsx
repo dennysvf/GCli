@@ -24,10 +24,15 @@ import {
   savePatientAction,
   setPatientActiveAction,
 } from "../actions";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Paciente" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return { title: t("common.patient") };
+}
 
 export default async function PatientPage({ params }: PageProps<"/patients/[patientId]">) {
+  const t = await getTranslations();
   const ctx = await requirePermission("patient:read");
   const { patientId } = await params;
   const patient = await patients.getPatient(ctx, patientId);
@@ -54,11 +59,11 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
     <div className="grid gap-6">
       <PageHeader
         title={details.displayName}
-        titleAddon={details.active ? null : <Stamp variant="neutral">Inativo</Stamp>}
+        titleAddon={details.active ? null : <Stamp variant="neutral">{t("common.inactive")}</Stamp>}
         meta={<PatientHeaderMeta patient={details} />}
         breadcrumb={
           <Link href="/patients" className="underline-offset-4 hover:underline">
-            Pacientes
+            {t("common.patients")}
           </Link>
         }
         actions={
@@ -76,11 +81,12 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
           that fill them; F06 adds Agendamentos. */}
       <Tabs defaultValue="data">
         <TabsList>
-          <TabsTrigger value="data">Dados</TabsTrigger>
-          {appointments ? <TabsTrigger value="appointments">Agendamentos</TabsTrigger> : null}
+          <TabsTrigger value="data">{t("common.data")}</TabsTrigger>
+          {appointments ? <TabsTrigger value="appointments">{t("common.appointments")}</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="data" className="grid gap-8 pt-4">
           <PatientForm
+            defaultCountry={ctx.organizationCountry}
             patient={details}
             today={today}
             referralSources={sources.ok ? sources.value : []}
@@ -110,17 +116,19 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
                       appointment: item.id,
                     }).toString()}`
                   }
-                  emptyText="Este paciente ainda não tem agendamentos."
+                  emptyText={t("patients.ui.appointmentsEmpty")}
                 />
                 {appointments.value.total > appointments.value.items.length ? (
                   <p className="text-muted-foreground text-sm">
-                    Mostrando os {appointments.value.items.length} mais recentes de {appointments.value.total}
-                    .
+                    {t("patients.ui.appointmentsRecent", {
+                      shown: appointments.value.items.length,
+                      total: appointments.value.total,
+                    })}
                   </p>
                 ) : null}
               </>
             ) : (
-              <p className="text-muted-foreground">Não foi possível carregar os agendamentos.</p>
+              <p className="text-muted-foreground">{t("patients.ui.appointmentsLoadError")}</p>
             )}
           </TabsContent>
         ) : null}

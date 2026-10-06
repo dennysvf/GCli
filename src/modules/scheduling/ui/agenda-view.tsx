@@ -1,12 +1,13 @@
 "use client";
 
+import type { CountryCode, Currency } from "@/shared/kernel/countries/codes";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { addDays, formatMinute, weekStart } from "@/shared/kernel/calendar-date";
-import { interpolate, type ActionResult } from "@/shared/kernel/action-result";
+import type { ActionResult } from "@/shared/kernel/action-result";
 import { localMinuteToUtc } from "@/shared/kernel/zoned-time";
 import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import {
@@ -24,7 +25,6 @@ import type { FindingDto } from "../application/booking";
 import type { CancellationReasonItem } from "../application/cancellation-reasons";
 import type { AgendaItem, AppointmentList as AppointmentListData } from "../application/queries";
 import type { AppointmentStatus } from "../domain/status";
-import { SCHEDULING_LABELS, SCHEDULING_TOASTS } from "../messages";
 import { AgendaToolbar, type AgendaBy, type AgendaViewKind, type ToolbarState } from "./agenda-toolbar";
 import { AppointmentsTable } from "./appointments-table";
 import { AppointmentPanel, type AppointmentActions, type Permissions } from "./appointment-panel";
@@ -37,13 +37,17 @@ import {
   type ServiceOption,
 } from "./booking-panel";
 import { ConflictFindings, hasBlocking, needsOverbooking } from "./conflict-findings";
-import { longDate, localParts, shortDate, weekdayShort } from "./format";
+import { localParts, useAgendaFormat } from "./format";
+import { useFindingText } from "./finding-text";
 import { TimeGrid, type GridColumn } from "./time-grid";
 import { useAgenda, visibleItems, type AgendaRequest } from "./use-agenda";
+import { useTranslations } from "next-intl";
 
 export type AgendaViewProps = {
   unitId: string;
   unitName: string;
+  unitCurrency: Currency;
+  unitCountry: CountryCode;
   timeZone: string;
   granularity: number;
   today: string;
@@ -73,6 +77,9 @@ function toParams(state: ToolbarState): URLSearchParams {
 // Week view of one professional or room, List view; polling every 30 seconds; empty slots open the
 // booking panel, appointments open the side panel; drag-and-drop reschedules.
 export function AgendaView(props: AgendaViewProps) {
+  const findingText = useFindingText();
+  const fmt = useAgendaFormat();
+  const t = useTranslations();
   const { unitId, timeZone, granularity, today, permissions, actions } = props;
   const router = useRouter();
   const pathname = usePathname();
@@ -139,7 +146,7 @@ export function AgendaView(props: AgendaViewProps) {
       const own = data.professionals?.find((column) => column.id === permissions.linkedProfessionalId);
       return {
         key: date,
-        label: `${weekdayShort(date)}, ${shortDate(date)}`,
+        label: `${fmt.weekdayShort(date)}, ${fmt.shortDate(date)}`,
         date,
         professionalId: permissions.linkedProfessionalId ?? undefined,
         workingIntervals: own ? own.workingIntervals.filter((item) => item.date === date) : null,
@@ -156,7 +163,7 @@ export function AgendaView(props: AgendaViewProps) {
       if (!focus) return [];
       return dates.map((date) => ({
         key: date,
-        label: `${weekdayShort(date)}, ${shortDate(date)}`,
+        label: `${fmt.weekdayShort(date)}, ${fmt.shortDate(date)}`,
         sublabel: focus.label,
         date,
         ...(state.by === "room" ? { roomId: focus.id } : { professionalId: focus.id }),
@@ -260,7 +267,7 @@ export function AgendaView(props: AgendaViewProps) {
         void agenda.refresh();
         return;
       }
-      toast.success(SCHEDULING_TOASTS.rescheduled);
+      toast.success(t("scheduling.ui.toasts.rescheduled"));
       setDrop(null);
       void agenda.refresh();
     });
@@ -271,21 +278,22 @@ export function AgendaView(props: AgendaViewProps) {
       const result = await actions.update({ appointmentId: item.id, version: item.version, durationMinutes });
       if (!result.ok) {
         const details = result.error.details as { findings?: FindingDto[] } | undefined;
-        toast.error(details?.findings?.[0]?.message ?? result.error.message, {
+        const first = details?.findings?.[0];
+        toast.error(first ? findingText(first) : result.error.message, {
           duration: Infinity,
           closeButton: true,
         });
       } else {
-        toast.success(SCHEDULING_TOASTS.saved);
+        toast.success(t("scheduling.ui.toasts.saved"));
       }
       void agenda.refresh();
     });
   }
 
   const dropLabel = drop
-    ? interpolate(SCHEDULING_LABELS.rescheduleConfirm, {
-        weekday: weekdayShort(drop.column.date),
-        time: formatMinute(drop.minute),
+    ? t("scheduling.ui.rescheduleConfirm", {
+        weekday: fmt.weekdayShort(drop.column.date),
+        time: fmt.minute(drop.minute),
         professional:
           drop.column.professionalId && data?.professionals
             ? (data.professionals.find((column) => column.id === drop.column.professionalId)?.label ??
@@ -304,13 +312,20 @@ export function AgendaView(props: AgendaViewProps) {
   return (
     <div className="grid gap-4" data-full-width>
       <PageHeader
-        title="Agenda"
-        meta={`${props.unitName} · ${state.view === "week" ? `semana de ${shortDate(range.from)} a ${shortDate(range.to)}` : longDate(state.date)} · ${count} agendamentos`}
+        title={t("common.agenda")}
+        meta={t("scheduling.ui.agendaMeta", {
+          unit: props.unitName,
+          range:
+            state.view === "week"
+              ? t("scheduling.ui.weekMeta", { from: fmt.shortDate(range.from), to: fmt.shortDate(range.to) })
+              : fmt.longDate(state.date),
+          count,
+        })}
         actions={
           permissions.canManage ? (
             <Button type="button" onClick={() => setBooking({ date: state.date, startTime: "08:00" })}>
               <Plus />
-              Agendar consulta
+              {t("scheduling.ui.bookAppointment")}
             </Button>
           ) : null
         }
@@ -331,15 +346,11 @@ export function AgendaView(props: AgendaViewProps) {
       {state.view === "list" ? (
         <ListSection list={props.list} state={state} unitId={unitId} />
       ) : agenda.isError ? (
-        <p className="text-muted-foreground">
-          Não foi possível carregar a agenda. Tente novamente em instantes.
-        </p>
+        <p className="text-muted-foreground">{t("scheduling.ui.agendaLoadError")}</p>
       ) : !data ? (
-        <div className="bg-paper-2 h-96 rounded-md" aria-label="Carregando a agenda" />
+        <div className="bg-paper-2 h-96 rounded-md" aria-label={t("scheduling.ui.agendaLoading")} />
       ) : columns.length === 0 ? (
-        <p className="text-muted-foreground">
-          Nenhum profissional atende nesta unidade neste dia. Ajuste os filtros ou escolha outra data.
-        </p>
+        <p className="text-muted-foreground">{t("scheduling.ui.noProfessionalsToday")}</p>
       ) : (
         <TimeGrid
           columns={columns}
@@ -365,6 +376,8 @@ export function AgendaView(props: AgendaViewProps) {
         <BookingPanel
           draft={booking}
           unitId={unitId}
+          currency={props.unitCurrency}
+          country={props.unitCountry}
           granularity={granularity}
           services={props.services}
           canRegisterPatient={permissions.canRegisterPatient}
@@ -384,6 +397,7 @@ export function AgendaView(props: AgendaViewProps) {
           appointmentId={opened.id}
           {...(opened.action ? { initialAction: opened.action } : {})}
           granularity={granularity}
+          country={props.unitCountry}
           services={props.services}
           reasons={props.reasons}
           permissions={permissions}
@@ -419,7 +433,7 @@ export function AgendaView(props: AgendaViewProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>{dropLabel}</AlertDialogTitle>
             <AlertDialogDescription>
-              O agendamento de {drop?.item.patient.displayName} volta para o status Agendado.
+              {t("scheduling.ui.dropBody", { patient: drop?.item.patient.displayName ?? "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {drop && drop.findings.length > 0 ? (
@@ -432,7 +446,7 @@ export function AgendaView(props: AgendaViewProps) {
             />
           ) : null}
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <Button
               type="button"
               disabled={
@@ -442,7 +456,7 @@ export function AgendaView(props: AgendaViewProps) {
               }
               onClick={() => confirmDrop({ overbooking: dropOverbooking, justification: dropJustification })}
             >
-              {pending ? "Reagendando..." : "Reagendar"}
+              {pending ? t("scheduling.ui.rescheduling") : t("common.reschedule")}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -460,7 +474,8 @@ function ListSection({
   state: ToolbarState;
   unitId: string;
 }) {
-  if (!list) return <p className="text-muted-foreground">Não foi possível carregar a lista.</p>;
+  const t = useTranslations();
+  if (!list) return <p className="text-muted-foreground">{t("scheduling.ui.listLoadError")}</p>;
   const pages = Math.max(1, Math.ceil(list.total / list.pageSize));
   const href = (extra: Record<string, string>) => {
     const params = toParams(state);
@@ -473,21 +488,21 @@ function ListSection({
       <AppointmentsTable
         items={list.items}
         hrefOf={(item) => href({ page: String(list.page), appointment: item.id })}
-        emptyText="Nenhum agendamento no período. Ajuste os filtros ou o período."
+        emptyText={t("scheduling.ui.noAppointmentsInPeriod")}
       />
       {pages > 1 ? (
-        <nav aria-label="Paginação" className="flex items-center gap-3 text-sm">
+        <nav aria-label={t("common.pagination")} className="flex items-center gap-3 text-sm">
           {list.page > 1 ? (
             <Link href={href({ page: String(list.page - 1) })} className="text-primary hover:underline">
-              Anterior
+              {t("common.previous")}
             </Link>
           ) : null}
           <span className="text-muted-foreground tabular-nums">
-            Página {list.page} de {pages}
+            {t("common.pageOf", { page: list.page, pages })}
           </span>
           {list.page < pages ? (
             <Link href={href({ page: String(list.page + 1) })} className="text-primary hover:underline">
-              Próxima
+              {t("common.next")}
             </Link>
           ) : null}
         </nav>

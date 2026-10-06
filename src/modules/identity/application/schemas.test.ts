@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { updateOrganizationSchema } from "./schemas";
+import { inviteUserSchema, updateOrganizationSchema } from "./schemas";
 
 const base = {
   legalName: "Clínica Ltda",
+  country: "BR",
+  defaultLocale: "pt-BR",
   timeZone: "America/Sao_Paulo",
   slotGranularityMinutes: 15,
   version: 1,
@@ -11,14 +13,31 @@ const base = {
 describe("updateOrganizationSchema", () => {
   it("F01: optional fields accept empty, missing, or null values (restored drafts)", () => {
     for (const value of ["", undefined, null]) {
-      const parsed = updateOrganizationSchema.safeParse({ ...base, tradeName: value, cnpj: value });
+      const parsed = updateOrganizationSchema.safeParse({ ...base, tradeName: value, taxId: value });
       expect(parsed.success, String(value)).toBe(true);
-      expect(parsed.data).toMatchObject({ tradeName: null, cnpj: null });
+      expect(parsed.data).toMatchObject({ tradeName: null, taxId: null });
     }
   });
 
-  it("normalizes the CNPJ mask", () => {
-    const parsed = updateOrganizationSchema.parse({ ...base, cnpj: "12.abc.345/01de-35" });
-    expect(parsed.cnpj).toBe("12ABC34501DE35");
+  it("F16: the headquarters country, language and time zone are validated together", () => {
+    expect(
+      updateOrganizationSchema.safeParse({ ...base, country: "PT", timeZone: "Europe/Lisbon" }).success,
+    ).toBe(true);
+    const wrongZone = updateOrganizationSchema.safeParse({ ...base, country: "PT" });
+    expect(wrongZone.success).toBe(false);
+    expect(wrongZone.error?.issues[0]?.path).toEqual(["timeZone"]);
+    expect(updateOrganizationSchema.safeParse({ ...base, country: "FR" }).success).toBe(false);
+    expect(
+      updateOrganizationSchema.safeParse({ ...base, defaultLocale: "fr" }).error?.issues[0]?.message,
+    ).toBe("validation.localeInvalid");
+  });
+});
+
+describe("inviteUserSchema", () => {
+  it("F16: the invitation language is optional and limited to the three languages", () => {
+    const person = { name: "Ana Lima", email: "Ana@Exemplo.com", role: "MANAGER" };
+    expect(inviteUserSchema.parse(person)).toMatchObject({ email: "ana@exemplo.com" });
+    expect(inviteUserSchema.parse({ ...person, locale: "es" }).locale).toBe("es");
+    expect(inviteUserSchema.safeParse({ ...person, locale: "fr" }).success).toBe(false);
   });
 });

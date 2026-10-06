@@ -5,6 +5,7 @@ import { useTransition } from "react";
 import type { ActionResult } from "@/shared/kernel/action-result";
 import { Button } from "@/shared/ui/components/button";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
+import { useTranslations } from "next-intl";
 
 export function UnitActiveToggle({
   unitId,
@@ -15,6 +16,7 @@ export function UnitActiveToggle({
   active: boolean;
   action: (input: { unitId: string; active: boolean }) => Promise<ActionResult<unknown>>;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   return (
@@ -28,7 +30,7 @@ export function UnitActiveToggle({
           const result = await action({ unitId, active: !active });
           if (
             handleActionResult(result, {
-              successMessage: active ? "Unidade desativada" : "Unidade reativada",
+              successMessage: active ? t("units.ui.unitDeactivated") : t("units.ui.unitReactivated"),
             })
           ) {
             router.refresh();
@@ -36,7 +38,7 @@ export function UnitActiveToggle({
         })
       }
     >
-      {active ? "Desativar unidade" : "Reativar unidade"}
+      {active ? t("units.ui.deactivateUnit") : t("units.ui.reactivateUnit")}
     </Button>
   );
 }

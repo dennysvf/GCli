@@ -67,10 +67,10 @@ export async function createClosure(
   if (!unit.ok || !unit.value) return fail(UnitsErrors.notFound());
   const today = dateInTimeZone(deps.clock(), unit.value.timeZone);
   if (startsOn < today) {
-    return fail(CommonErrors.validationFailed({ startsOn: "A data inicial não pode estar no passado." }));
+    return fail(CommonErrors.validationFailed({ startsOn: "units.validation.closureStartInPast" }));
   }
   if (daysBetween(startsOn, endsOn) > CLOSURE_MAX_DAYS) {
-    return fail(CommonErrors.validationFailed({ endsOn: "O fechamento pode durar no máximo 366 dias." }));
+    return fail(CommonErrors.validationFailed({ endsOn: "units.validation.closureTooLong" }));
   }
 
   const overlapping = await deps

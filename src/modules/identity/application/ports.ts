@@ -1,3 +1,5 @@
+import type { Locale } from "@/shared/i18n/locales";
+import type { CountryCode } from "@/shared/kernel/countries/codes";
 import type { Role } from "@/shared/kernel/roles";
 
 // Ports implemented by identity/infrastructure and wired in identity/index.ts.
@@ -18,6 +20,10 @@ export type IdentityUser = {
   email: string;
   role: Role;
   status: UserStatus;
+  // Null means "use the organization default language".
+  locale: Locale | null;
+  organizationLocale: Locale;
+  organizationCountry: CountryCode;
   lockedUntil: Date | null;
   failedLoginCount: number;
 };

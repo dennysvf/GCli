@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { interpolate, type ActionResult } from "@/shared/kernel/action-result";
+import type { ActionResult } from "@/shared/kernel/action-result";
 import type { PaletteColor } from "@/shared/kernel/palette";
 import { Button } from "@/shared/ui/components/button";
 import { Checkbox } from "@/shared/ui/components/checkbox";
@@ -11,8 +11,8 @@ import { Label } from "@/shared/ui/components/label";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import type { ReplaceEnabledServicesResult } from "../application/enabled-services";
-import { PROFESSIONALS_SERVICES_REMOVED_WITH_APPOINTMENTS } from "../messages";
 import { ColorDot } from "./professional-avatar";
+import { useTranslations } from "next-intl";
 
 export type ServiceOption = {
   id: string;
@@ -45,6 +45,7 @@ export function ServicesChecklist({
     serviceIds: string[];
   }) => Promise<ActionResult<ReplaceEnabledServicesResult>>;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [selected, setSelected] = useState(() => new Set(enabledIds));
@@ -67,10 +68,10 @@ export function ServicesChecklist({
   const save = () =>
     startTransition(async () => {
       const result = await action({ professionalId, version, serviceIds: [...selected] });
-      if (handleActionResult(result, { successMessage: "Serviços atualizados." })) {
+      if (handleActionResult(result, { successMessage: t("professionals.ui.servicesUpdated") })) {
         if (result.data.keptAppointments > 0) {
           toast.warning(
-            interpolate(PROFESSIONALS_SERVICES_REMOVED_WITH_APPOINTMENTS, {
+            t("professionals.ui.servicesRemovedKept", {
               count: result.data.keptAppointments,
             }),
             { duration: 8000 },
@@ -81,18 +82,14 @@ export function ServicesChecklist({
     });
 
   if (services.length === 0) {
-    return (
-      <p className="text-muted-foreground">
-        Nenhum serviço ativo cadastrado. Cadastre os serviços em Configurações › Serviços.
-      </p>
-    );
+    return <p className="text-muted-foreground">{t("professionals.ui.noActiveServices")}</p>;
   }
 
   return (
     <div className="grid max-w-3xl gap-6">
       <p className="text-muted-foreground text-sm">
-        O profissional só pode ser agendado para os serviços marcados. {selected.size} de {services.length}{" "}
-        serviços habilitados.
+        {t("professionals.ui.servicesHint")}{" "}
+        {t("professionals.ui.servicesEnabledCount", { selected: selected.size, total: services.length })}
       </p>
       <HydratedFieldset disabled={readOnly}>
         {groups.map((group) => {
@@ -108,7 +105,9 @@ export function ServicesChecklist({
                 </h2>
                 {readOnly ? null : (
                   <Button type="button" variant="ghost" size="sm" onClick={() => toggle(ids, !allChecked)}>
-                    {allChecked ? "Desmarcar todos da categoria" : "Selecionar todos da categoria"}
+                    {allChecked
+                      ? t("professionals.ui.unselectCategory")
+                      : t("professionals.ui.selectCategory")}
                   </Button>
                 )}
               </div>
@@ -137,14 +136,15 @@ export function ServicesChecklist({
         })}
         {inactiveServices.length > 0 ? (
           <p className="text-muted-foreground text-sm">
-            Serviço desativado: {inactiveServices.map((service) => service.name).join(", ")}. Ele sai da lista
-            ao salvar.
+            {t("professionals.ui.servicesDeactivatedNote", {
+              names: inactiveServices.map((service) => service.name).join(", "),
+            })}
           </p>
         ) : null}
         {readOnly ? null : (
           <div>
             <Button type="button" onClick={save} disabled={pending}>
-              {pending ? "Salvando..." : "Salvar serviços"}
+              {pending ? t("common.saving") : t("professionals.ui.saveServices")}
             </Button>
           </div>
         )}

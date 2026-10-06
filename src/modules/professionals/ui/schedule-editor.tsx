@@ -1,9 +1,10 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { interpolate, type ActionResult } from "@/shared/kernel/action-result";
+import type { ActionResult } from "@/shared/kernel/action-result";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,16 +24,18 @@ import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import type { UnitInfo } from "../application/ports";
 import type { DeleteScheduleResult, SaveScheduleResult, ScheduleItem } from "../application/schedules";
-import { formatDateBR, nextMonday } from "../domain/dates";
-import { utcOffsetMinutes } from "../domain/time-zone-offsets";
+import { nextMonday } from "../domain/dates";
 import {
   findCrossUnitConflict,
   findOutsideBusinessHours,
   validateIntervals,
   type WorkingInterval,
 } from "../domain/working-hours";
-import { crossUnitConflictMessage, outsideBusinessHoursMessage } from "../domain/working-hours-text";
-import { PROFESSIONALS_SCHEDULE_PREVIOUS_CLOSED } from "../messages";
+import { businessDayHours, crossUnitConflictParams } from "../domain/working-hours-text";
+import { formatDate, formatLocale } from "@/shared/i18n/format";
+import type { Locale } from "@/shared/i18n/locales";
+import type { Translator } from "@/shared/i18n/translator";
+import { useFormatters } from "@/shared/ui/i18n/use-formatters";
 import { WeekGrid } from "./week-grid";
 
 type Draft = {
@@ -55,12 +58,23 @@ type SaveInput = {
 const NEW = "new";
 const DEFAULT_INTERVAL = { start: 480, end: 720 };
 
-function scheduleLabel(schedule: Pick<ScheduleItem, "state" | "validFrom" | "validUntil">): string {
-  const until = schedule.validUntil ? ` até ${formatDateBR(schedule.validUntil)}` : "";
+type Translate = (key: string, values?: Record<string, string | number>) => string;
+
+function scheduleLabel(
+  schedule: Pick<ScheduleItem, "state" | "validFrom" | "validUntil">,
+  t: Translate,
+  formatDate: (date: string) => string,
+): string {
+  const from = formatDate(schedule.validFrom);
+  const until = schedule.validUntil ? formatDate(schedule.validUntil) : null;
   if (schedule.state === "ended")
-    return `Encerrado em ${formatDateBR(schedule.validUntil ?? schedule.validFrom)}`;
-  if (schedule.state === "future") return `A partir de ${formatDateBR(schedule.validFrom)}${until}`;
-  return `Vigente desde ${formatDateBR(schedule.validFrom)}${until}`;
+    return t("professionals.ui.scheduleEnded", {
+      date: formatDate(schedule.validUntil ?? schedule.validFrom),
+    });
+  const base = schedule.state === "future" ? "scheduleFuture" : "scheduleCurrent";
+  return until
+    ? t(`professionals.ui.${base}Until`, { from, until })
+    : t(`professionals.ui.${base}`, { from });
 }
 
 function fromSchedule(schedule: ScheduleItem): Draft {
@@ -79,23 +93,31 @@ function intervalErrors(
   intervals: WorkingInterval[],
   units: UnitInfo[],
   validFrom: string,
+  t: Translator,
+  locale: Locale,
 ): Record<number, string> {
   const errors: Record<number, string> = {};
   const shape = validateIntervals(intervals) ?? {};
-  for (const [key, message] of Object.entries(shape)) errors[Number(key.split(".")[1])] = message;
+  for (const [key, message] of Object.entries(shape)) errors[Number(key.split(".")[1])] = t(message);
   const weeks = new Map(units.map((unit) => [unit.id, unit.businessHours]));
   for (const item of findOutsideBusinessHours(intervals, weeks)) {
-    errors[item.index] ??= outsideBusinessHoursMessage(item.day, item.weekday);
+    errors[item.index] ??= t("professionals.errors.PROFESSIONALS_OUTSIDE_BUSINESS_HOURS", {
+      hours:
+        businessDayHours(item.day) ?? t("professionals.hours.closedOn", { weekday: String(item.weekday) }),
+    });
   }
   if (Object.keys(errors).length === 0) {
-    const reference = new Date(`${validFrom || "2026-01-01"}T12:00:00.000Z`);
-    const offsets = new Map(units.map((unit) => [unit.id, utcOffsetMinutes(unit.timeZone, reference)]));
-    const conflict = findCrossUnitConflict(intervals, offsets);
+    const zones = new Map(units.map((unit) => [unit.id, unit.timeZone]));
+    const conflict = findCrossUnitConflict(intervals, zones, validFrom || "2026-01-01");
     const other = conflict ? intervals[conflict.conflictWith] : undefined;
     if (conflict && other) {
-      errors[conflict.index] = crossUnitConflictMessage(
-        units.find((unit) => unit.id === other.unitId)?.name ?? "",
-        other,
+      errors[conflict.index] = t(
+        "professionals.errors.PROFESSIONALS_CROSS_UNIT_CONFLICT",
+        crossUnitConflictParams(
+          units.find((unit) => unit.id === other.unitId)?.name ?? "",
+          other,
+          formatDate(conflict.date, formatLocale(locale)),
+        ),
       );
     }
   }
@@ -122,6 +144,14 @@ export function ScheduleEditor({
   };
 }) {
   const router = useRouter();
+  const locale = useLocale() as Locale;
+  const format = useFormatters();
+  const translate = useTranslations();
+  const t = useMemo<Translator>(() => {
+    const call = (key: string, params?: Record<string, string | number | Date>) =>
+      translate(key as never, params as never) as string;
+    return Object.assign(call, { has: (key: string) => translate.has(key as never) }) as Translator;
+  }, [translate]);
   const [pending, startTransition] = useTransition();
   const initial =
     schedules.find((schedule) => schedule.state === "current") ??
@@ -139,8 +169,8 @@ export function ScheduleEditor({
   const state = stored?.state ?? "future";
   const locked = readOnly || state === "ended";
   const clientErrors = useMemo(
-    () => intervalErrors(draft.intervals, units, draft.validFrom),
-    [draft.intervals, draft.validFrom, units],
+    () => intervalErrors(draft.intervals, units, draft.validFrom, t, locale),
+    [draft.intervals, draft.validFrom, units, t, locale],
   );
   const errors: Record<number, string> = { ...clientErrors };
   for (const [key, message] of Object.entries(serverErrors)) {
@@ -166,7 +196,7 @@ export function ScheduleEditor({
   const save = () =>
     startTransition(async () => {
       if (Object.keys(clientErrors).length > 0) {
-        toast.error("Verifique os horários destacados.", { duration: Infinity, closeButton: true });
+        toast.error(t("professionals.ui.checkHighlighted"), { duration: Infinity, closeButton: true });
         return;
       }
       const result = await actions.save({ professionalId, ...draft });
@@ -175,7 +205,7 @@ export function ScheduleEditor({
         toast.error(result.error.message, { duration: Infinity, closeButton: true });
         return;
       }
-      if (handleActionResult(result, { successMessage: "Horário salvo." })) {
+      if (handleActionResult(result, { successMessage: t("professionals.ui.scheduleSaved") })) {
         setDraft((current) => ({
           ...current,
           scheduleId: result.data.scheduleId,
@@ -183,8 +213,8 @@ export function ScheduleEditor({
         }));
         if (result.data.closedPrevious) {
           toast.info(
-            interpolate(PROFESSIONALS_SCHEDULE_PREVIOUS_CLOSED, {
-              date: formatDateBR(result.data.closedPrevious.validUntil),
+            t("professionals.ui.previousScheduleClosed", {
+              date: format.date(result.data.closedPrevious.validUntil),
             }),
           );
         }
@@ -197,7 +227,7 @@ export function ScheduleEditor({
       setConfirmingDelete(false);
       if (!draft.scheduleId) return;
       const result = await actions.remove({ scheduleId: draft.scheduleId });
-      if (handleActionResult(result, { successMessage: "Horário excluído." })) {
+      if (handleActionResult(result, { successMessage: t("professionals.ui.scheduleDeleted") })) {
         const next = schedules.find(
           (schedule) => schedule.id !== draft.scheduleId && schedule.state !== "ended",
         );
@@ -214,18 +244,14 @@ export function ScheduleEditor({
     });
 
   if (units.length === 0) {
-    return (
-      <p className="text-muted-foreground">
-        Nenhuma unidade ativa. Cadastre as unidades e o horário de funcionamento em Configurações › Unidades.
-      </p>
-    );
+    return <p className="text-muted-foreground">{t("professionals.ui.noActiveUnits")}</p>;
   }
 
   const selectValue = draft.scheduleId ?? NEW;
   return (
     <div className="grid max-w-4xl gap-6">
       <div className="flex flex-wrap items-end gap-3">
-        <Field id="schedule-select" label="Horário">
+        <Field id="schedule-select" label={t("professionals.ui.scheduleSingular")}>
           <Select
             value={selectValue}
             onValueChange={(value) => {
@@ -238,11 +264,11 @@ export function ScheduleEditor({
             </SelectTrigger>
             <SelectContent>
               {draft.scheduleId === null ? (
-                <SelectItem value={NEW}>Novo horário (não salvo)</SelectItem>
+                <SelectItem value={NEW}>{t("professionals.ui.newScheduleUnsaved")}</SelectItem>
               ) : null}
               {schedules.map((schedule) => (
                 <SelectItem key={schedule.id} value={schedule.id}>
-                  {scheduleLabel(schedule)}
+                  {scheduleLabel(schedule, t, format.date)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -251,7 +277,7 @@ export function ScheduleEditor({
         {readOnly ? null : (
           <>
             <Button type="button" variant="outline" onClick={() => startNew(false)}>
-              Novo horário
+              {t("professionals.ui.newSchedule")}
             </Button>
             <Button
               type="button"
@@ -259,7 +285,7 @@ export function ScheduleEditor({
               onClick={() => startNew(true)}
               disabled={draft.intervals.length === 0}
             >
-              Copiar semana
+              {t("professionals.ui.copyWeek")}
             </Button>
             {stored?.deletable ? (
               <Button
@@ -268,7 +294,7 @@ export function ScheduleEditor({
                 className="text-destructive"
                 onClick={() => setConfirmingDelete(true)}
               >
-                Excluir horário
+                {t("professionals.ui.deleteSchedule")}
               </Button>
             ) : null}
           </>
@@ -279,13 +305,9 @@ export function ScheduleEditor({
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
             id="schedule-valid-from"
-            label="Vale a partir de"
+            label={t("professionals.ui.validFrom")}
             error={serverErrors.validFrom}
-            hint={
-              state === "current" && draft.scheduleId
-                ? "Horário vigente: a data de início não muda."
-                : undefined
-            }
+            hint={state === "current" && draft.scheduleId ? t("professionals.ui.validFromLocked") : undefined}
           >
             <Input
               id="schedule-valid-from"
@@ -296,7 +318,11 @@ export function ScheduleEditor({
               onChange={(event) => edit((current) => ({ ...current, validFrom: event.target.value }))}
             />
           </Field>
-          <Field id="schedule-valid-until" label="Vale até (opcional)" error={serverErrors.validUntil}>
+          <Field
+            id="schedule-valid-until"
+            label={t("professionals.ui.validUntil")}
+            error={serverErrors.validUntil}
+          >
             <Input
               id="schedule-valid-until"
               type="date"
@@ -371,7 +397,7 @@ export function ScheduleEditor({
         {locked ? null : (
           <div>
             <Button type="button" onClick={save} disabled={pending}>
-              {pending ? "Salvando..." : "Salvar horário"}
+              {pending ? t("common.saving") : t("professionals.ui.saveSchedule")}
             </Button>
           </div>
         )}
@@ -380,16 +406,17 @@ export function ScheduleEditor({
       <AlertDialog open={confirmingDelete} onOpenChange={setConfirmingDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir horário?</AlertDialogTitle>
+            <AlertDialogTitle>{t("professionals.ui.deleteScheduleConfirm")}</AlertDialogTitle>
             <AlertDialogDescription>
-              O horário {stored ? scheduleLabel(stored).toLowerCase() : ""} ainda não começou e será excluído.
-              O horário anterior volta a valer no lugar dele.
+              {t("professionals.ui.deleteScheduleBody", {
+                label: stored ? scheduleLabel(stored, t, format.date).toLowerCase() : "",
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={remove}>
-              Excluir horário
+              {t("professionals.ui.deleteSchedule")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

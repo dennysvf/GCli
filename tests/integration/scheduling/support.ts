@@ -5,7 +5,7 @@ import { services } from "@/modules/services";
 import { units } from "@/modules/units";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
 import { createOrganization, createUser, signedInContext } from "../helpers";
-import { createUnitWithHours, h, professionalInput } from "../professionals/support";
+import { createUnitWithHours, h, professionalInput, registration } from "../professionals/support";
 import { patientInput } from "../patients/support";
 
 export type Ctx = Awaited<ReturnType<typeof signedInContext>>["ctx"];
@@ -26,7 +26,13 @@ async function userContext(organizationId: string, role: Role, name: string) {
 async function serviceOrThrow(
   ctx: Ctx,
   categoryId: string,
-  input: { name: string; durationMinutes: number; priceCents: number; requiresRoom: boolean; color: string },
+  input: {
+    name: string;
+    durationMinutes: number;
+    prices: { currency: string; amountMinor: number }[];
+    requiresRoom: boolean;
+    color: string;
+  },
 ) {
   const created = await services.createService(ctx, {
     ...input,
@@ -49,7 +55,7 @@ async function professionalOrThrow(
     professionalInput({
       fullName: `${input.displayName} Silva`,
       displayName: input.displayName,
-      councilNumber: input.councilNumber,
+      registrations: [registration({ number: input.councilNumber })],
       email: null,
       linkedUserId: input.linkedUserId ?? null,
     }),
@@ -99,14 +105,14 @@ export async function schedulingWorld(organizationId?: string) {
   const consulta = await serviceOrThrow(admin.ctx, category.value.categoryId, {
     name: "Consulta",
     durationMinutes: 50,
-    priceCents: 25_000,
+    prices: [{ currency: "BRL", amountMinor: 25_000 }],
     requiresRoom: true,
     color: "blue",
   });
   const retorno = await serviceOrThrow(admin.ctx, category.value.categoryId, {
     name: "Retorno",
     durationMinutes: 30,
-    priceCents: 12_000,
+    prices: [{ currency: "BRL", amountMinor: 12_000 }],
     requiresRoom: false,
     color: "emerald",
   });

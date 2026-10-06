@@ -7,13 +7,6 @@ import { zonedTimeToUtc } from "./time-zone-offsets";
 export const TIME_OFF_TYPES = ["VACATION", "CONFERENCE", "PERSONAL", "OTHER"] as const;
 export type TimeOffType = (typeof TIME_OFF_TYPES)[number];
 
-export const TIME_OFF_TYPE_LABELS: Record<TimeOffType, string> = {
-  VACATION: "Férias",
-  CONFERENCE: "Congresso",
-  PERSONAL: "Pessoal",
-  OTHER: "Outro",
-};
-
 export type TimeOffEntry = { allDay: boolean; startsAt: string; endsAt: string };
 
 // All-day entries are dates ("2026-12-21" to "2027-01-04", last day inclusive) and cover 00:00 of

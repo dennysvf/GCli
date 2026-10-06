@@ -1,9 +1,11 @@
+import { useTranslations } from "next-intl";
 import { formatMinute } from "@/shared/kernel/calendar-date";
 import type { StampVariant } from "@/shared/ui/components/stamp";
+import { useFormatters } from "@/shared/ui/i18n/use-formatters";
 import { utcToZonedParts } from "@/shared/kernel/zoned-time";
-import { STATUS_LABELS, type AppointmentStatus } from "../domain/status";
+import type { AppointmentStatus } from "../domain/status";
 
-// Display helpers of the agenda (design system 7.1: pt-BR formats; 5.5: status stamps).
+// Display helpers of the agenda (design system 7.5: formats follow the language; 5.5: status stamps).
 
 export const STATUS_STAMPS: Record<AppointmentStatus, StampVariant> = {
   SCHEDULED: "neutral",
@@ -15,58 +17,28 @@ export const STATUS_STAMPS: Record<AppointmentStatus, StampVariant> = {
   CANCELLED: "cancelled",
 };
 
-export function statusText(status: AppointmentStatus): string {
-  return STATUS_LABELS[status].toUpperCase();
-}
-
-const WEEKDAYS_SHORT = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
-const WEEKDAYS_LONG = [
-  "domingo",
-  "segunda-feira",
-  "terça-feira",
-  "quarta-feira",
-  "quinta-feira",
-  "sexta-feira",
-  "sábado",
-];
-
-function weekdayIndex(date: string): number {
-  return new Date(`${date}T12:00:00Z`).getUTCDay();
-}
-
-export function weekdayShort(date: string): string {
-  return WEEKDAYS_SHORT[weekdayIndex(date)] ?? "";
-}
-
-// "terça-feira, 06/10/2026"
-export function longDate(date: string): string {
-  const [year, month, day] = date.split("-");
-  return `${WEEKDAYS_LONG[weekdayIndex(date)] ?? ""}, ${day}/${month}/${year}`;
-}
-
-// "06/10"
-export function shortDate(date: string): string {
-  const [, month, day] = date.split("-");
-  return `${day}/${month}`;
-}
-
 export function localParts(iso: string, timeZone: string) {
   return utcToZonedParts(new Date(iso), timeZone);
 }
 
-export function timeOf(iso: string, timeZone: string): string {
-  return formatMinute(localParts(iso, timeZone).minute);
-}
-
-export function timeRange(startsAt: string, endsAt: string, timeZone: string): string {
-  return `${timeOf(startsAt, timeZone)}–${timeOf(endsAt, timeZone)}`;
-}
-
-// "06/10/2026 14:30" in the unit's zone.
-export function dateTimeOf(iso: string, timeZone: string): string {
-  const parts = localParts(iso, timeZone);
-  const [year, month, day] = parts.date.split("-");
-  return `${day}/${month}/${year} ${formatMinute(parts.minute)}`;
+// Dates, times and status texts of the agenda in the language of the user; times of an instant
+// are written in the unit's zone.
+export function useAgendaFormat() {
+  const t = useTranslations();
+  const format = useFormatters();
+  const timeOf = (iso: string, timeZone: string) => format.minute(localParts(iso, timeZone).minute);
+  return {
+    statusLabel: (status: AppointmentStatus) => t(`scheduling.ui.status.${status}`),
+    statusText: (status: AppointmentStatus) => t(`scheduling.ui.status.${status}`).toUpperCase(),
+    weekdayShort: (date: string) => format.weekdayOf(date, "short"),
+    longDate: format.longDate,
+    shortDate: format.shortDate,
+    minute: format.minute,
+    timeOf,
+    timeRange: (startsAt: string, endsAt: string, timeZone: string) =>
+      `${timeOf(startsAt, timeZone)}–${timeOf(endsAt, timeZone)}`,
+    dateTimeOf: (iso: string, timeZone: string) => format.dateTime(iso, timeZone),
+  };
 }
 
 export function slotTimes(granularity: number, from = 0, to = 1440): string[] {

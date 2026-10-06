@@ -93,7 +93,7 @@ describe("status lifecycle", () => {
     const checkedIn = received.find((event) => event.type === SCHEDULING_EVENTS.checkedIn);
     expect(checkedIn?.payload).toMatchObject({
       appointmentId: booked.appointmentId,
-      priceCents: 25_000,
+      priceMinor: 25_000,
       professionalId: world.professionals.ana,
       serviceId: world.services.consulta,
       unitId: world.unitId,
@@ -221,7 +221,7 @@ describe("status lifecycle", () => {
       version: 1,
       durationMinutes: 60,
     });
-    expect(resized.ok && resized.value.priceCents).toBe(25_000);
+    expect(resized.ok && resized.value.price.amountMinor).toBe(25_000);
     const service = await services.getService(world.admin, world.services.retorno);
     if (!service.ok) throw new Error("service");
     const changed = await scheduling.updateAppointment(world.desk, {
@@ -230,7 +230,7 @@ describe("status lifecycle", () => {
       serviceId: world.services.retorno,
       roomId: null,
     });
-    expect(changed.ok && changed.value.priceCents).toBe(12_000);
+    expect(changed.ok && changed.value.price.amountMinor).toBe(12_000);
     await move(world.desk, booked.appointmentId, "CHECKED_IN");
     const locked = await scheduling.updateAppointment(world.desk, {
       appointmentId: booked.appointmentId,

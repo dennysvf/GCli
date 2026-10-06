@@ -1,12 +1,17 @@
 "use server";
 
-import { identity, identityMessages, PASSWORD_RESET_REQUESTED_MESSAGE } from "@/modules/identity";
+import { identity } from "@/modules/identity";
 import { getRequestMeta } from "@/modules/identity/next";
+import { resolveRequestLocale } from "@/i18n/locale";
+import { createTranslator } from "@/shared/i18n/translator";
 import { toActionResult, type ActionResult } from "@/shared/kernel/action-result";
 import { ok } from "@/shared/kernel/result";
 
 export async function requestPasswordResetAction(input: unknown): Promise<ActionResult<{ message: string }>> {
   const result = await identity.requestPasswordReset(input, await getRequestMeta());
-  if (!result.ok) return toActionResult(result, identityMessages);
-  return toActionResult(ok({ message: PASSWORD_RESET_REQUESTED_MESSAGE }), identityMessages);
+  const locale = await resolveRequestLocale(null);
+  if (!result.ok) return toActionResult(result, locale, "identity");
+  // The same answer whether the email exists or not (PRD F01), in the visitor's language.
+  const message = createTranslator(locale)("identity.auth.forgot.requested");
+  return toActionResult(ok({ message }), locale, "identity");
 }

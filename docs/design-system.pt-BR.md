@@ -456,7 +456,7 @@ A linha do "agora" na agenda se move a cada minuto sem animação (salta para a 
 | Diga o que aconteceu e o que fazer | "Este horário já está ocupado. Escolha outro horário ou outra sala." | "Erro 409: conflito." |
 | Use os termos da clínica | "Faltou", "Atendimento", "Caixa" | "No-show", "Encounter", "Ledger" |
 | Números com algarismos | "3 pacientes", "12 agendamentos" | "três pacientes" |
-| Formatos brasileiros | "05/10/2026", "14:30", "R$ 1.234,56" | "Oct 5", "2:30 PM", "R$1234.56" |
+| Formatos do idioma e do país do usuário (7.5) | pt-BR: "05/10/2026", "14:30", "R$ 1.234,56" | "Oct 5", "2:30 PM", "R$1234.56" |
 | Durações curtas | "30 min", "1h 30min" | "1,5 hora" |
 | Nunca culpe o usuário | "Não encontramos este CEP." | "Você digitou um CEP inválido." |
 
@@ -486,6 +486,28 @@ Estrutura: **o que não há** + **por que** (se não for óbvio) + **a ação**.
 - Lista com filtro: "Nenhum serviço encontrado para "derma"." + link "Limpar busca".
 - Agenda do dia sem agendamentos: "Nenhum agendamento para hoje nesta unidade." + "Agendar consulta".
 - Para quem não pode criar: só a primeira frase, sem botão.
+
+### 7.5 Idiomas, glossário e formatos de número
+
+A interface existe em `pt-BR` (o texto de origem), `en` e `es` (espanhol latino-americano neutro, "ustedes"). O texto fica em catálogos (ADR-028); as regras acima valem para todos os idiomas, e os exemplos desta seção ficam em pt-BR, salvo indicação.
+
+- **Uma chave por texto.** Nunca monte frases juntando pedaços; use uma mensagem com parâmetros, porque a ordem das palavras muda entre idiomas.
+- **Glossário.** O mesmo termo em todas as telas e idiomas:
+
+| pt-BR | en | es |
+|---|---|---|
+| Agendamento | Appointment | Cita |
+| Encaixe | Overbooking | Sobrecupo |
+| Prontuário | Clinical record | Historia clínica |
+| Caixa | Cash register | Caja |
+| Faltou | No-show | No asistió |
+| Recepção | Front desk | Recepción |
+| Unidade | Unit | Sede |
+
+- **Os formatos seguem o idioma do usuário e o país da unidade**, pelos formatadores, nunca à mão: pt-BR "05/10/2026", "14:30", "R$ 1.234,56"; en-US "10/05/2026", "2:30 PM", "$1,234.56"; es-MX "05/10/2026", "14:30", "$1,234.56"; es-CL "$1.235" (sem decimais).
+- **Nunca traduza dados da clínica:** nomes de serviços, unidades, salas, motivos, notas e pessoas ficam como foram digitados.
+- **Os nomes dos idiomas** são sempre escritos no próprio idioma: "Português (Brasil)", "English", "Español".
+- **Espaço para textos mais longos.** Inglês e espanhol costumam ser 20–30% mais longos que o português em botões e cabeçalhos de tabela; os layouts devem quebrar linha ou crescer, nunca cortar o sentido.
 
 ---
 

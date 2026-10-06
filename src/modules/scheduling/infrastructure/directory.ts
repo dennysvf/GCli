@@ -38,6 +38,8 @@ export const schedulingDirectory: SchedulingDirectory = {
     return {
       id: schedule.value.unitId,
       name: schedule.value.name,
+      country: schedule.value.country,
+      currency: schedule.value.currency,
       timeZone: schedule.value.timeZone,
       active: schedule.value.active,
       businessHours,

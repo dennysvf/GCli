@@ -1,9 +1,8 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
-import { patients, patientsMessages } from "@/modules/patients";
+import { patients } from "@/modules/patients";
 import { professionals } from "@/modules/professionals";
 import { db } from "@/shared/db/client";
-import { interpolate } from "@/shared/kernel/action-result";
-import { auditEvents, closeHelpers, createUser, resetDatabase, signedInContext } from "../helpers";
+import { auditEvents, closeHelpers, errorText, createUser, resetDatabase, signedInContext } from "../helpers";
 import {
   birthDateForAge,
   createPatientOrThrow,
@@ -12,14 +11,15 @@ import {
   patientInput,
   patientsContext,
   VALID_CPF,
+  cpfDoc,
 } from "./support";
 
 beforeEach(resetDatabase);
 afterEach(() => patients.registerPatientAppointments(null));
 afterAll(closeHelpers);
 
-const message = (error: { code: string; params?: Record<string, string | number> }) =>
-  interpolate(patientsMessages[error.code] ?? "", error.params);
+const message = (error: { code: string; params?: Record<string, string | number> | undefined }) =>
+  errorText("patients", error);
 
 describe("patient registration", () => {
   it("F05: a patient cannot be saved without full name, birth date and mobile phone", async () => {
@@ -33,7 +33,7 @@ describe("patient registration", () => {
       );
     }
     const landline = await patients.createPatient(ctx, patientInput({ mobilePhone: "(11) 3333-4444" }));
-    expect(!landline.ok && landline.error.fields?.mobilePhone).toBe("Informe um celular com DDD.");
+    expect(!landline.ok && landline.error.fields?.mobilePhone).toBe("validation.mobileInvalid");
 
     const quick = await patients.createPatient(ctx, {
       mode: "quick",
@@ -50,17 +50,20 @@ describe("patient registration", () => {
 
   it("F05: an invalid CPF is rejected and an existing CPF blocks the save with a link", async () => {
     const ctx = await patientsContext();
-    const invalid = await patients.createPatient(ctx, patientInput({ cpf: "529.982.247-24" }));
-    expect(!invalid.ok && invalid.error.code).toBe("PATIENTS_INVALID_CPF");
+    const invalid = await patients.createPatient(ctx, patientInput({ document: cpfDoc("529.982.247-24") }));
+    expect(!invalid.ok && invalid.error.code).toBe("VALIDATION_FAILED");
+    expect(!invalid.ok && invalid.error.fields?.["document.number"]).toBe(
+      "validation.documentInvalid?type=CPF",
+    );
 
-    const existing = await createPatientOrThrow(ctx, { cpf: VALID_CPF });
+    const existing = await createPatientOrThrow(ctx, { document: cpfDoc(VALID_CPF) });
     const taken = await patients.createPatient(
       ctx,
-      patientInput({ fullName: "Joana Prado", cpf: "529.982.247-25", birthDate: "1975-02-02" }),
+      patientInput({ fullName: "Joana Prado", document: cpfDoc("529.982.247-25"), birthDate: "1975-02-02" }),
     );
     expect(taken.ok).toBe(false);
     if (!taken.ok) {
-      expect(taken.error.code).toBe("PATIENTS_CPF_TAKEN");
+      expect(taken.error.code).toBe("PATIENTS_DOCUMENT_TAKEN");
       expect(message(taken.error)).toBe("Este CPF já está cadastrado para Maria S. Oliveira.");
       expect(taken.error.fields?.existingPatientId).toBe(existing);
     }
@@ -68,18 +71,21 @@ describe("patient registration", () => {
     // Concurrent saves of the same CPF settle on the unique index.
     const results = await Promise.all(
       ["Lia Costa", "Rui Costa", "Ivo Costa"].map((fullName) =>
-        patients.createPatient(ctx, patientInput({ fullName, cpf: OTHER_CPF, confirmDuplicate: true })),
+        patients.createPatient(
+          ctx,
+          patientInput({ fullName, document: cpfDoc(OTHER_CPF), confirmDuplicate: true }),
+        ),
       ),
     );
     expect(results.filter((result) => result.ok)).toHaveLength(1);
     for (const result of results.filter((item) => !item.ok)) {
-      expect(!result.ok && result.error.code).toBe("PATIENTS_CPF_TAKEN");
+      expect(!result.ok && result.error.code).toBe("PATIENTS_DOCUMENT_TAKEN");
     }
   });
 
   it("F05: the same name and birth date warns and allows creating anyway", async () => {
     const ctx = await patientsContext();
-    const first = await createPatientOrThrow(ctx, { cpf: VALID_CPF });
+    const first = await createPatientOrThrow(ctx, { document: cpfDoc(VALID_CPF) });
     const warned = await patients.createPatient(ctx, patientInput({ fullName: "  MARIA silva oliveira " }));
     expect(warned.ok).toBe(true);
     if (!warned.ok || warned.value.kind !== "possible-duplicates") throw new Error("expected a warning");
@@ -88,7 +94,7 @@ describe("patient registration", () => {
         patientId: first,
         displayName: "Maria Silva Oliveira",
         birthDate: "1988-04-12",
-        maskedCpf: "***.***.247-25",
+        maskedDocument: { type: "CPF", display: "***.***.247-25" },
         phoneEnd: "7777",
         active: true,
       },
@@ -112,7 +118,7 @@ describe("patient registration", () => {
     );
     const withGuardian = await patients.createPatient(ctx, {
       ...minor,
-      guardian: { name: "Carla Prado", relationship: "MOTHER", phone: "(11) 97777-6666", cpf: "" },
+      guardian: { name: "Carla Prado", relationship: "MOTHER", phone: "(11) 97777-6666" },
     });
     expect(withGuardian.ok && withGuardian.value.kind).toBe("created");
     const adult = await patients.createPatient(

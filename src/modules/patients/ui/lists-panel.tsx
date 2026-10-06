@@ -11,6 +11,7 @@ import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import type { ListItem } from "../application/lists";
 import type { ListKind } from "../application/schemas";
+import { useTranslations } from "next-intl";
 
 // One configurable list (PRD F05): referral sources or tags. Items are renamed or deactivated,
 // never deleted, so patients that use them keep showing them.
@@ -35,6 +36,7 @@ export function ListsPanel({
     }) => Promise<ActionResult<{ active: boolean }>>;
   };
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState("");
@@ -72,7 +74,7 @@ export function ListsPanel({
           );
         }}
       >
-        <Field id={`${prefix}-name`} label="Novo item" error={error}>
+        <Field id={`${prefix}-name`} label={t("common.newItem")} error={error}>
           <Input
             id={`${prefix}-name`}
             className="w-64"
@@ -83,18 +85,18 @@ export function ListsPanel({
           />
         </Field>
         <Button type="submit" variant="outline" disabled={pending || !name.trim()}>
-          Adicionar
+          {t("common.add")}
         </Button>
       </form>
       {items.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Nenhum item cadastrado.</p>
+        <p className="text-muted-foreground text-sm">{t("common.noItems")}</p>
       ) : (
         <div className="border-y">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead className="w-24">Status</TableHead>
+                <TableHead>{t("common.name")}</TableHead>
+                <TableHead className="w-24">{t("common.status")}</TableHead>
                 <TableHead className="w-48" />
               </TableRow>
             </TableHeader>
@@ -104,7 +106,7 @@ export function ListsPanel({
                   <TableCell>
                     {editing?.id === item.id ? (
                       <Input
-                        aria-label={`Novo nome para ${item.name}`}
+                        aria-label={t("common.newNameFor", { name: item.name })}
                         maxLength={40}
                         value={editing.name}
                         onChange={(event) => setEditing({ id: item.id, name: event.target.value })}
@@ -115,7 +117,7 @@ export function ListsPanel({
                   </TableCell>
                   <TableCell>
                     <Stamp variant={item.active ? "success" : "neutral"}>
-                      {item.active ? "Ativo" : "Inativo"}
+                      {item.active ? t("common.active") : t("common.inactive")}
                     </Stamp>
                   </TableCell>
                   <TableCell className="text-right">
@@ -127,12 +129,12 @@ export function ListsPanel({
                         onClick={() =>
                           run(
                             () => actions.rename({ list, id: item.id, name: editing.name }),
-                            "Item renomeado.",
+                            t("common.itemRenamed"),
                             () => setEditing(null),
                           )
                         }
                       >
-                        Salvar nome
+                        {t("common.saveName")}
                       </Button>
                     ) : (
                       <Button
@@ -140,7 +142,7 @@ export function ListsPanel({
                         size="sm"
                         onClick={() => setEditing({ id: item.id, name: item.name })}
                       >
-                        Renomear
+                        {t("common.rename")}
                       </Button>
                     )}
                     <Button
@@ -150,11 +152,11 @@ export function ListsPanel({
                       onClick={() =>
                         run(
                           () => actions.setActive({ list, id: item.id, active: !item.active }),
-                          item.active ? "Item desativado." : "Item reativado.",
+                          item.active ? t("common.itemDeactivated") : t("common.itemReactivated"),
                         )
                       }
                     >
-                      {item.active ? "Desativar" : "Reativar"}
+                      {item.active ? t("common.deactivate") : t("common.reactivate")}
                     </Button>
                   </TableCell>
                 </TableRow>

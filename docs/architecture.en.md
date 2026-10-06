@@ -206,12 +206,12 @@ Jobs are idempotent: each job can run twice without duplicating effects, using u
 ### 5.7 Validation and errors
 - Zod schemas in `application/` validate every external input. The same schema drives the form (react-hook-form) and the server.
 - Use cases return `Result<T, DomainError>` for **expected** failures (conflict, insufficient balance, locked note). Exceptions are reserved for **unexpected** failures (database down, bug).
-- Every `DomainError` has a stable `code` (for example `SCHEDULING_ROOM_CONFLICT`) and a pt-BR message. The PRD's error messages are the source of these messages.
+- Every `DomainError` has a stable `code` (for example `SCHEDULING_ROOM_CONFLICT`) and message keys with parameters, never text. The boundary translates them into the requester's language from the module catalogs (ADR-028); the pt-BR catalog follows the PRD's error messages.
 - Unexpected errors show a generic message, are logged with the request ID, and are reported to Sentry.
 
 ### 5.8 Money, dates, and time zones
-- Money is stored as **integer cents** (`Int`, or `BigInt` for aggregates) and handled through a `Money` value object. Floating-point numbers are never used for money.
-- Timestamps are stored as `timestamptz` in UTC. Calendar logic (working hours, business hours, "today") uses the organization's time zone, America/Sao_Paulo by default.
+- Money is stored as **integer minor units plus a currency code** (`amount_minor` as `BigInt`, `currency` as `char(3)`) and handled through a `Money` value object that refuses arithmetic across currencies (ADR-029). Floating-point numbers are never used for money.
+- Timestamps are stored as `timestamptz` in UTC. Calendar logic (working hours, business hours, "today") uses the unit's time zone; the organization's zone is only the default for new units (ADR-019). Local-to-UTC conversions are correct across daylight saving changes (ADR-030).
 - Durations and ranges are handled by a `DateTimeRange` value object that has overlap logic, unit tests, and 5-minute granularity rules.
 
 ## 6. Data design
@@ -413,7 +413,7 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 - *Decision:* The interface follows the design system in [design-system.en.md](design-system.en.md): warm paper surfaces, ink-blue primary color, terracotta reserved for "now" and "late", written status stamps, tables with fine rules instead of card grids, Source Serif 4 for headings and Source Sans 3 for the interface (self-hosted), radii of at most 8 px, a single floating shadow, and WCAG 2.2 AA. Its tokens keep the shadcn/ui variable names, so components pick them up from `src/app/globals.css` without changes. Screens use semantic tokens, never hard-coded colors (the F03 service palette is the only exception).
 - *Why:* The users work under time pressure on dense screens (agenda, cash register, records). A documented, measurable visual language keeps new screens consistent, readable and accessible, and defining it before the agenda (F06) avoids reworking the heaviest screens later.
 
-**ADR-021 — Comparing working hours across unit time zones (refines ADR-019)**
+**ADR-021 — Comparing working hours across unit time zones (refines ADR-019; superseded by ADR-030)**
 - *Decision:* Working-hour intervals are stored in the unit's local time (minutes from midnight), as business hours are. To check that a professional's intervals in different units do not overlap on the same weekday (F04), each interval is converted to minutes of the week in UTC with the unit's UTC offset on the schedule's start date, then compared. Brazil has had no daylight saving time since 2019, so these offsets are constant; the conversion lives in one helper (`professionals/domain/time-zone-offsets.ts`).
 - *Why:* A professional who works in São Paulo in the morning and in Manaus in the afternoon must be checked against real time, not against two local clocks. A database exclusion constraint on local minutes would reject valid schedules, so the rule is a pure domain function, and concurrent edits are serialized by the professional's row version.
 - *Trade-off:* If daylight saving time returns, offsets will depend on the date and the helper must compare per date instead of per schedule.
@@ -447,6 +447,21 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 - *Decision:* A module may expose `src/modules/<name>/client.ts`, which re-exports only client-safe UI components and types. Client Components of another module import from `@/modules/<name>/client`; server code keeps using `@/modules/<name>`. The ESLint boundary rule allows `@/modules/*/client` next to `@/modules/*/next`. The first one is `@/modules/patients/client`, used by the F06 booking panel to embed the quick patient registration.
 - *Why:* A module's `index.ts` wires its use cases and infrastructure (database, Argon2, storage). Importing it from a Client Component pulls that server code into the browser bundle, and the production build fails.
 - *Trade-off:* Two entry points per module that has shared client UI; the client entry must never re-export server code.
+
+**ADR-028 — Internationalization with next-intl and message catalogs (refines ADR-015)**
+- *Decision:* All interface text lives in message catalogs in three languages (`pt-BR` as the source, `en`, `es`), loaded with next-intl in the "without i18n routing" setup: `src/i18n/request.ts` resolves the locale per request and URLs do not change. Each module owns `src/modules/<module>/messages/{pt-BR,en,es}.json` under its namespace and exports `<module>Catalog` from its entry point; shared namespaces (`common`, `validation`, `shell`, `countries`, `email`) live in `src/shared/i18n/messages/`. The locale of a signed-in user is `user.locale ?? organization.defaultLocale`, carried in `RequestContext.locale`; public pages follow a `gcli_locale` cookie, then `Accept-Language`, then `pt-BR`. Use cases never produce text: `DomainError.fields`, Zod messages and conflict findings carry message keys and parameters, and the boundary (Server Action, route, worker, PDF) translates them with `createTranslator(locale)`. A unit test fails the build when a key, an ICU message or a placeholder differs between languages, and `eslint-plugin-i18next` rejects literal text in JSX.
+- *Why:* F07 to F13 add many screens, emails and PDFs; extracting text now keeps the rework from growing with every feature. Keeping text out of use cases keeps them testable and language-free, and one key per text gives one place to review each translation.
+- *Trade-off:* One more dependency, and the full bundle of a locale (about 1,000 messages) is sent to the client once. Translations beyond pt-BR need native-speaker review before launching outside Brazil.
+
+**ADR-029 — Country profiles, money with currency and generic personal data (refines ADR-010)**
+- *Decision:* A typed registry in `src/shared/kernel/countries/` describes the eight supported countries (BR, PT, ES, MX, AR, CL, CO, US): currency, tax ID, identity documents, address fields, phone code, councils, payment methods, time zones, formatting region and a flag that says whether the legal rules were validated (only Brazil). Each unit has a country; its currency is derived and stored. Money is stored as `amount_minor` (bigint) plus `currency` (char 3), `Money` refuses arithmetic across currencies, and totals are grouped by currency (`MoneyTotals`). Service prices live in `service_price`, one per currency; booking snapshots the price in the unit's currency. Identity documents are a type plus a normalized number validated by the profile, phones are E.164 (libphonenumber-js), addresses use generic columns, and professionals hold one council registration per country. A unit's country cannot change once it has appointments.
+- *Why:* The country model has to exist before billing (F09) writes money, because adding a currency to charges and payments later would mean migrating financial records. Rules are code (validators, masks), so a new country is one reviewed file.
+- *Trade-off:* No currency conversion and no countries beyond the eight; changing a profile is a deploy. Legal rules outside Brazil are not validated (PRD Section 7), so those units show a warning to the Administrator.
+
+**ADR-030 — Daylight-saving-correct calendar (supersedes ADR-021)**
+- *Decision:* Every conversion from a local date and time to an instant goes through `zonedTimeToUtc` in `src/shared/kernel/zoned-time.ts`, built on `Intl`. A local time that does not exist (spring forward) moves forward by the gap (02:30 becomes 03:30); an ambiguous local time (fall back) takes the earlier instant. Working-hour intervals stay stored in the unit's local minutes. The cross-unit overlap check of F04 compares the intervals as real instants on each date of the schedule's first 53 weeks, instead of using one offset per schedule.
+- *Why:* Units in Portugal, Spain, Chile or the United States change offset during the year, so a fixed offset would shift or overlap intervals for part of it. The conversions `Intl` provides are enough; no date library is needed.
+- *Trade-off:* The check does more work (one conversion per interval and date), which is small for the 53-week horizon. Tests pin real 2026 and 2027 transitions.
 
 ## 13. Evolution to SaaS
 

@@ -19,8 +19,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import type { ConsentItem } from "../application/consents";
-import { CONSENT_METHOD_LABELS, CONSENT_METHODS, type ConsentMethod } from "../domain/consent";
-import { formatDateTimeBR } from "./format";
+import { CONSENT_METHODS, type ConsentMethod } from "../domain/consent";
+import { useTranslations } from "next-intl";
+import { useFormatters } from "@/shared/ui/i18n/use-formatters";
 
 // Consent section (PRD F05 Experience): history plus "Registrar consentimento", a dialog with the
 // terms version, the method and an optional signed-term file (ADR-023 upload).
@@ -44,6 +45,8 @@ export function ConsentSection({
     openFile: (input: { consentId: string }) => Promise<ActionResult<{ url: string }>>;
   };
 }) {
+  const t = useTranslations();
+  const format = useFormatters();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
@@ -68,7 +71,7 @@ export function ConsentSection({
         uploadToken = uploaded.data.uploadToken;
       }
       const result = await actions.record({ patientId, method, uploadToken });
-      if (handleActionResult(result, { successMessage: "Consentimento registrado." })) {
+      if (handleActionResult(result, { successMessage: t("patients.ui.consentRecorded") })) {
         setOpen(false);
         router.refresh();
       }
@@ -85,45 +88,44 @@ export function ConsentSection({
     <section aria-labelledby="consent-title" className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="consent-title" className="section-title">
-          Consentimento LGPD
+          {t("patients.ui.consentTitle")}
         </h2>
         {canManage ? (
           <Button
             variant="outline"
             disabled={termsVersion === null}
             onClick={() => setOpen(true)}
-            title={termsVersion === null ? "Publique os termos de privacidade antes." : undefined}
+            title={termsVersion === null ? t("patients.ui.publishTermsFirst") : undefined}
           >
-            Registrar consentimento
+            {t("patients.ui.registerConsent")}
           </Button>
         ) : null}
       </div>
       {termsVersion === null ? (
-        <p className="text-muted-foreground text-sm">
-          Os termos de privacidade ainda não foram publicados. O administrador publica em Configurações ›
-          Termos de privacidade.
-        </p>
+        <p className="text-muted-foreground text-sm">{t("patients.ui.termsNotPublished")}</p>
       ) : null}
       {consents.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Nenhum consentimento registrado.</p>
+        <p className="text-muted-foreground text-sm">{t("patients.ui.noConsent")}</p>
       ) : (
         <div className="border-y">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Versão</TableHead>
-                <TableHead>Forma</TableHead>
-                <TableHead className="hidden md:table-cell">Registrado por</TableHead>
-                <TableHead>Termo assinado</TableHead>
+                <TableHead>{t("common.date")}</TableHead>
+                <TableHead>{t("common.version")}</TableHead>
+                <TableHead>{t("patients.ui.consentMethod")}</TableHead>
+                <TableHead className="hidden md:table-cell">{t("patients.ui.recordedBy")}</TableHead>
+                <TableHead>{t("patients.ui.signedForm")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {consents.map((consent) => (
                 <TableRow key={consent.id}>
-                  <TableCell className="tabular-nums">{formatDateTimeBR(consent.consentedAt)}</TableCell>
-                  <TableCell className="tabular-nums">v{consent.termsVersion}</TableCell>
-                  <TableCell>{CONSENT_METHOD_LABELS[consent.method]}</TableCell>
+                  <TableCell className="tabular-nums">{format.dateTime(consent.consentedAt)}</TableCell>
+                  <TableCell className="tabular-nums">
+                    {t("patients.ui.versionShort", { version: consent.termsVersion })}
+                  </TableCell>
+                  <TableCell>{t(`patients.ui.consentMethods.${consent.method}`)}</TableCell>
                   <TableCell className="hidden md:table-cell">{consent.recordedByName ?? "—"}</TableCell>
                   <TableCell>
                     {consent.fileName ? (
@@ -149,13 +151,13 @@ export function ConsentSection({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Registrar consentimento</DialogTitle>
+            <DialogTitle>{t("patients.ui.registerConsent")}</DialogTitle>
             <DialogDescription>
-              Termos de privacidade versão {termsVersion}. O registro guarda a data, a forma e quem registrou.
+              {t("patients.ui.consentDialogBody", { version: termsVersion ?? 0 })}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            <Field id="consent-method" label="Forma do consentimento">
+            <Field id="consent-method" label={t("patients.ui.consentMethodLabel")}>
               <Select value={method} onValueChange={(value) => setMethod(value as ConsentMethod)}>
                 <SelectTrigger id="consent-method" className="w-full">
                   <SelectValue />
@@ -163,7 +165,7 @@ export function ConsentSection({
                 <SelectContent>
                   {CONSENT_METHODS.map((value) => (
                     <SelectItem key={value} value={value}>
-                      {CONSENT_METHOD_LABELS[value]}
+                      {t(`patients.ui.consentMethods.${value}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -171,9 +173,9 @@ export function ConsentSection({
             </Field>
             <Field
               id="consent-file"
-              label="Termo assinado (opcional)"
+              label={t("patients.ui.signedFormOptional")}
               error={fileError ?? undefined}
-              hint="PDF, JPG ou PNG de até 10 MB."
+              hint={t("patients.ui.signedFormHint")}
             >
               <Input
                 id="consent-file"
@@ -185,10 +187,10 @@ export function ConsentSection({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
+              {t("common.cancel")}
             </Button>
             <Button onClick={record} disabled={pending}>
-              {pending ? "Registrando..." : "Registrar consentimento"}
+              {pending ? t("common.recording") : t("patients.ui.registerConsent")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -13,7 +13,7 @@ import {
 } from "@/modules/professionals";
 import { formatDuration, services } from "@/modules/services";
 import { can } from "@/shared/authz/permissions";
-import { formatCents } from "@/shared/kernel/money";
+import { formatLocale, formatMoney } from "@/shared/i18n/format";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
 import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import { Stamp } from "@/shared/ui/components/stamp";
@@ -27,9 +27,12 @@ import {
   saveScheduleAction,
   setProfessionalActiveAction,
 } from "../actions";
-import { ROLE_LABELS } from "../role-labels";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Profissional" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return { title: t("common.professional") };
+}
 
 const TABS = ["data", "services", "schedule", "time-offs"] as const;
 
@@ -37,6 +40,7 @@ export default async function ProfessionalPage({
   params,
   searchParams,
 }: PageProps<"/settings/professionals/[professionalId]">) {
+  const t = await getTranslations();
   const ctx = await requirePermission("professional:read");
   const { professionalId } = await params;
   const query = await searchParams;
@@ -69,13 +73,13 @@ export default async function ProfessionalPage({
         title={details.displayName ?? details.fullName}
         titleAddon={
           <Stamp variant={details.active ? "success" : "neutral"}>
-            {details.active ? "Ativo" : "Inativo"}
+            {details.active ? t("common.active") : t("common.inactive")}
           </Stamp>
         }
         meta={[details.specialty, details.registration].filter(Boolean).join(" · ") || undefined}
         breadcrumb={
           <Link href="/settings/professionals" className="underline-offset-4 hover:underline">
-            Profissionais
+            {t("common.professionals")}
           </Link>
         }
         actions={
@@ -91,20 +95,21 @@ export default async function ProfessionalPage({
       />
       <Tabs defaultValue={activeTab}>
         <TabsList>
-          <TabsTrigger value="data">Dados</TabsTrigger>
-          <TabsTrigger value="services">Serviços</TabsTrigger>
-          <TabsTrigger value="schedule">Horários</TabsTrigger>
-          <TabsTrigger value="time-offs">Ausências</TabsTrigger>
+          <TabsTrigger value="data">{t("common.data")}</TabsTrigger>
+          <TabsTrigger value="services">{t("common.services")}</TabsTrigger>
+          <TabsTrigger value="schedule">{t("professionals.ui.schedule")}</TabsTrigger>
+          <TabsTrigger value="time-offs">{t("professionals.ui.timeOffs")}</TabsTrigger>
         </TabsList>
         <TabsContent value="data" className="pt-4">
           <ProfessionalForm
             professional={details}
             defaultColor={details.color}
+            defaultCountry={ctx.organizationCountry}
             linkableUsers={users.map((user) => ({
               id: user.id,
               name: user.name,
               email: user.email,
-              roleLabel: ROLE_LABELS[user.role] ?? user.role,
+              roleLabel: t(`shell.roles.${user.role}`),
             }))}
             readOnly={readOnly}
             action={saveProfessionalAction}
@@ -119,7 +124,12 @@ export default async function ProfessionalPage({
               name: service.name,
               categoryName: service.categoryName,
               color: service.color,
-              details: `${formatDuration(service.durationMinutes)} · ${formatCents(service.priceCents)}`,
+              details: [
+                formatDuration(service.durationMinutes),
+                service.prices.map((price) => formatMoney(price, formatLocale(ctx.locale, null))).join(" / "),
+              ]
+                .filter(Boolean)
+                .join(" · "),
             }))}
             enabledIds={enabled.ok ? enabled.value.serviceIds : []}
             inactiveServices={enabled.ok ? enabled.value.inactiveServices : []}

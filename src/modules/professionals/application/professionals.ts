@@ -2,18 +2,21 @@ import { diffChanges } from "@/shared/audit/diff";
 import { authorize, recordDenial } from "@/shared/authz/guard";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
-import { isValidCpf } from "@/shared/kernel/cpf";
+import type { DocumentType } from "@/shared/kernel/documents";
+import { DOCUMENT_SPECS } from "@/shared/kernel/documents";
+import { isCountryCode, type CountryCode } from "@/shared/kernel/countries/codes";
 import { CommonErrors } from "@/shared/kernel/errors";
 import { newId } from "@/shared/kernel/ids";
 import { nextDefaultColor, type PaletteColor } from "@/shared/kernel/palette";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
 import { parseInput } from "@/shared/kernel/validation";
-import { formatRegistration, initialsOf, type CouncilType } from "../domain/council";
+import { initialsOf } from "../domain/council";
 import { MAX_ACTIVE_PROFESSIONALS } from "../domain/limits";
 import { violatedConstraint } from "./db-values";
 import { ProfessionalsErrors } from "./errors";
 import { canViewProfessional } from "./policies";
+import { registrationSummary, toRegistrations, type RegistrationItem } from "./registrations";
 import type { ProfessionalsDeps } from "./ports";
 import {
   createProfessionalSchema,
@@ -40,12 +43,12 @@ export type ProfessionalDetails = {
   fullName: string;
   displayName: string | null;
   specialty: string | null;
-  councilType: CouncilType;
-  councilOtherName: string | null;
-  councilNumber: string | null;
-  councilState: string | null;
+  hasNoCouncil: boolean;
+  registrations: RegistrationItem[];
+  // The registrations as one text ("CRM 123456/SP · Ordem dos Médicos 12345").
   registration: string;
-  cpf: string | null;
+  document: { country: CountryCode; type: DocumentType; number: string } | null;
+  // E.164.
   phone: string | null;
   email: string | null;
   color: PaletteColor;
@@ -93,6 +96,7 @@ export async function listProfessionals(
       where: status === "all" ? {} : { active: status === "active" },
       include: {
         services: { select: { serviceId: true } },
+        registrations: true,
         schedules: {
           where: { validFrom: { lte: day }, OR: [{ validUntil: null }, { validUntil: { gte: day } }] },
           select: { intervals: { select: { unitId: true } } },
@@ -111,12 +115,7 @@ export async function listProfessionals(
           initials: initialsOf(row.fullName),
           color: row.color as PaletteColor,
           specialty: row.specialty,
-          registration: formatRegistration({
-            type: row.councilType as CouncilType,
-            otherName: row.councilOtherName,
-            number: row.councilNumber,
-            state: row.councilState,
-          }),
+          registration: registrationSummary(toRegistrations(row.registrations, ctx.locale)),
           unitNames: [...unitIds]
             .map((id) => unitNames.get(id) ?? "")
             .filter(Boolean)
@@ -141,7 +140,10 @@ export async function getProfessional(
     return fail(CommonErrors.forbidden());
   }
   const loaded = await withTransaction(ctx, async (uow) => {
-    const row = await uow.tx.professional.findFirst({ where: { id: professionalId } });
+    const row = await uow.tx.professional.findFirst({
+      where: { id: professionalId },
+      include: { registrations: true },
+    });
     return row ? ok(row) : fail(ProfessionalsErrors.notFound());
   });
   if (!loaded.ok) return loaded;
@@ -159,23 +161,23 @@ export async function getProfessional(
       linkable: linkable.some((user) => user.id === row.linkedUserId),
     };
   }
-  const councilType = row.councilType as CouncilType;
+  const registrations = toRegistrations(row.registrations, ctx.locale);
   return ok({
     id: row.id,
     fullName: row.fullName,
     displayName: row.displayName,
     specialty: row.specialty,
-    councilType,
-    councilOtherName: row.councilOtherName,
-    councilNumber: row.councilNumber,
-    councilState: row.councilState,
-    registration: formatRegistration({
-      type: councilType,
-      otherName: row.councilOtherName,
-      number: row.councilNumber,
-      state: row.councilState,
-    }),
-    cpf: row.cpf,
+    hasNoCouncil: row.hasNoCouncil,
+    registrations,
+    registration: registrationSummary(registrations),
+    document:
+      row.documentType && row.documentNumber && isCountryCode(row.documentCountry ?? "")
+        ? {
+            country: row.documentCountry as CountryCode,
+            type: row.documentType as DocumentType,
+            number: row.documentNumber,
+          }
+        : null,
     phone: row.phone,
     email: row.email,
     color: row.color as PaletteColor,
@@ -195,40 +197,105 @@ export async function suggestProfessionalColor(ctx: RequestContext): Promise<Res
   });
 }
 
+type Registration = {
+  country: CountryCode;
+  councilType: string;
+  councilOtherName: string | null;
+  number: string | null;
+  region: string | null;
+  npi: string | null;
+};
+
 type ProfessionalFields = {
   fullName: string;
   displayName: string | null;
   specialty: string | null;
-  councilType: CouncilType;
-  councilOtherName: string | null;
-  councilNumber: string | null;
-  councilState: string | null;
-  cpf: string | null;
+  hasNoCouncil: boolean;
+  registrations: Registration[];
+  document: { country: CountryCode; type: DocumentType; number: string } | null;
   phone: string | null;
   email: string | null;
   color: PaletteColor;
   linkedUserId: string | null;
 };
 
+// The columns of the professional row: the document is stored as three columns and the
+// registrations in their own table.
+function toRow(fields: ProfessionalFields) {
+  const { document } = fields;
+  return {
+    fullName: fields.fullName,
+    displayName: fields.displayName,
+    specialty: fields.specialty,
+    hasNoCouncil: fields.hasNoCouncil,
+    phone: fields.phone,
+    email: fields.email,
+    color: fields.color,
+    linkedUserId: fields.linkedUserId,
+    documentCountry: document?.country ?? null,
+    documentType: document?.type ?? null,
+    documentNumber: document?.number ?? null,
+  };
+}
+
+// Replaces the registrations of a professional with the submitted set.
+async function replaceRegistrations(
+  uow: UnitOfWork,
+  organizationId: string,
+  professionalId: string,
+  registrations: Registration[],
+): Promise<void> {
+  await uow.tx.professionalRegistration.deleteMany({ where: { professionalId } });
+  if (registrations.length === 0) return;
+  await uow.tx.professionalRegistration.createMany({
+    data: registrations.map((registration) => ({
+      id: newId(),
+      organizationId,
+      professionalId,
+      country: registration.country,
+      councilType: registration.councilType,
+      councilOtherName: registration.councilOtherName,
+      number: registration.number,
+      region: registration.region,
+      npi: registration.npi,
+    })),
+  });
+}
+
+// Registrations as short text for the audit log ("BR CRM 123456/SP").
+function registrationsForAudit(registrations: Registration[]): string[] {
+  return registrations.map((registration) =>
+    `${registration.country} ${registration.councilOtherName ?? registration.councilType} ${registration.number ?? ""}${registration.region ? `/${registration.region}` : ""}${registration.npi ? ` NPI ${registration.npi}` : ""}`.trim(),
+  );
+}
+
 // Friendly checks before the unique indexes, which remain the guarantee under concurrency.
 async function findUniquenessError(uow: UnitOfWork, fields: ProfessionalFields, exceptId?: string) {
   const notSelf = exceptId ? { id: { not: exceptId } } : {};
-  if (fields.cpf && (await uow.tx.professional.findFirst({ where: { cpf: fields.cpf, ...notSelf } }))) {
-    return ProfessionalsErrors.cpfTaken();
-  }
   if (
-    fields.councilType !== "NONE" &&
+    fields.document &&
     (await uow.tx.professional.findFirst({
-      where: {
-        councilType: fields.councilType,
-        councilOtherName: fields.councilOtherName,
-        councilState: fields.councilState,
-        councilNumber: fields.councilNumber,
-        ...notSelf,
-      },
+      where: { documentType: fields.document.type, documentNumber: fields.document.number, ...notSelf },
     }))
   ) {
-    return ProfessionalsErrors.councilTaken();
+    return ProfessionalsErrors.documentTaken(DOCUMENT_SPECS[fields.document.type].shortLabel);
+  }
+  for (const registration of fields.registrations) {
+    if (
+      registration.number &&
+      (await uow.tx.professionalRegistration.findFirst({
+        where: {
+          country: registration.country,
+          councilType: registration.councilType,
+          councilOtherName: registration.councilOtherName,
+          region: registration.region,
+          number: registration.number,
+          ...(exceptId ? { professionalId: { not: exceptId } } : {}),
+        },
+      }))
+    ) {
+      return ProfessionalsErrors.councilTaken();
+    }
   }
   if (
     fields.linkedUserId &&
@@ -239,13 +306,19 @@ async function findUniquenessError(uow: UnitOfWork, fields: ProfessionalFields, 
   return null;
 }
 
-function uniqueViolation(error: unknown) {
+function uniqueViolation(error: unknown, fields: ProfessionalFields) {
   const text = violatedConstraint(error);
   if (text.includes("uq_professional_linked_user") || text.includes("linked_user_id")) {
     return ProfessionalsErrors.userAlreadyLinked();
   }
-  if (text.includes("uq_professional_org_cpf")) return ProfessionalsErrors.cpfTaken();
-  if (text.includes("uq_professional_org_council")) return ProfessionalsErrors.councilTaken();
+  if (text.includes("uq_professional_org_document")) {
+    return ProfessionalsErrors.documentTaken(
+      fields.document ? DOCUMENT_SPECS[fields.document.type].shortLabel : "",
+    );
+  }
+  if (text.includes("uq_registration_org_number")) return ProfessionalsErrors.councilTaken();
+  if (text.includes("uq_registration_professional_country"))
+    return ProfessionalsErrors.registrationDuplicate();
   return null;
 }
 
@@ -255,7 +328,6 @@ async function checkFields(
   fields: ProfessionalFields,
   currentLinkedUserId: string | null,
 ) {
-  if (fields.cpf && !isValidCpf(fields.cpf)) return ProfessionalsErrors.invalidCpf();
   // PRD F01/F04: only active Professional, Manager or Administrator users can be linked. An
   // existing link is kept even when the user no longer qualifies (it then grants nothing).
   if (fields.linkedUserId && fields.linkedUserId !== currentLinkedUserId) {
@@ -288,19 +360,23 @@ export async function createProfessional(
       if (taken) return fail(taken);
       const id = newId();
       await uow.tx.professional.create({
-        data: { id, organizationId: ctx.organizationId, ...fields, createdById: ctx.user.id },
+        data: { id, organizationId: ctx.organizationId, ...toRow(fields), createdById: ctx.user.id },
       });
+      await replaceRegistrations(uow, ctx.organizationId, id, fields.registrations);
       await uow.audit.record({
         action: "CREATE",
         entityType: "professional",
         entityId: id,
         summary: "Profissional cadastrado",
-        changes: diffChanges(null, fields),
+        changes: diffChanges(null, {
+          ...toRow(fields),
+          registrations: registrationsForAudit(fields.registrations),
+        }),
       });
       return ok({ professionalId: id, version: 1 });
     });
   } catch (error) {
-    const mapped = uniqueViolation(error);
+    const mapped = uniqueViolation(error, fields);
     if (mapped) return fail(mapped);
     throw error;
   }
@@ -318,7 +394,12 @@ export async function updateProfessional(
   const { professionalId, version, ...fields } = parsed.value;
 
   const current = await withTransaction(ctx, async (uow) =>
-    ok(await uow.tx.professional.findFirst({ where: { id: professionalId } })),
+    ok(
+      await uow.tx.professional.findFirst({
+        where: { id: professionalId },
+        include: { registrations: true },
+      }),
+    ),
   );
   if (!current.ok) return current;
   const before = current.value;
@@ -333,23 +414,41 @@ export async function updateProfessional(
       if (taken) return fail(taken);
       const updated = await uow.tx.professional.updateMany({
         where: { id: professionalId, version },
-        data: { ...fields, version: { increment: 1 }, updatedById: ctx.user.id },
+        data: { ...toRow(fields), version: { increment: 1 }, updatedById: ctx.user.id },
       });
       if (updated.count !== 1) return fail(CommonErrors.staleVersion());
+      await replaceRegistrations(uow, ctx.organizationId, professionalId, fields.registrations);
+      const { registrations: beforeRegistrations, ...beforeRow } = before;
       await uow.audit.record({
         action: "UPDATE",
         entityType: "professional",
         entityId: professionalId,
         summary: "Profissional alterado",
-        changes: diffChanges(before, fields),
+        changes: diffChanges(
+          { ...beforeRow, registrations: registrationsForAudit(toRegistrationList(beforeRegistrations)) },
+          { ...toRow(fields), registrations: registrationsForAudit(fields.registrations) },
+        ),
       });
       return ok({ professionalId, version: version + 1 });
     });
   } catch (error) {
-    const mapped = uniqueViolation(error);
+    const mapped = uniqueViolation(error, fields);
     if (mapped) return fail(mapped);
     throw error;
   }
+}
+
+function toRegistrationList(
+  rows: {
+    country: string;
+    councilType: string;
+    councilOtherName: string | null;
+    number: string | null;
+    region: string | null;
+    npi: string | null;
+  }[],
+): Registration[] {
+  return rows.flatMap((row) => (isCountryCode(row.country) ? [{ ...row, country: row.country }] : []));
 }
 
 export async function setProfessionalActive(

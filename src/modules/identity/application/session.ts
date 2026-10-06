@@ -36,6 +36,8 @@ export async function resolveRequestContext(
     organizationId: user.organizationId,
     user: { id: user.id, name: user.name, email: user.email, role: user.role },
     sessionId: session.id,
+    locale: user.locale ?? user.organizationLocale,
+    organizationCountry: user.organizationCountry,
     linkedProfessionalId,
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,

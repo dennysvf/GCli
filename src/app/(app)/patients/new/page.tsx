@@ -6,10 +6,15 @@ import { PatientForm, patients } from "@/modules/patients";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
 import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import { savePatientAction } from "../actions";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Novo paciente" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return { title: t("patients.ui.newPatient") };
+}
 
 export default async function NewPatientPage() {
+  const t = await getTranslations();
   const ctx = await requirePermission("patient:manage");
   const [profile, sources, tags] = await Promise.all([
     getOrganizationProfile(ctx),
@@ -21,14 +26,15 @@ export default async function NewPatientPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        title="Novo paciente"
+        title={t("patients.ui.newPatient")}
         breadcrumb={
           <Link href="/patients" className="underline-offset-4 hover:underline">
-            Pacientes
+            {t("common.patients")}
           </Link>
         }
       />
       <PatientForm
+        defaultCountry={ctx.organizationCountry}
         today={today}
         referralSources={sources.ok ? sources.value : []}
         tags={tags.ok ? tags.value : []}

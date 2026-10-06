@@ -12,8 +12,9 @@ import {
 } from "@/shared/ui/components/alert-dialog";
 import { Button } from "@/shared/ui/components/button";
 import type { DuplicateCandidate } from "../application/patients";
-import { formatDateBR } from "./format";
-import { PATIENTS_POSSIBLE_DUPLICATE } from "../messages";
+import { DOCUMENT_SPECS } from "@/shared/kernel/documents";
+import { useTranslations } from "next-intl";
+import { useFormatters } from "@/shared/ui/i18n/use-formatters";
 
 // PRD F05: the candidate records side by side, with "Abrir cadastro existente" and "Criar mesmo
 // assim" (only name and birth date matches reach this dialog; a CPF match blocks the save).
@@ -28,12 +29,14 @@ export function DuplicateDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const t = useTranslations();
+  const format = useFormatters();
   return (
     <AlertDialog open={candidates !== null} onOpenChange={(open) => !open && onCancel()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Possível cadastro duplicado</AlertDialogTitle>
-          <AlertDialogDescription>{PATIENTS_POSSIBLE_DUPLICATE}</AlertDialogDescription>
+          <AlertDialogTitle>{t("patients.ui.possibleDuplicate")}</AlertDialogTitle>
+          <AlertDialogDescription>{t("patients.ui.possibleDuplicateBody")}</AlertDialogDescription>
         </AlertDialogHeader>
         <ul className="divide-y border-y">
           {(candidates ?? []).map((candidate) => (
@@ -44,23 +47,28 @@ export function DuplicateDialog({
               <span className="grid">
                 <span className="font-semibold">
                   {candidate.displayName}
-                  {candidate.active ? "" : " (inativo)"}
+                  {candidate.active ? "" : t("patients.ui.inactiveMark")}
                 </span>
                 <span className="text-muted-foreground text-xs tabular-nums">
-                  Nascimento {formatDateBR(candidate.birthDate)} · CPF{" "}
-                  {candidate.maskedCpf ?? "não informado"} · celular final {candidate.phoneEnd}
+                  {t("patients.ui.duplicateDetails", {
+                    birthDate: format.date(candidate.birthDate),
+                    document: candidate.maskedDocument
+                      ? `${DOCUMENT_SPECS[candidate.maskedDocument.type].shortLabel} ${candidate.maskedDocument.display}`
+                      : t("patients.ui.documentNotInformedLower"),
+                    phoneEnd: candidate.phoneEnd,
+                  })}
                 </span>
               </span>
               <Button asChild variant="outline" size="sm">
-                <Link href={`/patients/${candidate.patientId}`}>Abrir cadastro existente</Link>
+                <Link href={`/patients/${candidate.patientId}`}>{t("patients.ui.openExisting")}</Link>
               </Button>
             </li>
           ))}
         </ul>
         <AlertDialogFooter>
-          <AlertDialogCancel>Voltar</AlertDialogCancel>
+          <AlertDialogCancel>{t("common.back")}</AlertDialogCancel>
           <Button onClick={onConfirm} disabled={pending}>
-            {pending ? "Criando..." : "Criar mesmo assim"}
+            {pending ? t("common.creating") : t("patients.ui.createAnyway")}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

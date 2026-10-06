@@ -26,24 +26,26 @@ describe("business hours", () => {
         { start: 700, end: 900 },
       ]),
     );
-    expect(overlap?.["days.1"]).toBe("Terça: o segundo intervalo deve começar depois do fim do primeiro.");
-    expect(validateWeek(weekWith(1, true, [{ start: 720, end: 480 }]))?.["days.0"]).toContain("anterior");
-    expect(validateWeek(weekWith(1, true, [{ start: 481, end: 720 }]))?.["days.0"]).toContain(
-      "múltiplos de 5",
+    expect(overlap?.["days.1"]).toBe("units.validation.hours.secondAfterFirst");
+    expect(validateWeek(weekWith(1, true, [{ start: 720, end: 480 }]))?.["days.0"]).toBe(
+      "units.validation.hours.startBeforeEnd",
+    );
+    expect(validateWeek(weekWith(1, true, [{ start: 481, end: 720 }]))?.["days.0"]).toBe(
+      "units.validation.hours.granularity",
     );
     const three = weekWith(1, true, [
       { start: 60, end: 120 },
       { start: 180, end: 240 },
       { start: 300, end: 360 },
     ]);
-    expect(validateWeek(three)?.["days.0"]).toContain("no máximo dois");
-    expect(validateWeek(weekWith(1, true, []))?.["days.0"]).toContain("ao menos um");
+    expect(validateWeek(three)?.["days.0"]).toBe("units.validation.hours.maxIntervals");
+    expect(validateWeek(weekWith(1, true, []))?.["days.0"]).toBe("units.validation.hours.needsInterval");
   });
 
   it("requires the seven weekdays exactly once", () => {
-    expect(validateWeek(closedWeek().slice(0, 6))?.days).toBe("Informe os sete dias da semana.");
+    expect(validateWeek(closedWeek().slice(0, 6))?.days).toBe("units.validation.hours.sevenDays");
     const duplicated = closedWeek().map((day) => (day.weekday === 7 ? { ...day, weekday: 1 } : day));
-    expect(validateWeek(duplicated)?.["days.6"]).toContain("repetido");
+    expect(validateWeek(duplicated)?.["days.6"]).toBe("units.validation.hours.weekdayInvalid");
   });
 
   it("checks whether a time range falls inside an open interval", () => {

@@ -2,6 +2,8 @@ import { authorize } from "@/shared/authz/guard";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction } from "@/shared/db/transaction";
 import { fail, ok, type Result } from "@/shared/kernel/result";
+import { toPrices } from "./services";
+import type { ServicePriceItem } from "./services";
 import type { ServiceColor } from "../domain/palette";
 import { resolveAllowedRooms } from "../domain/service-rules";
 import { ServicesErrors } from "./errors";
@@ -15,7 +17,7 @@ export type ActiveService = {
   categoryId: string;
   categoryName: string;
   durationMinutes: number;
-  priceCents: number;
+  prices: ServicePriceItem[];
   color: ServiceColor;
   requiresRoom: boolean;
 };
@@ -36,15 +38,16 @@ export async function listActiveServices(ctx: RequestContext): Promise<Result<Ac
         name: true,
         categoryId: true,
         durationMinutes: true,
-        priceCents: true,
         color: true,
         requiresRoom: true,
         category: { select: { name: true } },
+        prices: { select: { currency: true, amountMinor: true } },
       },
     });
     return ok(
-      rows.map(({ category, ...service }) => ({
+      rows.map(({ category, prices, ...service }) => ({
         ...service,
+        prices: toPrices(prices),
         color: service.color as ServiceColor,
         categoryName: category.name,
       })),
@@ -81,7 +84,7 @@ export type ServiceSummary = {
   id: string;
   name: string;
   durationMinutes: number;
-  priceCents: number;
+  prices: ServicePriceItem[];
   color: ServiceColor;
   requiresRoom: boolean;
   active: boolean;
@@ -103,12 +106,18 @@ export async function getServiceSummaries(
         id: true,
         name: true,
         durationMinutes: true,
-        priceCents: true,
         color: true,
         requiresRoom: true,
         active: true,
+        prices: { select: { currency: true, amountMinor: true } },
       },
     });
-    return ok(rows.map((row) => ({ ...row, color: row.color as ServiceColor })));
+    return ok(
+      rows.map(({ prices, ...row }) => ({
+        ...row,
+        prices: toPrices(prices),
+        color: row.color as ServiceColor,
+      })),
+    );
   });
 }

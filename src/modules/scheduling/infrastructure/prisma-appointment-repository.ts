@@ -1,3 +1,4 @@
+import type { Currency } from "@/shared/kernel/countries/codes";
 import type { Prisma } from "@/generated/prisma/client";
 import { DateTimeRange } from "@/shared/kernel/date-time-range";
 import { newId } from "@/shared/kernel/ids";
@@ -25,7 +26,8 @@ function propsOf(row: Row): AppointmentProps {
     roomId: row.roomId,
     startsAt: row.startsAt,
     durationMinutes: row.durationMinutes,
-    priceCents: row.priceCents,
+    priceMinor: Number(row.priceMinor),
+    currency: row.currency as Currency,
     status: row.status as AppointmentStatus,
     statusChangedAt: row.statusChangedAt,
     isOverbooking: row.isOverbooking,
@@ -67,7 +69,8 @@ function columnsOf(props: Readonly<AppointmentProps>) {
     startsAt: props.startsAt,
     endsAt: new Date(props.startsAt.getTime() + props.durationMinutes * 60_000),
     durationMinutes: props.durationMinutes,
-    priceCents: props.priceCents,
+    priceMinor: BigInt(props.priceMinor),
+    currency: props.currency,
     status: props.status,
     statusChangedAt: props.statusChangedAt,
     isOverbooking: props.isOverbooking,

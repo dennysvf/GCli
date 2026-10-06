@@ -8,6 +8,9 @@ export type TestContext = Awaited<ReturnType<typeof patientsContext>>;
 export const VALID_CPF = "52998224725";
 export const OTHER_CPF = "11144477735";
 
+// A Brazilian CPF as the identity document of a patient.
+export const cpfDoc = (number: string) => ({ country: "BR", type: "CPF", number });
+
 export async function patientsContext(
   role: Role = "FRONT_DESK",
   organizationId?: string,
@@ -32,10 +35,17 @@ export function patientInput(overrides: Record<string, unknown> = {}) {
     socialName: null,
     birthDate: "1988-04-12",
     sex: "FEMALE",
-    cpf: null,
+    document: null,
     mobilePhone: "(11) 98888-7777",
     email: "maria@exemplo.com.br",
-    address: { cep: "01310-100", street: "Avenida Paulista", number: "1000", city: "São Paulo", state: "SP" },
+    address: {
+      country: "BR",
+      postalCode: "01310-100",
+      street: "Avenida Paulista",
+      number: "1000",
+      city: "São Paulo",
+      region: "SP",
+    },
     tagIds: [],
     guardian: null,
     ...overrides,

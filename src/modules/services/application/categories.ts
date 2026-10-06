@@ -2,10 +2,12 @@ import { authorize } from "@/shared/authz/guard";
 import { diffChanges } from "@/shared/audit/diff";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
+import { DEFAULT_LOCALE, isLocale } from "@/shared/i18n/locales";
+import { createTranslator } from "@/shared/i18n/translator";
 import { newId } from "@/shared/kernel/ids";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import { parseInput } from "@/shared/kernel/validation";
-import { DEFAULT_CATEGORIES, MAX_CATEGORIES } from "../domain/limits";
+import { DEFAULT_CATEGORY_KEYS, MAX_CATEGORIES } from "../domain/limits";
 import { ServicesErrors } from "./errors";
 import {
   createCategorySchema,
@@ -185,7 +187,13 @@ export async function deleteCategory(
 // Runs inside the transaction that creates the organization (OrganizationCreated subscriber).
 export async function seedDefaultCategories(uow: UnitOfWork, organizationId: string): Promise<void> {
   if ((await uow.tx.serviceCategory.count()) > 0) return;
-  for (const [index, name] of DEFAULT_CATEGORIES.entries()) {
+  // The names are created in the organization's default language (PRD F16) and are clinic data after that.
+  const organization = await uow.tx.organization.findFirst({ select: { defaultLocale: true } });
+  const t = createTranslator(
+    isLocale(organization?.defaultLocale) ? organization.defaultLocale : DEFAULT_LOCALE,
+  );
+  for (const [index, key] of DEFAULT_CATEGORY_KEYS.entries()) {
+    const name = t(`services.defaultCategories.${key}`);
     const id = newId();
     await uow.tx.serviceCategory.create({ data: { id, organizationId, name, sortOrder: index + 1 } });
     await uow.audit.record({

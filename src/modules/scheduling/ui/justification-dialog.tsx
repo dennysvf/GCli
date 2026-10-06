@@ -14,6 +14,7 @@ import { Button } from "@/shared/ui/components/button";
 import { Label } from "@/shared/ui/components/label";
 import { Textarea } from "@/shared/ui/components/textarea";
 import { JUSTIFICATION_MAX, JUSTIFICATION_MIN } from "../domain/limits";
+import { useTranslations } from "next-intl";
 
 // A confirmation that needs a written reason (spec F06: completion reversal by a manager).
 export function JustificationDialog({
@@ -33,6 +34,7 @@ export function JustificationDialog({
   onOpenChange: (open: boolean) => void;
   onConfirm: (text: string) => void;
 }) {
+  const t = useTranslations();
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   return (
@@ -43,7 +45,7 @@ export function JustificationDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <div className="grid gap-2">
-          <Label htmlFor="justification-text">Justificativa</Label>
+          <Label htmlFor="justification-text">{t("scheduling.ui.justification")}</Label>
           <Textarea
             id="justification-text"
             value={text}
@@ -59,13 +61,13 @@ export function JustificationDialog({
           ) : null}
         </div>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
           <Button
             type="button"
             disabled={pending}
             onClick={() => {
               if (text.trim().length < JUSTIFICATION_MIN) {
-                setError("Escreva de 10 a 500 caracteres.");
+                setError(t("scheduling.ui.justificationHint"));
                 return;
               }
               onConfirm(text.trim());

@@ -207,7 +207,9 @@ async function planSeries(
   const planned = expanded.value.map((item) => ({ ...item, minute: startMinute }));
   const window = windowOf(planned, durationMinutes, refs.value.unit.timeZone);
   if (!window)
-    return fail(SchedulingErrors.seriesRuleInvalid({ "recurrence.weekdays": "A série não tem sessões." }));
+    return fail(
+      SchedulingErrors.seriesRuleInvalid({ "recurrence.weekdays": "scheduling.validation.seriesEmpty" }),
+    );
   const { unit, professional, room } = refs.value;
   const context = await loadConflictContext(deps, ctx, {
     unit,
@@ -295,7 +297,8 @@ export async function bookSeries(
         roomId: refs.room?.id ?? null,
         startsAt: item.range.start,
         durationMinutes,
-        priceCents: refs.service.priceCents,
+        priceMinor: refs.priceMinor,
+        currency: refs.unit.currency,
         notes: data.notes,
         seriesId,
         seriesIndex: item.index,

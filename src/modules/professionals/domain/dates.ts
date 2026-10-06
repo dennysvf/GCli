@@ -3,7 +3,7 @@
 // live in the shared kernel since F06.
 import { addDays, isoWeekday } from "@/shared/kernel/calendar-date";
 
-export { addDays, daysBetween, formatDateBR, isoWeekday, isValidDate } from "@/shared/kernel/calendar-date";
+export { addDays, daysBetween, isoWeekday, isValidDate } from "@/shared/kernel/calendar-date";
 
 export function nextMonday(today: string): string {
   return addDays(today, 8 - isoWeekday(today));

@@ -1,41 +1,48 @@
 import { z } from "zod";
+import { SUPPORTED_LOCALES } from "@/shared/i18n/locales";
 import { ROLES } from "@/shared/kernel/roles";
-import { normalizeCnpj } from "@/shared/kernel/cnpj";
+import { COUNTRY_CODES } from "@/shared/kernel/countries/codes";
+import { isTimeZoneOf } from "@/shared/kernel/countries";
 import {
-  BRAZIL_TIME_ZONES,
   checkPassword,
   PASSWORD_MAX_LENGTH,
   SLOT_GRANULARITIES,
   type PasswordProblem,
 } from "../domain/policies";
 
-// Zod schemas shared by forms (react-hook-form) and use cases. Messages are pt-BR.
+// Zod schemas shared by forms (react-hook-form) and use cases. Messages are catalog keys
+// (identity.validation.*, ADR-028), translated where they are shown.
 const PASSWORD_MESSAGES: Record<PasswordProblem, string> = {
-  too_short: "A senha deve ter pelo menos 10 caracteres.",
-  too_long: "A senha deve ter no máximo 128 caracteres.",
-  missing_letter: "A senha deve conter pelo menos uma letra.",
-  missing_digit: "A senha deve conter pelo menos um número.",
+  too_short: "identity.validation.passwordTooShort",
+  too_long: "identity.validation.passwordTooLong",
+  missing_letter: "identity.validation.passwordMissingLetter",
+  missing_digit: "identity.validation.passwordMissingDigit",
 };
 
 export const emailSchema = z
-  .string({ error: "Informe o e-mail." })
+  .string({ error: "identity.validation.emailRequired" })
   .trim()
   .toLowerCase()
-  .max(254, "E-mail muito longo.")
-  .pipe(z.email("Informe um e-mail válido."));
+  .max(254, "identity.validation.emailTooLong")
+  .pipe(z.email("identity.validation.emailInvalid"));
 
-export const newPasswordSchema = z.string({ error: "Informe a senha." }).superRefine((value, ctx) => {
-  const problem = checkPassword(value);
-  if (problem) ctx.addIssue({ code: "custom", message: PASSWORD_MESSAGES[problem] });
-});
+export const newPasswordSchema = z
+  .string({ error: "identity.validation.passwordRequired" })
+  .superRefine((value, ctx) => {
+    const problem = checkPassword(value);
+    if (problem) ctx.addIssue({ code: "custom", message: PASSWORD_MESSAGES[problem] });
+  });
 
 const passwordsMatch = (data: { password: string; confirmPassword: string }) =>
   data.password === data.confirmPassword;
-const mismatch = { path: ["confirmPassword"], message: "As senhas não conferem." };
+const mismatch = { path: ["confirmPassword"], message: "identity.validation.passwordMismatch" };
 
 export const signInSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1, "Informe a senha.").max(PASSWORD_MAX_LENGTH, "Senha muito longa."),
+  password: z
+    .string()
+    .min(1, "identity.validation.passwordRequired")
+    .max(PASSWORD_MAX_LENGTH, "identity.validation.passwordTooLong"),
   next: z.string().max(2048).optional(),
 });
 
@@ -47,12 +54,22 @@ export const resetPasswordSchema = z
 
 export const acceptInvitationSchema = resetPasswordSchema;
 
-export const roleSchema = z.enum(ROLES, { error: "Selecione um perfil." });
+// Message keys, not text: the boundary translates them (ADR-028).
+export const localeSchema = z.enum(SUPPORTED_LOCALES, { error: "validation.localeInvalid" });
+export const setUserLocaleSchema = z.object({ locale: localeSchema });
+
+export const roleSchema = z.enum(ROLES, { error: "identity.validation.roleRequired" });
 
 export const inviteUserSchema = z.object({
-  name: z.string().trim().min(2, "Informe o nome completo.").max(150, "Nome muito longo."),
+  name: z
+    .string()
+    .trim()
+    .min(2, "identity.validation.nameRequired")
+    .max(150, "identity.validation.nameTooLong"),
   email: emailSchema,
   role: roleSchema,
+  // Language of the invitation email; omitted means the organization default.
+  locale: localeSchema.optional(),
 });
 
 export const userIdSchema = z.object({ userId: z.uuid() });
@@ -65,28 +82,41 @@ export const listUsersSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
 });
 
-export const updateOrganizationSchema = z.object({
-  legalName: z.string().trim().min(2, "Informe a razão social.").max(150, "Razão social muito longa."),
-  tradeName: z
-    .string()
-    .trim()
-    .max(150, "Nome fantasia muito longo.")
-    .nullish()
-    .transform((value) => value || null),
-  // Check digits are validated by the use case, which returns ORG_INVALID_CNPJ (spec section 5).
-  cnpj: z
-    .string()
-    .trim()
-    .nullish()
-    .transform((value) => (value ? normalizeCnpj(value) : null)),
-  timeZone: z.enum(BRAZIL_TIME_ZONES, { error: "Selecione um fuso horário." }),
-  slotGranularityMinutes: z.coerce
-    .number()
-    .refine(
-      (value) => (SLOT_GRANULARITIES as readonly number[]).includes(value),
-      "Selecione 5, 10, 15 ou 30 minutos.",
-    ),
-  version: z.coerce.number().int().min(1),
-});
+export const updateOrganizationSchema = z
+  .object({
+    legalName: z
+      .string()
+      .trim()
+      .min(2, "identity.validation.legalNameRequired")
+      .max(150, "identity.validation.legalNameTooLong"),
+    tradeName: z
+      .string()
+      .trim()
+      .max(150, "identity.validation.tradeNameTooLong")
+      .nullish()
+      .transform((value) => value || null),
+    country: z.enum(COUNTRY_CODES, { error: "validation.countryInvalid" }),
+    defaultLocale: localeSchema,
+    // Check digits are validated by the use case against the country's tax ID (TAX_ID_INVALID).
+    taxId: z
+      .string()
+      .trim()
+      .nullish()
+      .transform((value) => value || null),
+    timeZone: z.string().min(1, "identity.validation.timeZoneRequired"),
+    slotGranularityMinutes: z.coerce
+      .number()
+      .refine(
+        (value) => (SLOT_GRANULARITIES as readonly number[]).includes(value),
+        "identity.validation.slotInvalid",
+      ),
+    version: z.coerce.number().int().min(1),
+  })
+  // The time zone must belong to the headquarters country (PRD F16).
+  .superRefine((value, ctx) => {
+    if (!isTimeZoneOf(value.country, value.timeZone)) {
+      ctx.addIssue({ code: "custom", path: ["timeZone"], message: "identity.validation.timeZoneRequired" });
+    }
+  });
 
 export type UpdateOrganizationInput = z.input<typeof updateOrganizationSchema>;

@@ -94,10 +94,10 @@ export async function createTimeOff(
   switch (checkTimeOff(range, now)) {
     case "TOO_SHORT":
       return fail(
-        ProfessionalsErrors.validation({ endsAt: "O fim da ausência deve ser posterior ao início." }),
+        ProfessionalsErrors.validation({ endsAt: "professionals.validation.timeOffEndAfterStart" }),
       );
     case "ENDS_IN_PAST":
-      return fail(ProfessionalsErrors.validation({ endsAt: "A ausência não pode terminar no passado." }));
+      return fail(ProfessionalsErrors.validation({ endsAt: "professionals.validation.timeOffEndsInPast" }));
     case "TOO_FAR":
       return fail(ProfessionalsErrors.timeOffTooFar());
     default:

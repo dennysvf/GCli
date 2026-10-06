@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { interpolate, type ActionResult } from "@/shared/kernel/action-result";
-import { formatCents } from "@/shared/kernel/money";
+import type { ActionResult } from "@/shared/kernel/action-result";
+import { useLocale } from "next-intl";
+import { formatLocale, formatMoney } from "@/shared/i18n/format";
+import type { Locale } from "@/shared/i18n/locales";
+import type { CountryCode, Currency } from "@/shared/kernel/countries/codes";
 import { Button } from "@/shared/ui/components/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/shared/ui/components/sheet";
 import { Stamp } from "@/shared/ui/components/stamp";
@@ -15,15 +18,15 @@ import type { CancellationReasonItem } from "../application/cancellation-reasons
 import type { AppointmentDetails } from "../application/queries";
 import type { SeriesPreview } from "../application/series";
 import { withinUndoWindow } from "../domain/agenda-time";
-import { CANCELLATION_ORIGIN_LABELS, type CancellationOrigin } from "../domain/appointment";
-import { isOpen, nextStatuses, STATUS_LABELS, type AppointmentStatus } from "../domain/status";
-import { SCHEDULING_TOASTS } from "../messages";
+import type { CancellationOrigin } from "../domain/appointment";
+import { isOpen, nextStatuses, type AppointmentStatus } from "../domain/status";
 import { CancelForm } from "./cancel-form";
 import { ChangeForm, type ChangeKind } from "./change-form";
-import { dateTimeOf, longDate, localParts, STATUS_STAMPS, statusText, timeRange } from "./format";
+import { localParts, STATUS_STAMPS, useAgendaFormat } from "./format";
 import { JustificationDialog } from "./justification-dialog";
 import { SeriesScopeDialog, type SeriesScope } from "./series-scope-dialog";
 import type { ServiceOption } from "./booking-panel";
+import { useTranslations } from "next-intl";
 
 export type AppointmentActions = {
   get: (appointmentId: string) => Promise<ActionResult<AppointmentDetails>>;
@@ -43,13 +46,17 @@ export type Permissions = {
 };
 
 // Button text per target status (PRD F06 lifecycle; "desfazer" for the backward moves).
-function transitionLabel(from: AppointmentStatus, to: AppointmentStatus): string {
-  if (to === "CONFIRMED") return from === "CHECKED_IN" ? "Desfazer chegada" : "Confirmar";
-  if (to === "SCHEDULED") return "Desfazer confirmação";
-  if (to === "CHECKED_IN") return "Chegou";
-  if (to === "IN_PROGRESS") return from === "COMPLETED" ? "Reabrir atendimento" : "Iniciar atendimento";
-  if (to === "COMPLETED") return "Concluir";
-  return "Faltou";
+function transitionLabel(from: AppointmentStatus, to: AppointmentStatus, t: (key: string) => string): string {
+  if (to === "CONFIRMED")
+    return from === "CHECKED_IN"
+      ? t("scheduling.ui.transitions.undoArrival")
+      : t("scheduling.ui.transitions.confirm");
+  if (to === "SCHEDULED") return t("scheduling.ui.transitions.undoConfirmation");
+  if (to === "CHECKED_IN") return t("scheduling.ui.transitions.checkIn");
+  if (to === "IN_PROGRESS")
+    return from === "COMPLETED" ? t("scheduling.ui.reopen") : t("scheduling.ui.transitions.start");
+  if (to === "COMPLETED") return t("scheduling.ui.transitions.complete");
+  return t("scheduling.ui.transitions.noShow");
 }
 
 type Mode =
@@ -63,6 +70,7 @@ export function AppointmentPanel({
   appointmentId,
   initialAction,
   granularity,
+  country,
   services,
   reasons,
   permissions,
@@ -73,6 +81,8 @@ export function AppointmentPanel({
   appointmentId: string;
   initialAction?: "reschedule";
   granularity: number;
+  // The country of the unit decides the regional format of the price.
+  country: CountryCode;
   services: ServiceOption[];
   reasons: CancellationReasonItem[];
   permissions: Permissions;
@@ -80,6 +90,9 @@ export function AppointmentPanel({
   onChanged: () => void;
   onClose: () => void;
 }) {
+  const fmt = useAgendaFormat();
+  const t = useTranslations();
+  const locale = useLocale() as Locale;
   const [details, setDetails] = useState<AppointmentDetails | null>(null);
   const [missing, setMissing] = useState(false);
   const [mode, setMode] = useState<Mode>({ kind: "details" });
@@ -143,7 +156,7 @@ export function AppointmentPanel({
         return;
       }
       setRevert(false);
-      toast.success(interpolate(SCHEDULING_TOASTS.statusChanged, { status: STATUS_LABELS[to] }));
+      toast.success(t("scheduling.ui.toasts.statusChanged", { status: fmt.statusLabel(to) }));
       await load();
       onChanged();
     });
@@ -171,61 +184,73 @@ export function AppointmentPanel({
       <SheetContent className="overflow-y-auto">
         {missing ? (
           <SheetHeader>
-            <SheetTitle>Agendamento não encontrado</SheetTitle>
-            <SheetDescription>Ele pode ter sido removido da sua agenda.</SheetDescription>
+            <SheetTitle>{t("scheduling.ui.appointmentNotFound")}</SheetTitle>
+            <SheetDescription>{t("scheduling.ui.appointmentNotFoundHint")}</SheetDescription>
           </SheetHeader>
         ) : !details ? (
           <SheetHeader>
-            <SheetTitle>Carregando agendamento...</SheetTitle>
+            <SheetTitle>{t("scheduling.ui.appointmentLoading")}</SheetTitle>
           </SheetHeader>
         ) : (
           <>
             <SheetHeader>
               <SheetTitle className="flex flex-wrap items-center gap-2">
                 {details.patient.displayName}
-                <Stamp variant={STATUS_STAMPS[details.status]}>{statusText(details.status)}</Stamp>
-                {details.isOverbooking ? <Stamp variant="warning">ENCAIXE</Stamp> : null}
+                <Stamp variant={STATUS_STAMPS[details.status]}>{fmt.statusText(details.status)}</Stamp>
+                {details.isOverbooking ? (
+                  <Stamp variant="warning">{t("scheduling.ui.overbookingTag")}</Stamp>
+                ) : null}
               </SheetTitle>
               <SheetDescription>
-                {longDate(localParts(details.startsAt, zone).date)} ·{" "}
-                {timeRange(details.startsAt, details.endsAt, zone)} · {details.unitName}
+                {fmt.longDate(localParts(details.startsAt, zone).date)} ·{" "}
+                {fmt.timeRange(details.startsAt, details.endsAt, zone)} · {details.unitName}
               </SheetDescription>
             </SheetHeader>
             <div className="grid gap-6 px-6 pb-6">
               {mode.kind === "details" ? (
                 <>
                   <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-                    <dt className="text-muted-foreground">Serviço</dt>
+                    <dt className="text-muted-foreground">{t("common.service")}</dt>
                     <dd>{details.service.name}</dd>
-                    <dt className="text-muted-foreground">Profissional</dt>
+                    <dt className="text-muted-foreground">{t("common.professional")}</dt>
                     <dd>{details.professional.displayName}</dd>
-                    <dt className="text-muted-foreground">Sala</dt>
-                    <dd>{details.room?.name ?? "Sem sala"}</dd>
-                    <dt className="text-muted-foreground">Valor</dt>
-                    <dd className="tabular-nums">{formatCents(details.priceCents)}</dd>
+                    <dt className="text-muted-foreground">{t("common.room")}</dt>
+                    <dd>{details.room?.name ?? t("scheduling.ui.noRoom")}</dd>
+                    <dt className="text-muted-foreground">{t("scheduling.ui.amount")}</dt>
+                    <dd className="tabular-nums">
+                      {formatMoney(
+                        {
+                          amountMinor: details.price.amountMinor,
+                          currency: details.price.currency as Currency,
+                        },
+                        formatLocale(locale, country),
+                      )}
+                    </dd>
                     {details.seriesIndex ? (
                       <>
-                        <dt className="text-muted-foreground">Série</dt>
-                        <dd>Sessão {details.seriesIndex}</dd>
+                        <dt className="text-muted-foreground">{t("scheduling.ui.series")}</dt>
+                        <dd>
+                          {t("scheduling.ui.session")} {details.seriesIndex}
+                        </dd>
                       </>
                     ) : null}
                     {details.notes ? (
                       <>
-                        <dt className="text-muted-foreground">Observações</dt>
+                        <dt className="text-muted-foreground">{t("common.notes")}</dt>
                         <dd className="whitespace-pre-wrap">{details.notes}</dd>
                       </>
                     ) : null}
                     {details.exceptionJustification ? (
                       <>
-                        <dt className="text-muted-foreground">Exceção</dt>
+                        <dt className="text-muted-foreground">{t("scheduling.ui.exception")}</dt>
                         <dd>{details.exceptionJustification}</dd>
                       </>
                     ) : null}
                     {details.cancellation ? (
                       <>
-                        <dt className="text-muted-foreground">Cancelamento</dt>
+                        <dt className="text-muted-foreground">{t("scheduling.ui.cancellation")}</dt>
                         <dd>
-                          {CANCELLATION_ORIGIN_LABELS[details.cancellation.origin as CancellationOrigin]} ·{" "}
+                          {t(`scheduling.ui.origins.${details.cancellation.origin as CancellationOrigin}`)} ·{" "}
                           {details.cancellation.reasonName}
                           {details.cancellation.note ? ` · ${details.cancellation.note}` : ""}
                         </dd>
@@ -244,20 +269,20 @@ export function AppointmentPanel({
                           disabled={pending}
                           onClick={() => move(to)}
                         >
-                          {transitionLabel(details.status, to)}
+                          {transitionLabel(details.status, to, t)}
                         </Button>
                       ))}
                   </div>
                   {permissions.canManage && isOpen(details.status) ? (
                     <div className="flex flex-wrap gap-2">
                       <Button type="button" variant="ghost" onClick={() => start("reschedule")}>
-                        Reagendar
+                        {t("common.reschedule")}
                       </Button>
                       <Button type="button" variant="ghost" onClick={() => start("edit")}>
-                        Editar
+                        {t("common.edit")}
                       </Button>
                       <Button type="button" variant="ghost" onClick={() => start("cancel")}>
-                        Cancelar agendamento
+                        {t("scheduling.ui.cancelAppointment")}
                       </Button>
                     </div>
                   ) : null}
@@ -265,18 +290,18 @@ export function AppointmentPanel({
                     href={`/patients/${details.patient.id}`}
                     className="text-primary text-sm hover:underline"
                   >
-                    Abrir cadastro do paciente
+                    {t("scheduling.ui.openPatient")}
                   </Link>
 
                   <section className="grid gap-2">
-                    <h3 className="section-title">Histórico</h3>
+                    <h3 className="section-title">{t("scheduling.ui.history")}</h3>
                     <div className="border-y">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Data e hora</TableHead>
-                            <TableHead>Por</TableHead>
+                            <TableHead>{t("common.status")}</TableHead>
+                            <TableHead>{t("scheduling.ui.dateTime")}</TableHead>
+                            <TableHead>{t("scheduling.ui.by")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -284,7 +309,7 @@ export function AppointmentPanel({
                             <TableRow key={`${row.changedAt}-${index}`}>
                               <TableCell>
                                 <Stamp variant={STATUS_STAMPS[row.toStatus]}>
-                                  {statusText(row.toStatus)}
+                                  {fmt.statusText(row.toStatus)}
                                 </Stamp>
                                 {row.justification ? (
                                   <span className="text-muted-foreground block text-xs">
@@ -293,7 +318,7 @@ export function AppointmentPanel({
                                 ) : null}
                               </TableCell>
                               <TableCell className="tabular-nums">
-                                {dateTimeOf(row.changedAt, zone)}
+                                {fmt.dateTimeOf(row.changedAt, zone)}
                               </TableCell>
                               <TableCell>{row.changedByName}</TableCell>
                             </TableRow>
@@ -305,9 +330,18 @@ export function AppointmentPanel({
                       <ul className="text-muted-foreground grid gap-1 text-xs">
                         {details.reschedules.map((row, index) => (
                           <li key={`${row.rescheduledAt}-${index}`}>
-                            Reagendado em {dateTimeOf(row.rescheduledAt, zone)} por {row.rescheduledByName};
-                            antes: {dateTimeOf(row.previousStartsAt, zone)} com {row.previousProfessionalName}
-                            {row.previousRoomName ? `, ${row.previousRoomName}` : ""}.
+                            {t(
+                              row.previousRoomName
+                                ? "scheduling.ui.rescheduledEntryRoom"
+                                : "scheduling.ui.rescheduledEntry",
+                              {
+                                at: fmt.dateTimeOf(row.rescheduledAt, zone),
+                                by: row.rescheduledByName,
+                                previous: fmt.dateTimeOf(row.previousStartsAt, zone),
+                                professional: row.previousProfessionalName,
+                                room: row.previousRoomName ?? "",
+                              },
+                            )}
                           </li>
                         ))}
                       </ul>
@@ -320,7 +354,7 @@ export function AppointmentPanel({
                   scope={mode.scope}
                   reasons={reasons}
                   cancel={actions.cancel}
-                  onCancelled={() => done(SCHEDULING_TOASTS.cancelled)}
+                  onCancelled={() => done(t("scheduling.ui.toasts.cancelled"))}
                   onBack={() => setMode({ kind: "details" })}
                 />
               ) : (
@@ -333,7 +367,9 @@ export function AppointmentPanel({
                   actions={actions}
                   onSaved={() =>
                     done(
-                      mode.change === "reschedule" ? SCHEDULING_TOASTS.rescheduled : SCHEDULING_TOASTS.saved,
+                      mode.change === "reschedule"
+                        ? t("scheduling.ui.toasts.rescheduled")
+                        : t("scheduling.ui.toasts.saved"),
                     )
                   }
                   onBack={() => setMode({ kind: "details" })}
@@ -352,9 +388,9 @@ export function AppointmentPanel({
             />
             <JustificationDialog
               open={revert}
-              title="Reabrir atendimento"
-              description="Explique por que o atendimento concluído será reaberto."
-              confirmLabel="Reabrir atendimento"
+              title={t("scheduling.ui.reopen")}
+              description={t("scheduling.ui.reopenHint")}
+              confirmLabel={t("scheduling.ui.reopen")}
               pending={pending}
               onOpenChange={setRevert}
               onConfirm={(text) => move("IN_PROGRESS", text)}

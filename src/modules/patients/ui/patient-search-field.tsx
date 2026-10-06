@@ -6,17 +6,15 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Input } from "@/shared/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 import type { PatientStatusFilter } from "../application/schemas";
+import { useTranslations } from "next-intl";
 
 const SEARCH_DELAY_MS = 300;
 
-const STATUS_LABELS: Record<PatientStatusFilter, string> = {
-  active: "Ativos",
-  inactive: "Inativos",
-  all: "Todos",
-};
+const STATUS_FILTERS: PatientStatusFilter[] = ["active", "inactive", "all"];
 
 // Search and status filter bound to the URL, so the results page stays a Server Component.
 export function PatientSearchField({ q, status }: { q: string; status: PatientStatusFilter }) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -52,8 +50,8 @@ export function PatientSearchField({ q, status }: { q: string; status: PatientSt
         <Search className="text-muted-foreground absolute top-2.5 left-2.5 size-4" aria-hidden />
         <Input
           type="search"
-          aria-label="Buscar por nome, CPF ou telefone"
-          placeholder="Nome, CPF ou telefone"
+          aria-label={t("patients.ui.searchByNameDocumentPhone")}
+          placeholder={t("patients.ui.nameDocumentPhone")}
           className="pl-8"
           value={text}
           onChange={(event) => setText(event.target.value)}
@@ -63,13 +61,13 @@ export function PatientSearchField({ q, status }: { q: string; status: PatientSt
         value={status}
         onValueChange={(value) => apply({ status: value === "active" ? undefined : value })}
       >
-        <SelectTrigger className="w-36" aria-label="Status">
+        <SelectTrigger className="w-36" aria-label={t("common.status")}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {(Object.keys(STATUS_LABELS) as PatientStatusFilter[]).map((value) => (
+          {STATUS_FILTERS.map((value) => (
             <SelectItem key={value} value={value}>
-              {STATUS_LABELS[value]}
+              {t(`common.statusFilter.${value}`)}
             </SelectItem>
           ))}
         </SelectContent>

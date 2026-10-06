@@ -26,7 +26,7 @@ export function serviceInput(categoryId: string, overrides: Record<string, unkno
     categoryId,
     description: "Avaliação da pele",
     durationMinutes: 30,
-    priceCents: 25000,
+    prices: [{ currency: "BRL", amountMinor: 25000 }],
     color: "blue",
     requiresRoom: false,
     allowedRoomIds: [],
@@ -56,3 +56,6 @@ export async function createUnitWithRooms(ctx: TestContext, unitName: string, ro
   }
   return { unitId: unit.value.unitId, roomIds };
 }
+
+// One price in reais, in minor units.
+export const brl = (amountMinor: number) => [{ currency: "BRL", amountMinor }];

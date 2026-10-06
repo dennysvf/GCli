@@ -1,12 +1,12 @@
 "use server";
 
-import { identity, identityMessages } from "@/modules/identity";
+import { identity } from "@/modules/identity";
 import { withRequestContext } from "@/modules/identity/next";
 import { toActionResult } from "@/shared/kernel/action-result";
 
 export async function updateOrganizationAction(input: unknown) {
   return withRequestContext(async (ctx) =>
-    toActionResult(await identity.updateOrganization(ctx, input), identityMessages),
+    toActionResult(await identity.updateOrganization(ctx, input), ctx.locale, "identity"),
   );
 }
 
@@ -15,12 +15,16 @@ export async function uploadOrganizationLogoAction(data: FormData) {
     const file = data.get("file");
     const bytes = file instanceof File ? new Uint8Array(await file.arrayBuffer()) : new Uint8Array();
     const type = file instanceof File ? file.type : "";
-    return toActionResult(await identity.uploadOrganizationLogo(ctx, { bytes, type }), identityMessages);
+    return toActionResult(
+      await identity.uploadOrganizationLogo(ctx, { bytes, type }),
+      ctx.locale,
+      "identity",
+    );
   });
 }
 
 export async function removeOrganizationLogoAction() {
   return withRequestContext(async (ctx) =>
-    toActionResult(await identity.removeOrganizationLogo(ctx), identityMessages),
+    toActionResult(await identity.removeOrganizationLogo(ctx), ctx.locale, "identity"),
   );
 }

@@ -5,7 +5,6 @@ import { useState, useTransition } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import type { z } from "zod";
 import type { ActionResult } from "@/shared/kernel/action-result";
-import { formatCents } from "@/shared/kernel/money";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,16 +24,23 @@ import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { HydratedFieldset } from "@/shared/ui/forms/hydrated-fieldset";
 import { MoneyInput } from "@/shared/ui/forms/money-input";
+import { useLocale } from "next-intl";
+import { formatLocale, formatMoney } from "@/shared/i18n/format";
+import type { Locale } from "@/shared/i18n/locales";
+import type { CountryCode, Currency } from "@/shared/kernel/countries";
 import { useFormDraft } from "@/shared/ui/forms/use-form-draft";
 import { createServiceSchema } from "../application/schemas";
 import type { SaveServiceResult, ServiceDetails } from "../application/services";
 import type { ServiceColor } from "../domain/palette";
 import { DURATION_OPTIONS, formatDuration } from "../domain/service-rules";
-import { SERVICES_PRICE_CHANGE_CONFIRMATION } from "../messages";
 import { ColorPicker } from "@/shared/ui/palette/color-picker";
+import { useTranslations } from "next-intl";
 
 type Values = z.input<typeof createServiceSchema>;
 type Parsed = z.output<typeof createServiceSchema>;
+
+// A currency the service is priced in, with the country that decides its regional number format.
+export type PriceCurrency = { currency: Currency; country: CountryCode | null };
 
 export type SelectableRoom = { id: string; name: string; unitId: string; unitName: string };
 
@@ -50,11 +56,28 @@ function groupByUnit(rooms: SelectableRoom[]) {
   return [...units.entries()].map(([unitId, unit]) => ({ unitId, ...unit }));
 }
 
+// "R$ 250,00 → R$ 280,00; € 60,00 → € 65,00": only the prices that changed.
+function priceChangeSummary(
+  before: ServiceDetails["prices"],
+  after: ServiceDetails["prices"],
+  locale: Locale,
+): string {
+  return after
+    .flatMap((price) => {
+      const old = before.find((item) => item.currency === price.currency);
+      if (old?.amountMinor === price.amountMinor) return [];
+      const next = formatMoney(price, formatLocale(locale, null));
+      return [old ? `${formatMoney(old, formatLocale(locale, null))} → ${next}` : next];
+    })
+    .join("; ");
+}
+
 export function ServiceForm({
   service,
   categories,
   rooms,
   defaultColor,
+  currencies,
   readOnly = false,
   action,
   createCategoryAction,
@@ -64,6 +87,8 @@ export function ServiceForm({
   categories: { id: string; name: string }[];
   rooms: SelectableRoom[];
   defaultColor: ServiceColor;
+  // Currencies of the active units: each one needs a price (PRD F16).
+  currencies: PriceCurrency[];
   readOnly?: boolean;
   action: (
     input: Parsed & { serviceId?: string; version?: number },
@@ -71,18 +96,31 @@ export function ServiceForm({
   createCategoryAction: (input: { name: string }) => Promise<ActionResult<{ categoryId: string }>>;
   onSaved: (serviceId: string) => void;
 }) {
+  const t = useTranslations();
   const [pending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState<Parsed | null>(null);
   const [addedCategories, setAddedCategories] = useState<{ id: string; name: string }[]>([]);
   const [newCategory, setNewCategory] = useState<string | null>(null);
   const [newCategoryError, setNewCategoryError] = useState<string | undefined>();
 
+  // The currencies in use plus any other price the service already has, in a stable order.
+  const priceCurrencies: PriceCurrency[] = [
+    ...currencies,
+    ...(service?.prices ?? [])
+      .filter((price) => !currencies.some((item) => item.currency === price.currency))
+      .map((price) => ({ currency: price.currency, country: null })),
+  ];
+  const locale = useLocale() as Locale;
+
   const defaults: Values = {
     name: service?.name ?? "",
     categoryId: service?.categoryId ?? categories[0]?.id ?? "",
     description: service?.description ?? "",
     durationMinutes: service?.durationMinutes ?? 30,
-    priceCents: service?.priceCents ?? 0,
+    prices: priceCurrencies.map(({ currency }) => ({
+      currency,
+      amountMinor: service?.prices.find((price) => price.currency === currency)?.amountMinor ?? 0,
+    })),
     color: service?.color ?? defaultColor,
     requiresRoom: service?.requiresRoom ?? false,
     allowedRoomIds: service?.allowedRoomIds ?? [],
@@ -104,7 +142,13 @@ export function ServiceForm({
       const result = await action(
         service ? { ...values, serviceId: service.id, version: service.version } : values,
       );
-      if (handleActionResult(result, { setError: form.setError, successMessage: "Serviço salvo" })) {
+      // Server errors name a price by its currency ("prices.EUR"); the form lists them by position.
+      const setError: typeof form.setError = (name, error, options) => {
+        const currency = /^prices\.([A-Z]{3})$/.exec(name)?.[1];
+        const index = priceCurrencies.findIndex((item) => item.currency === currency);
+        form.setError(index >= 0 ? `prices.${index}.amountMinor` : name, error, options);
+      };
+      if (handleActionResult(result, { setError, successMessage: t("services.ui.serviceSaved") })) {
         draft.clear();
         onSaved(result.data.serviceId);
       }
@@ -113,7 +157,13 @@ export function ServiceForm({
 
   // PRD F03: after a price change the user is told existing appointments keep their price.
   const onSubmit = form.handleSubmit((values) => {
-    if (service && values.priceCents !== service.priceCents) setConfirming(values);
+    const changed =
+      !!service &&
+      values.prices.some(
+        (price) =>
+          service.prices.find((old) => old.currency === price.currency)?.amountMinor !== price.amountMinor,
+      );
+    if (changed) setConfirming(values);
     else save(values);
   });
 
@@ -135,7 +185,7 @@ export function ServiceForm({
   return (
     <form onSubmit={onSubmit} className="grid gap-4" noValidate>
       <HydratedFieldset disabled={readOnly}>
-        <Field id="service-name" label="Nome" error={errors.name?.message}>
+        <Field id="service-name" label={t("common.name")} error={errors.name?.message}>
           <Input
             id="service-name"
             defaultValue={defaults.name}
@@ -145,7 +195,7 @@ export function ServiceForm({
           />
         </Field>
 
-        <Field id="service-category" label="Categoria" error={errors.categoryId?.message}>
+        <Field id="service-category" label={t("common.category")} error={errors.categoryId?.message}>
           <Controller
             control={form.control}
             name="categoryId"
@@ -159,7 +209,7 @@ export function ServiceForm({
                 }}
               >
                 <SelectTrigger id="service-category" className="w-full" aria-invalid={!!errors.categoryId}>
-                  <SelectValue placeholder="Selecione a categoria" />
+                  <SelectValue placeholder={t("services.ui.selectCategory")} />
                 </SelectTrigger>
                 <SelectContent>
                   {allCategories.map((category) => (
@@ -167,14 +217,16 @@ export function ServiceForm({
                       {category.name}
                     </SelectItem>
                   ))}
-                  {readOnly ? null : <SelectItem value={NEW_CATEGORY}>+ Nova categoria</SelectItem>}
+                  {readOnly ? null : (
+                    <SelectItem value={NEW_CATEGORY}>{t("services.ui.addNewCategory")}</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             )}
           />
         </Field>
         {newCategory !== null ? (
-          <Field id="service-new-category" label="Nova categoria" error={newCategoryError}>
+          <Field id="service-new-category" label={t("services.ui.newCategory")} error={newCategoryError}>
             <div className="flex gap-2">
               <Input
                 id="service-new-category"
@@ -190,16 +242,20 @@ export function ServiceForm({
                 }}
               />
               <Button type="button" variant="secondary" disabled={pending} onClick={addCategory}>
-                Adicionar
+                {t("common.add")}
               </Button>
               <Button type="button" variant="ghost" onClick={() => setNewCategory(null)}>
-                Cancelar
+                {t("common.cancel")}
               </Button>
             </div>
           </Field>
         ) : null}
 
-        <Field id="service-description" label="Descrição (opcional)" error={errors.description?.message}>
+        <Field
+          id="service-description"
+          label={t("common.descriptionOptional")}
+          error={errors.description?.message}
+        >
           <Textarea
             id="service-description"
             rows={3}
@@ -211,7 +267,11 @@ export function ServiceForm({
         </Field>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="service-duration" label="Duração" error={errors.durationMinutes?.message}>
+          <Field
+            id="service-duration"
+            label={t("services.ui.duration")}
+            error={errors.durationMinutes?.message}
+          >
             <Controller
               control={form.control}
               name="durationMinutes"
@@ -235,25 +295,41 @@ export function ServiceForm({
               )}
             />
           </Field>
-          <Field id="service-price" label="Preço" error={errors.priceCents?.message}>
-            <Controller
-              control={form.control}
-              name="priceCents"
-              render={({ field }) => (
-                <MoneyInput
-                  id="service-price"
-                  readOnly={readOnly}
-                  aria-invalid={!!errors.priceCents}
-                  value={field.value}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {priceCurrencies.map(({ currency, country }, index) => {
+            const message = errors.prices?.[index]?.amountMinor?.message;
+            return (
+              <Field
+                key={currency}
+                id={`service-price-${currency}`}
+                label={
+                  priceCurrencies.length > 1 ? t("services.ui.priceIn", { currency }) : t("services.ui.price")
+                }
+                error={message}
+              >
+                <Controller
+                  control={form.control}
+                  name={`prices.${index}.amountMinor`}
+                  render={({ field }) => (
+                    <MoneyInput
+                      id={`service-price-${currency}`}
+                      readOnly={readOnly}
+                      aria-invalid={!!message}
+                      currency={currency}
+                      country={country}
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                    />
+                  )}
                 />
-              )}
-            />
-          </Field>
+              </Field>
+            );
+          })}
         </div>
 
-        <Field id="service-color" label="Cor na agenda" error={errors.color?.message}>
+        <Field id="service-color" label={t("services.ui.agendaColor")} error={errors.color?.message}>
           <Controller
             control={form.control}
             name="color"
@@ -271,11 +347,9 @@ export function ServiceForm({
         <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
           <div className="grid gap-1">
             <label htmlFor="service-requires-room" className="text-sm font-medium">
-              Exige sala
+              {t("services.ui.requiresRoom")}
             </label>
-            <span className="text-muted-foreground text-xs">
-              O agendamento deste serviço precisará de uma sala.
-            </span>
+            <span className="text-muted-foreground text-xs">{t("services.ui.requiresRoomHint")}</span>
           </div>
           <Controller
             control={form.control}
@@ -297,17 +371,15 @@ export function ServiceForm({
 
         {requiresRoom ? (
           <fieldset className="grid gap-3 rounded-lg border p-3">
-            <legend className="px-1 text-sm font-medium">Salas permitidas</legend>
-            <p className="text-muted-foreground text-xs">
-              Em cada unidade, se nenhuma sala for marcada, qualquer sala ativa poderá ser usada.
-            </p>
+            <legend className="px-1 text-sm font-medium">{t("services.ui.allowedRooms")}</legend>
+            <p className="text-muted-foreground text-xs">{t("services.ui.allowedRoomsHint")}</p>
             {errors.allowedRoomIds?.message ? (
               <p role="alert" className="text-destructive text-sm">
                 {errors.allowedRoomIds.message}
               </p>
             ) : null}
             {rooms.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nenhuma sala ativa cadastrada.</p>
+              <p className="text-muted-foreground text-sm">{t("services.ui.noActiveRooms")}</p>
             ) : (
               <Controller
                 control={form.control}
@@ -351,7 +423,7 @@ export function ServiceForm({
         {readOnly ? null : (
           <div>
             <Button type="submit" disabled={pending}>
-              {pending ? "Salvando..." : service ? "Salvar" : "Criar serviço"}
+              {pending ? t("common.saving") : service ? t("common.save") : t("services.ui.createService")}
             </Button>
           </div>
         )}
@@ -360,23 +432,23 @@ export function ServiceForm({
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Alterar preço</AlertDialogTitle>
+            <AlertDialogTitle>{t("services.ui.changePrice")}</AlertDialogTitle>
             <AlertDialogDescription>
               {service && confirming
-                ? `${formatCents(service.priceCents)} → ${formatCents(confirming.priceCents)}. `
+                ? `${priceChangeSummary(service.prices, confirming.prices, locale)}. `
                 : null}
-              {SERVICES_PRICE_CHANGE_CONFIRMATION}
+              {t("services.ui.priceChangeNote")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (confirming) save(confirming);
                 setConfirming(null);
               }}
             >
-              Salvar novo preço
+              {t("services.ui.saveNewPrice")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

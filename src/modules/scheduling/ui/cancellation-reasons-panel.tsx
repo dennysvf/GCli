@@ -11,6 +11,7 @@ import { Field } from "@/shared/ui/forms/field";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import type { CancellationReasonItem } from "../application/cancellation-reasons";
 import { REASON_NAME_MAX } from "../domain/limits";
+import { useTranslations } from "next-intl";
 
 // The configurable list of cancellation reasons (PRD F06), managed like the F05 lists: reasons are
 // renamed or deactivated, never deleted, so cancelled appointments keep showing theirs.
@@ -25,6 +26,7 @@ export function CancellationReasonsPanel({
     setActive: (input: { id: string; active: boolean }) => Promise<ActionResult<void>>;
   };
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState("");
@@ -48,7 +50,7 @@ export function CancellationReasonsPanel({
   return (
     <section aria-labelledby="reasons-title" className="grid gap-3">
       <h2 id="reasons-title" className="section-title">
-        Motivos de cancelamento
+        {t("scheduling.ui.cancellationReasons")}
       </h2>
       <form
         className="flex flex-wrap items-end gap-2"
@@ -61,26 +63,26 @@ export function CancellationReasonsPanel({
           );
         }}
       >
-        <Field id="reason-name" label="Novo motivo" error={error}>
+        <Field id="reason-name" label={t("scheduling.ui.newReason")} error={error}>
           <Input
             id="reason-name"
             className="w-72"
             maxLength={REASON_NAME_MAX}
-            placeholder="Ex.: Chuva forte"
+            placeholder={t("scheduling.ui.reasonPlaceholder")}
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
         </Field>
         <Button type="submit" variant="outline" disabled={pending || !name.trim()}>
-          Adicionar
+          {t("common.add")}
         </Button>
       </form>
       <div className="border-y">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Motivo</TableHead>
-              <TableHead className="w-24">Status</TableHead>
+              <TableHead>{t("common.reason")}</TableHead>
+              <TableHead className="w-24">{t("common.status")}</TableHead>
               <TableHead className="w-56" />
             </TableRow>
           </TableHeader>
@@ -90,7 +92,7 @@ export function CancellationReasonsPanel({
                 <TableCell className={item.active ? "" : "text-muted-foreground"}>
                   {editing?.id === item.id ? (
                     <Input
-                      aria-label={`Novo nome para ${item.name}`}
+                      aria-label={t("common.newNameFor", { name: item.name })}
                       maxLength={REASON_NAME_MAX}
                       value={editing.name}
                       onChange={(event) => setEditing({ id: item.id, name: event.target.value })}
@@ -113,12 +115,12 @@ export function CancellationReasonsPanel({
                       onClick={() =>
                         run(
                           () => actions.rename({ id: item.id, name: editing.name }),
-                          "Motivo renomeado.",
+                          t("scheduling.ui.reasonRenamed"),
                           () => setEditing(null),
                         )
                       }
                     >
-                      Salvar nome
+                      {t("common.saveName")}
                     </Button>
                   ) : (
                     <Button
@@ -126,7 +128,7 @@ export function CancellationReasonsPanel({
                       size="sm"
                       onClick={() => setEditing({ id: item.id, name: item.name })}
                     >
-                      Renomear
+                      {t("common.rename")}
                     </Button>
                   )}
                   <Button
@@ -136,11 +138,13 @@ export function CancellationReasonsPanel({
                     onClick={() =>
                       run(
                         () => actions.setActive({ id: item.id, active: !item.active }),
-                        item.active ? "Motivo desativado." : "Motivo reativado.",
+                        item.active
+                          ? t("scheduling.ui.reasonDeactivated")
+                          : t("scheduling.ui.reasonReactivated"),
                       )
                     }
                   >
-                    {item.active ? "Desativar" : "Reativar"}
+                    {item.active ? t("common.deactivate") : t("common.reactivate")}
                   </Button>
                 </TableCell>
               </TableRow>

@@ -4,28 +4,24 @@ import { renderPdf } from "@/shared/pdf/render";
 import type { DailyAgendaDocument } from "../application/ports";
 
 // The printed daily agenda (design system 5.11): one table, ink only, on the shared PDF base.
-const COLUMNS = [
-  { label: "Horário", width: "12%" },
-  { label: "Paciente", width: "22%" },
-  { label: "Telefone", width: "14%" },
-  { label: "Serviço", width: "16%" },
-  { label: "Sala", width: "9%" },
-  { label: "Status", width: "11%" },
-  { label: "Observações", width: "16%" },
-];
+const COLUMN_WIDTHS = ["12%", "22%", "14%", "16%", "9%", "11%", "16%"];
 
 function DailyAgenda({ document }: { document: DailyAgendaDocument }) {
   return (
     <PdfDocument
-      documentTitle={`Agenda de ${document.professionalName}`}
+      documentTitle={document.labels.title}
       clinicName={document.clinicName}
       logo={document.logo}
-      title={`Agenda de ${document.professionalName}`}
-      subtitle={`${document.unitName} · ${document.dateLabel} · ${document.rows.length} agendamentos`}
-      footerNote={document.generatedLabel}
+      title={document.labels.title}
+      subtitle={document.labels.subtitle}
+      footerNote={document.labels.generated}
+      pageLabel={document.labels.page}
     >
       <PdfTable
-        columns={COLUMNS}
+        columns={document.labels.columns.map((label, index) => ({
+          label,
+          width: COLUMN_WIDTHS[index] ?? "10%",
+        }))}
         rows={document.rows.map((row) => [
           row.time,
           row.patient,
@@ -35,7 +31,7 @@ function DailyAgenda({ document }: { document: DailyAgendaDocument }) {
           row.status,
           row.notes,
         ])}
-        emptyText="Nenhum agendamento neste dia."
+        emptyText={document.labels.empty}
       />
     </PdfDocument>
   );

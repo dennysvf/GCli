@@ -1,0 +1,93 @@
+import { DOCUMENT_SPECS } from "../documents";
+import { TAX_ID_SPECS } from "../tax-id";
+import type { CountryProfile, Region } from "./types";
+
+// ISO 3166-2:MX state codes.
+export const MEXICO_STATES: readonly Region[] = [
+  { code: "AGU", name: "Aguascalientes" },
+  { code: "BCN", name: "Baja California" },
+  { code: "BCS", name: "Baja California Sur" },
+  { code: "CAM", name: "Campeche" },
+  { code: "CHP", name: "Chiapas" },
+  { code: "CHH", name: "Chihuahua" },
+  { code: "CMX", name: "Ciudad de México" },
+  { code: "COA", name: "Coahuila" },
+  { code: "COL", name: "Colima" },
+  { code: "DUR", name: "Durango" },
+  { code: "GUA", name: "Guanajuato" },
+  { code: "GRO", name: "Guerrero" },
+  { code: "HID", name: "Hidalgo" },
+  { code: "JAL", name: "Jalisco" },
+  { code: "MEX", name: "Estado de México" },
+  { code: "MIC", name: "Michoacán" },
+  { code: "MOR", name: "Morelos" },
+  { code: "NAY", name: "Nayarit" },
+  { code: "NLE", name: "Nuevo León" },
+  { code: "OAX", name: "Oaxaca" },
+  { code: "PUE", name: "Puebla" },
+  { code: "QUE", name: "Querétaro" },
+  { code: "ROO", name: "Quintana Roo" },
+  { code: "SLP", name: "San Luis Potosí" },
+  { code: "SIN", name: "Sinaloa" },
+  { code: "SON", name: "Sonora" },
+  { code: "TAB", name: "Tabasco" },
+  { code: "TAM", name: "Tamaulipas" },
+  { code: "TLA", name: "Tlaxcala" },
+  { code: "VER", name: "Veracruz" },
+  { code: "YUC", name: "Yucatán" },
+  { code: "ZAC", name: "Zacatecas" },
+];
+
+export const MX: CountryProfile = {
+  code: "MX",
+  nameKey: "countries.names.MX",
+  currency: "MXN",
+  formattingRegion: "es-MX",
+  phoneCode: "52",
+  // Mexico no longer distinguishes mobile from landline numbers.
+  timeZones: [
+    "America/Mexico_City",
+    "America/Cancun",
+    "America/Merida",
+    "America/Monterrey",
+    "America/Chihuahua",
+    "America/Ciudad_Juarez",
+    "America/Hermosillo",
+    "America/Mazatlan",
+    "America/Bahia_Banderas",
+    "America/Tijuana",
+    "America/Matamoros",
+    "America/Ojinaga",
+  ],
+  defaultTimeZone: "America/Mexico_City",
+  taxId: TAX_ID_SPECS.RFC,
+  identityDocuments: [DOCUMENT_SPECS.CURP],
+  address: {
+    fields: [
+      { name: "street", labelKey: "countries.address.street", required: false },
+      { name: "number", labelKey: "countries.address.number", required: false },
+      { name: "complement", labelKey: "countries.address.complement", required: false },
+      { name: "district", labelKey: "countries.address.district.MX", required: false },
+      { name: "city", labelKey: "countries.address.city", required: false },
+    ],
+    postalCode: {
+      labelKey: "countries.address.postalCodeLabel.default",
+      pattern: /^\d{5}$/,
+      required: false,
+      normalize: (input) => input.replace(/\D/g, "").slice(0, 5),
+      format: (value) => value,
+    },
+    region: { labelKey: "countries.address.regionLabel.MX", required: false, regions: MEXICO_STATES },
+  },
+  councils: [
+    {
+      type: "CEDULA",
+      labelKey: "countries.councils.CEDULA",
+      regionRequired: false,
+      numberPattern: /^\d{7,8}$/,
+    },
+    { type: "OTHER", labelKey: "countries.councils.OTHER", regionRequired: false, needsName: true },
+  ],
+  paymentMethods: ["CASH", "SPEI", "DEBIT_CARD", "CREDIT_CARD", "TRANSFER", "OTHER"],
+  legalRulesValidated: false,
+};

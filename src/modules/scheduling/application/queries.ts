@@ -32,7 +32,7 @@ export type AgendaItem = {
   seriesId: string | null;
   seriesIndex: number | null;
   notes: string | null;
-  priceCents: number;
+  price: { amountMinor: number; currency: string };
   updatedAt: string;
   version: number;
 };
@@ -120,7 +120,7 @@ export async function toItems(
       seriesId: row.seriesId,
       seriesIndex: row.seriesIndex,
       notes: row.notes,
-      priceCents: row.priceCents,
+      price: { amountMinor: row.priceMinor, currency: row.currency },
       updatedAt: row.updatedAt.toISOString(),
       version: row.version,
     };
@@ -184,10 +184,10 @@ export async function getAgenda(
   if (!parsed.ok) return parsed;
   const data = parsed.value;
   if (data.to < data.from || daysBetween(data.from, data.to) >= AGENDA_MAX_DAYS) {
-    return fail(SchedulingErrors.validation({ to: "Informe um período de até 62 dias." }));
+    return fail(SchedulingErrors.validation({ to: "scheduling.validation.periodTooLong" }));
   }
   if (data.unitId === "all" && scope.value.kind !== "own") {
-    return fail(SchedulingErrors.validation({ unitId: "Escolha uma unidade." }));
+    return fail(SchedulingErrors.validation({ unitId: "scheduling.validation.unitRequired" }));
   }
   const [organization, allUnits] = await Promise.all([
     deps.directory.organization(ctx),
@@ -195,7 +195,7 @@ export async function getAgenda(
   ]);
   const unit = data.unitId === "all" ? null : await deps.directory.unit(ctx, data.unitId);
   if (data.unitId !== "all" && !unit)
-    return fail(SchedulingErrors.validation({ unitId: "Unidade não encontrada." }));
+    return fail(SchedulingErrors.validation({ unitId: "scheduling.validation.unitNotFound" }));
   const timeZone = unit?.timeZone ?? organization.timeZone;
   const serverTime = deps.clock();
   // Polling (`since`) returns every change in the unit, whatever the period and filters, so an
@@ -246,7 +246,7 @@ export async function listAppointments(
   if (!parsed.ok) return parsed;
   const data = parsed.value;
   if (data.to < data.from)
-    return fail(SchedulingErrors.validation({ to: "A data final deve ser depois da inicial." }));
+    return fail(SchedulingErrors.validation({ to: "scheduling.validation.endBeforeStart" }));
   const [organization, allUnits] = await Promise.all([
     deps.directory.organization(ctx),
     deps.directory.listUnits(ctx),

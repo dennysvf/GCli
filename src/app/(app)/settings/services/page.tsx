@@ -26,8 +26,12 @@ import {
   saveServiceAction,
   setServiceActiveAction,
 } from "./actions";
+import { getTranslations } from "next-intl/server";
 
-export const metadata: Metadata = { title: "Serviços" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return { title: t("common.services") };
+}
 
 const FALLBACK_TIME_ZONE = "America/Sao_Paulo";
 
@@ -36,6 +40,7 @@ function single(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function ServicesPage({ searchParams }: PageProps<"/settings/services">) {
+  const t = await getTranslations();
   const ctx = await requirePermission("setup:read");
   const params = await searchParams;
   const canManage = can(ctx, "setup:manage");
@@ -70,9 +75,17 @@ export default async function ServicesPage({ searchParams }: PageProps<"/setting
     const suggested = await services.suggestServiceColor(ctx);
     if (suggested.ok) defaultColor = suggested.value;
   }
-  const [rooms, profile] = opened
-    ? await Promise.all([units.getRooms(ctx, { activeOnly: true }), getOrganizationProfile(ctx)])
-    : [null, null];
+  const [rooms, profile, activeUnits] = opened
+    ? await Promise.all([
+        units.getRooms(ctx, { activeOnly: true }),
+        getOrganizationProfile(ctx),
+        units.listUnits(ctx, { activeOnly: true }),
+      ])
+    : [null, null, null];
+  // Each currency in use by the active units needs a price (PRD F16).
+  const currencies = [
+    ...new Map((activeUnits?.ok ? activeUnits.value : []).map((unit) => [unit.currency, unit.country])),
+  ].map(([currency, country]) => ({ currency, country }));
 
   const query = new URLSearchParams(
     Object.entries({ q: filters.search, category: filters.categoryId, status: filters.status }).flatMap(
@@ -83,7 +96,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/setting
   return (
     <div className="grid gap-6">
       <PageHeader
-        title="Serviços"
+        title={t("common.services")}
         actions={
           canManage ? (
             <>
@@ -102,7 +115,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/setting
                   scroll={false}
                 >
                   <Plus />
-                  Novo serviço
+                  {t("services.ui.newService")}
                 </Link>
               </Button>
             </>
@@ -123,6 +136,7 @@ export default async function ServicesPage({ searchParams }: PageProps<"/setting
           categories={categoryOptions}
           rooms={rooms?.ok ? rooms.value : []}
           defaultColor={defaultColor}
+          currencies={currencies}
           timeZone={profile?.ok ? profile.value.timeZone : FALLBACK_TIME_ZONE}
           canManage={canManage}
           actions={{

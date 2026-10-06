@@ -71,14 +71,8 @@ export type { ListItem } from "./application/lists";
 export type { TermsVersion } from "./application/terms";
 export type { PatientIdentity, PatientRecord, PatientSummary } from "./application/provided";
 export { LIST_KINDS, PATIENT_STATUSES, type ListKind, type PatientStatusFilter } from "./application/schemas";
-export {
-  patientsMessages,
-  PATIENTS_INCOMPLETE_RECORD,
-  PATIENTS_NOT_VISIBLE,
-  PATIENTS_POSSIBLE_DUPLICATE,
-  PATIENTS_TERMS_PUBLISHED,
-} from "./messages";
-export { CONSENT_STATUS_LABELS, type ConsentStatus } from "./domain/consent";
+export { patientsCatalog } from "./messages/catalog";
+export { type ConsentStatus } from "./domain/consent";
 export { ConsentSection } from "./ui/consent-section";
 export { GlobalPatientSearch } from "./ui/global-patient-search";
 export { ListsPanel } from "./ui/lists-panel";

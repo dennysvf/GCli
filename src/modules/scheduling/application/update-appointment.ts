@@ -1,3 +1,4 @@
+import type { Currency } from "@/shared/kernel/countries/codes";
 import { authorize } from "@/shared/authz/guard";
 import { can } from "@/shared/authz/permissions";
 import type { RequestContext } from "@/shared/context/types";
@@ -17,7 +18,7 @@ import { updateSchema } from "./schemas";
 
 export type UpdateResult = {
   appointmentId: string;
-  priceCents: number;
+  price: { amountMinor: number; currency: string };
   version: number;
   warnings: FindingDto[];
 };
@@ -49,7 +50,8 @@ export async function updateAppointment(
     roomId !== before.roomId;
 
   let decision: AvailabilityDecision | undefined;
-  let priceCents: number | undefined;
+  let priceMinor: number | undefined;
+  let currency: Currency | undefined;
   let warnings: FindingDto[] = [];
   let durationMinutes = data.durationMinutes;
   if (needsCheck) {
@@ -63,7 +65,8 @@ export async function updateAppointment(
     if (!refs.ok) return refs;
     const { unit, service, professional, room } = refs.value;
     if (serviceChanged) {
-      priceCents = service.priceCents;
+      priceMinor = refs.value.priceMinor;
+      currency = unit.currency;
       durationMinutes ??= service.durationMinutes;
     }
     const range = DateTimeRange.ofMinutes(before.startsAt, durationMinutes ?? before.durationMinutes);
@@ -96,7 +99,8 @@ export async function updateAppointment(
 
   const edited = appointment.edit({
     ...(serviceChanged && data.serviceId ? { serviceId: data.serviceId } : {}),
-    ...(priceCents !== undefined ? { priceCents } : {}),
+    ...(priceMinor !== undefined ? { priceMinor } : {}),
+    ...(currency !== undefined ? { currency } : {}),
     ...(durationMinutes !== undefined ? { durationMinutes } : {}),
     ...(roomId !== before.roomId ? { roomId } : {}),
     ...(data.notes !== undefined ? { notes: data.notes } : {}),
@@ -127,7 +131,7 @@ export async function updateAppointment(
     if (!saved.ok) return saved;
     return ok({
       appointmentId: before.id,
-      priceCents: appointment.snapshot.priceCents,
+      price: { amountMinor: appointment.snapshot.priceMinor, currency: appointment.snapshot.currency },
       version: before.version + 1,
       warnings,
     });

@@ -1,3 +1,4 @@
+import type { Currency } from "@/shared/kernel/countries/codes";
 import { authorize } from "@/shared/authz/guard";
 import { can } from "@/shared/authz/permissions";
 import type { RequestContext } from "@/shared/context/types";
@@ -13,7 +14,7 @@ import { conflictPreviewSchema } from "./schemas";
 export type ConflictPreview = {
   findings: FindingDto[];
   endsAt: string;
-  priceCents: number;
+  price: { amountMinor: number; currency: Currency };
   durationMinutes: number;
 };
 
@@ -60,7 +61,7 @@ export async function previewConflicts(
   return ok({
     findings: findingDtos(findings),
     endsAt: range.end.toISOString(),
-    priceCents: service.priceCents,
+    price: { amountMinor: refs.value.priceMinor, currency: unit.currency },
     durationMinutes,
   });
 }

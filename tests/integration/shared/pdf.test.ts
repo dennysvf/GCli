@@ -18,6 +18,7 @@ describe("shared PDF base (ADR-024)", () => {
           title: "Agenda de Dra. Ana",
           subtitle: "Unidade Centro · 06/10/2026",
           footerNote: "Gerado em 06/10/2026 08:00 por Recepção",
+          pageLabel: "Página {page} de {total}",
         },
         createElement(PdfTable, {
           columns: [

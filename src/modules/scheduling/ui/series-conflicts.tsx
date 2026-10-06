@@ -4,7 +4,9 @@ import { Button } from "@/shared/ui/components/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/components/table";
 import type { OccurrencePreview, SeriesPreview } from "../application/series";
-import { shortDate, slotTimes, weekdayShort } from "./format";
+import { slotTimes, useAgendaFormat } from "./format";
+import { useFindingText } from "./finding-text";
+import { useTranslations } from "next-intl";
 
 export type Resolution =
   { index: number; action: "SKIP" } | { index: number; action: "RETIME"; startTime: string };
@@ -22,6 +24,9 @@ export function SeriesConflicts({
   onResolve: (resolutions: Resolution[]) => void;
   granularity: number;
 }) {
+  const findingText = useFindingText();
+  const fmt = useAgendaFormat();
+  const t = useTranslations();
   const conflicting = preview.occurrences.filter((item) => item.status === "CONFLICT");
   const resolved = (index: number) => resolutions.find((item) => item.index === index);
   const set = (resolution: Resolution | null, index: number) =>
@@ -31,17 +36,21 @@ export function SeriesConflicts({
   return (
     <div className="grid gap-2" aria-live="polite">
       <p className="text-sm font-semibold">
-        {preview.conflicts} de {preview.total} sessões possuem conflito.
-        {pending === 0 && preview.conflicts > 0 ? " Todos os conflitos foram resolvidos." : ""}
+        {t(
+          pending === 0 && preview.conflicts > 0
+            ? "scheduling.ui.conflictsSummaryResolved"
+            : "scheduling.ui.conflictsSummary",
+          { conflicts: preview.conflicts, total: preview.total },
+        )}
       </p>
       <div className="border-y">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-14">Sessão</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead>Conflito</TableHead>
-              <TableHead className="w-44">Ação</TableHead>
+              <TableHead className="w-14">{t("scheduling.ui.session")}</TableHead>
+              <TableHead>{t("common.date")}</TableHead>
+              <TableHead>{t("scheduling.ui.conflict")}</TableHead>
+              <TableHead className="w-44">{t("scheduling.ui.action")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -51,15 +60,17 @@ export function SeriesConflicts({
                 <TableRow key={item.index}>
                   <TableCell className="tabular-nums">{item.index}</TableCell>
                   <TableCell className="tabular-nums">
-                    {weekdayShort(item.date)}, {shortDate(item.date)} {item.startTime}
+                    {fmt.weekdayShort(item.date)}, {fmt.shortDate(item.date)} {item.startTime}
                   </TableCell>
-                  <TableCell className="text-xs">{item.findings[0]?.message}</TableCell>
+                  <TableCell className="text-xs">
+                    {item.findings[0] ? findingText(item.findings[0]) : null}
+                  </TableCell>
                   <TableCell>
                     {decision?.action === "SKIP" ? (
                       <span className="text-sm">
-                        Pulada{" "}
+                        {t("scheduling.ui.skipped")}{" "}
                         <Button type="button" variant="link" size="sm" onClick={() => set(null, item.index)}>
-                          Desfazer
+                          {t("common.undo")}
                         </Button>
                       </span>
                     ) : (
@@ -70,7 +81,7 @@ export function SeriesConflicts({
                           size="sm"
                           onClick={() => set({ index: item.index, action: "SKIP" }, item.index)}
                         >
-                          Pular
+                          {t("scheduling.ui.skip")}
                         </Button>
                         <Select
                           value={decision?.action === "RETIME" ? decision.startTime : ""}
@@ -80,9 +91,9 @@ export function SeriesConflicts({
                         >
                           <SelectTrigger
                             size="sm"
-                            aria-label={`Escolher outro horário para a sessão ${item.index}`}
+                            aria-label={t("scheduling.ui.chooseTimeForSession", { index: item.index })}
                           >
-                            <SelectValue placeholder="Escolher outro horário" />
+                            <SelectValue placeholder={t("scheduling.ui.chooseAnotherTime")} />
                           </SelectTrigger>
                           <SelectContent>
                             {[
@@ -93,14 +104,14 @@ export function SeriesConflicts({
                             ].map((time, index) => (
                               <SelectItem key={time} value={time}>
                                 {time}
-                                {index < item.suggestions.length ? " (livre)" : ""}
+                                {index < item.suggestions.length ? t("scheduling.ui.freeSuffix") : ""}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                         {decision?.action === "RETIME" ? (
                           <span className="text-muted-foreground text-xs">
-                            Novo horário {decision.startTime}
+                            {t("professionals.ui.newSchedule")} {decision.startTime}
                           </span>
                         ) : null}
                       </div>

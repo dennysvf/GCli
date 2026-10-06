@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 // Page header (design system 4.2, "record header"): serif title, optional breadcrumb and
@@ -15,10 +16,11 @@ export function PageHeader({
   breadcrumb?: ReactNode;
   actions?: ReactNode;
 }) {
+  const t = useTranslations("shell");
   return (
     <header className="double-rule grid gap-1 pb-4">
       {breadcrumb ? (
-        <nav aria-label="Trilha" className="text-muted-foreground text-xs">
+        <nav aria-label={t("breadcrumb")} className="text-muted-foreground text-xs">
           {breadcrumb}
         </nav>
       ) : null}

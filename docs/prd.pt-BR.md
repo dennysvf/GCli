@@ -6,7 +6,7 @@ O GCli é uma plataforma web responsiva que centraliza a operação diária de u
 
 A primeira versão atende a uma única empresa (clínica) operando até 5 unidades, 50 profissionais, 30 usuários simultâneos, cerca de 500 atendimentos por dia e até 100 mil registros de pacientes. Embora implantado para uma única empresa, todo registro já é vinculado a uma organização desde o início, de modo que o produto possa evoluir para um SaaS multi-tenant sem migração de dados. O acesso é controlado por quatro perfis fixos (Administrador, Gestor, Recepção, Profissional), com o conteúdo clínico visível apenas para profissionais, e toda operação sensível é registrada em um log de auditoria para apoiar a conformidade com a LGPD (Lei Geral de Proteção de Dados).
 
-O valor central é substituir a combinação dispersa de planilhas, agendas de papel, aplicativos de mensagem e ferramentas desconectadas por uma única fonte de verdade: a recepção agenda e recebe pacientes, o profissional registra o atendimento, a cobrança é gerada automaticamente a partir do agendamento, os pagamentos alimentam o caixa diário de cada unidade, e o proprietário vê ocupação, faltas, faturamento e recebíveis em um painel e em relatórios exportáveis. A interface é em português do Brasil, os valores em reais (BRL), e a stack é Next.js com Prisma.
+O valor central é substituir a combinação dispersa de planilhas, agendas de papel, aplicativos de mensagem e ferramentas desconectadas por uma única fonte de verdade: a recepção agenda e recebe pacientes, o profissional registra o atendimento, a cobrança é gerada automaticamente a partir do agendamento, os pagamentos alimentam o caixa diário de cada unidade, e o proprietário vê ocupação, faltas, faturamento e recebíveis em um painel e em relatórios exportáveis. A interface está disponível em português do Brasil, inglês e espanhol, cada unidade segue as convenções do seu país (moeda, documentos, endereço), começando por Brasil, Portugal, Espanha, México, Argentina, Chile, Colômbia e Estados Unidos (F16), e a stack é Next.js com Prisma. Na V1, as regras legais são validadas só para o Brasil.
 
 ## 2. Problema e Oportunidade
 
@@ -78,7 +78,7 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 - Usa o sistema sob pressão de tempo, frequentemente com um paciente à frente; tolera poucos cliques e nenhuma tela lenta.
 - Letramento digital moderado: confortável com WhatsApp, navegadores web e planilhas, mas não com software corporativo complexo.
 - Usa desktops na recepção, e notebooks, tablets ou celulares nas salas de atendimento e em trânsito.
-- Espera convenções brasileiras: interface em português, validação de CPF, datas no formato DD/MM/AAAA, moeda em reais (BRL), PIX como forma de pagamento.
+- Espera as convenções do seu país e idioma (no Brasil: interface em português, validação de CPF, datas no formato DD/MM/AAAA, moeda em reais (BRL), PIX como forma de pagamento).
 
 ## 4. Objetivos
 
@@ -222,6 +222,14 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 - Como administrador, quero ver os valores anteriores e novos de uma edição para entender exatamente o que mudou.
 - Como administrador, quero exportar os resultados do log de auditoria em CSV para poder apresentar evidências em uma auditoria ou solicitação legal.
 
+### F16. Internacionalização e Perfis de País
+- Como usuário, quero escolher o idioma da interface (Português (Brasil), English ou Español) para trabalhar no idioma que leio melhor.
+- Como administrador, quero definir o idioma padrão e o país da sede da organização para que novos usuários e novas unidades já comecem com as configurações certas.
+- Como administrador, quero definir o país de cada unidade para que moeda, identificação fiscal, formato de endereço, código de telefone, fusos horários, conselhos profissionais e formas de pagamento sigam aquele país.
+- Como recepção, quero cadastrar pacientes com o documento de identificação e o formato de endereço do país deles para que os cadastros sejam válidos no local.
+- Como gestor, quero ver os valores na moeda de cada unidade, e os totais do painel e dos relatórios separados por moeda, para que dinheiro em moedas diferentes nunca se misture.
+- Como usuário, quero e-mails, PDFs e exportações no meu idioma, com os formatos de data e número a que estou acostumado.
+
 ## 6. Funcionalidades
 
 ### F01. Fundação da Plataforma, Autenticação e Controle de Acesso
@@ -233,7 +241,7 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 
 **Capacidades:**
 - Estrutura base da aplicação: app Next.js com layout autenticado (menu lateral, cabeçalho com menu do usuário e seletor de unidade), Prisma com PostgreSQL, e um `organizationId` global em toda tabela de negócio para que o modelo de dados suporte múltiplos inquilinos no futuro.
-- Configurações da organização: razão social (obrigatório, máx. 150 caracteres), nome fantasia, CNPJ (dígitos verificadores validados), logotipo (PNG/JPG/SVG, máx. 2 MB, exibido em no máximo 200×80 px), fuso horário (padrão America/Sao_Paulo), granularidade do slot da agenda (5, 10, 15 ou 30 minutos; padrão 15), localidade fixa em pt-BR, moeda BRL.
+- Configurações da organização: razão social (obrigatório, máx. 150 caracteres), nome fantasia, identificação fiscal do país da sede (CNPJ no Brasil, dígitos verificadores validados), logotipo (PNG/JPG/SVG, máx. 2 MB, exibido em no máximo 200×80 px), fuso horário (padrão America/Sao_Paulo), granularidade do slot da agenda (5, 10, 15 ou 30 minutos; padrão 15), idioma padrão e país da sede (F16; padrão pt-BR e Brasil). A moeda é definida por unidade (F16).
 - Até 100 usuários ativos por organização.
 - Quatro perfis fixos, um por usuário:
 
@@ -281,7 +289,7 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 
 **Capacidades:**
 - Até 20 unidades por organização; até 30 salas por unidade.
-- Campos da unidade: nome (obrigatório, único, máx. 80 caracteres), CNPJ (opcional, validado), endereço (CEP, rua, número, complemento, bairro, cidade, estado — CEP preenchido automaticamente por uma consulta pública de CEP quando disponível, editável manualmente), telefone, e-mail, status ativo.
+- Campos da unidade: país (obrigatório; define moeda, identificação fiscal, campos de endereço e fusos — F16), nome (obrigatório, único, máx. 80 caracteres), identificação fiscal do país (opcional, validada; CNPJ no Brasil), endereço (campos do país — no Brasil CEP, logradouro, número, complemento, bairro, cidade, UF, com o CEP preenchido automaticamente por uma consulta pública de CEP quando disponível, editável manualmente), fuso horário (entre os fusos do país), telefone, e-mail, indicador de ativo.
 - Horário de funcionamento: por dia da semana, aberto/fechado mais até 2 intervalos (ex.: 07:00–12:00, 13:00–20:00), com granularidade de 5 minutos.
 - Fechamentos: data ou intervalo de datas com motivo (ex.: "Feriado municipal"); até 100 fechamentos futuros por unidade.
 - Campos da sala: nome (obrigatório, único dentro da unidade, máx. 50 caracteres), descrição, status ativo.
@@ -307,13 +315,13 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 
 **Capacidades:**
 - Até 500 serviços por organização; até 50 categorias.
-- Campos: nome (obrigatório, único, máx. 100 caracteres), categoria (obrigatório, ex.: "Consultas", "Procedimentos", "Terapias"), descrição (máx. 500 caracteres), duração (obrigatório, 5–480 minutos em múltiplos de 5), preço (obrigatório, R$ 0,00–R$ 99.999,99; zero permitido para retornos gratuitos), cor (de uma paleta de 16), exige sala (sim/não), salas permitidas (subconjunto opcional; vazio = qualquer sala ativa), status ativo.
+- Campos: nome (obrigatório, único, máx. 100 caracteres), categoria (obrigatório, ex.: "Consultas", "Procedimentos", "Terapias"), descrição (máx. 500 caracteres), duração (obrigatório, 5–480 minutos em múltiplos de 5), preço por moeda usada pelas unidades ativas da organização (obrigatório para cada uma, de 0 a 99.999,99 na moeda; zero permitido para retornos gratuitos — F16), cor (de uma paleta de 16), exige sala (sim/não), salas permitidas (subconjunto opcional; vazio = qualquer sala ativa), status ativo.
 - Histórico de preço: toda alteração de preço é armazenada com data efetiva e autor; agendamentos registram o preço no momento do agendamento, então alterações nunca modificam agendamentos ou cobranças já existentes.
 - Serviços referenciados por agendamentos não podem ser excluídos, apenas desativados.
 
 **Experiência:**
 - Lista de serviços agrupada por categoria, com colunas nome, duração, preço, número de profissionais habilitados, status; busca por nome; filtro por categoria e status.
-- Formulário de serviço em um painel lateral; campo de preço com máscara em BRL; após alterar o preço, a confirmação diz "O novo preço valerá para novos agendamentos. Agendamentos existentes mantêm o preço original."
+- Formulário de serviço em um painel lateral; um campo de preço por moeda em uso, cada um com a máscara da sua moeda (F16); após alterar o preço, a confirmação diz "O novo preço valerá para novos agendamentos. Agendamentos existentes mantêm o preço original."
 - O histórico de preços fica visível em uma aba "Histórico de preços".
 
 **Tratamento de Erros:**
@@ -334,7 +342,7 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 
 **Capacidades:**
 - Até 100 profissionais ativos por organização.
-- Campos: nome completo (obrigatório), nome de exibição, especialidade (texto livre, ex.: "Fisioterapia ortopédica"), tipo de conselho (CRM, CRO, CREFITO, CRP, CRN, COREN, CRBM, CRF, outro/nenhum), número e estado do conselho (obrigatório quando o tipo ≠ nenhum), CPF, telefone, e-mail, cor na agenda, usuário vinculado (opcional; deve ser um usuário ativo com perfil Profissional, ou Administrador/Gestor conforme descrito em F01; um usuário por profissional), status ativo.
+- Campos: nome completo (obrigatório), nome de exibição, especialidade (texto livre, ex.: "Fisioterapia ortopédica"), tipo de conselho (por país das unidades onde o profissional atende — no Brasil CRM, CRO, CREFITO, CRP, CRN, COREN, CRBM, CRF, outro/nenhum; ver F16), número e estado ou região do conselho (obrigatório quando o tipo ≠ nenhum), documento de identificação (tipos do país, F16), telefone, e-mail, cor na agenda, usuário vinculado (opcional; deve ser um usuário ativo com perfil Profissional, ou Administrador/Gestor conforme descrito em F01; um usuário por profissional), status ativo.
 - Serviços habilitados: seleção múltipla de serviços ativos; um profissional só pode ser agendado para serviços habilitados.
 - Horário de trabalho: por unidade e dia da semana, até 4 intervalos por dia, granularidade de 5 minutos; um profissional pode trabalhar em várias unidades, mas os intervalos não podem se sobrepor entre unidades no mesmo dia. Horários fora do funcionamento da unidade são rejeitados.
 - Período de validade: os conjuntos de horário de trabalho têm uma data de início (e fim opcional), permitindo uma mudança futura de horário sem afetar semanas passadas ou atuais.
@@ -362,8 +370,8 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 
 **Capacidades:**
 - Até 100.000 pacientes ativos com busca p95 ≤ 1 segundo.
-- Campos: nome completo (obrigatório, máx. 150 caracteres), nome social (opcional; exibido no lugar do nome completo na agenda e nas telas quando preenchido), data de nascimento (obrigatório), sexo (feminino, masculino, outro, não informado), CPF (opcional, dígitos verificadores validados, único dentro da organização), RG, celular (obrigatório, formato brasileiro com DDD), telefone secundário, e-mail, endereço (consulta de CEP como em F02), ocupação, origem de indicação (lista configurável, ex.: Instagram, Google, indicação), observações administrativas (máx. 2.000 caracteres), etiquetas (até 10 por paciente, de uma lista configurável).
-- Responsável: obrigatório para pacientes menores de 18 anos no cadastro — nome do responsável, CPF, parentesco, telefone.
+- Campos: nome completo (obrigatório, máx. 150 caracteres), nome social (opcional; exibido no lugar do nome completo na agenda e nas telas quando preenchido), data de nascimento (obrigatório), sexo (feminino, masculino, outro, não informado), documento de identificação (opcional; tipo e número do país do paciente — CPF no Brasil — com dígitos verificadores validados, único por tipo dentro da organização, F16), RG ou documento secundário, celular (obrigatório, formato internacional com o código do país da unidade por padrão; números brasileiros com DDD), telefone secundário, e-mail, endereço (campos do país; consulta de CEP no Brasil como em F02), ocupação, origem de indicação (lista configurável, ex.: Instagram, Google, indicação), observações administrativas (máx. 2.000 caracteres), etiquetas (até 10 por paciente, de uma lista configurável).
+- Responsável: obrigatório para pacientes menores de 18 anos no cadastro — nome do responsável, documento de identificação, parentesco, telefone.
 - Detecção de duplicidade: ao salvar, o sistema verifica correspondência exata de CPF (bloqueia) e mesmo nome normalizado + data de nascimento (avisa, permite prosseguir com confirmação).
 - Consentimento: registro de aceite dos termos de privacidade da clínica — versão dos termos, data/hora, método (assinado em papel e digitalizado, confirmado verbalmente pela equipe, digital), e usuário responsável. O texto dos termos da clínica é mantido pelo Administrador com versionamento; uma nova versão marca os pacientes como "consentimento pendente" até a renovação.
 - Busca: por nome (insensível a acento e caixa, parcial), CPF (com ou sem máscara), ou telefone (últimos 8+ dígitos); mínimo de 3 caracteres; resultados mostram 20 por página com nome, idade, CPF (mascarado exceto os últimos 5 dígitos para Recepção), telefone, data do último agendamento.
@@ -516,7 +524,7 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 - Cobrança automática: criada com status "Em aberto" quando um agendamento muda para Chegou, com o preço registrado no momento do agendamento. Não é criada para agendamentos com preço R$ 0,00 ou cobertos por um pacote (F10). Se o agendamento voltar para Confirmado dentro da janela de desfazer, a cobrança é removida caso não tenha pagamentos.
 - Cobrança manual: para um paciente e serviço (preço a partir do serviço, editável) ou descrição livre, ex.: venda de um produto ou uma taxa.
 - Desconto: percentual ou valor fixo; descontos de até 20% podem ser aplicados pela Recepção; acima de 20% exigem aprovação de um Gestor/Administrador (aprovação em linha inserindo suas credenciais, ou aprovação posterior a partir de uma lista de aprovações pendentes). O motivo do desconto é obrigatório acima de 10%.
-- Formas de pagamento (lista configurável, padrão: Dinheiro, PIX, Cartão de débito, Cartão de crédito, Transferência, Outro); cartão de crédito registra o número de parcelas (1–12) apenas para informação.
+- Formas de pagamento (lista configurável por país da unidade; padrão do perfil de país de F16, ex.: Brasil: Dinheiro, PIX, Cartão de débito, Cartão de crédito, Transferência, Outro); valores na moeda da unidade; cartão de crédito registra o número de parcelas (1–12) apenas para informação.
 - Múltiplos pagamentos por cobrança (pagamentos parciais); status calculado: Em aberto, Parcialmente pago, Pago, Cancelado. Pagamento a maior não é permitido.
 - A data do pagamento é hoje por padrão; retroagir até 7 dias é permitido para Gestor/Administrador.
 - Anular (cancelar) uma cobrança: Gestor/Administrador, apenas se não tiver pagamentos ativos, motivo obrigatório.
@@ -663,7 +671,7 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
   4. **Contas a receber**: cobranças em aberto com paciente, telefone, origem, valor, saldo em aberto, dias em atraso, faixas de atraso 0–30, 31–60, 61–90, 90+ dias.
   5. **Produtividade por profissional**: por profissional — atendimentos concluídos, faltas, cancelamentos, horas atendidas, valor faturado, valor recebido, ticket médio.
 - Período máximo: 366 dias. Paginação em tela de 50 linhas com linha de totais.
-- CSV: UTF-8 com BOM, separador ponto e vírgula, decimal com vírgula (compatível com Excel pt-BR), máx. 50.000 linhas.
+- CSV: UTF-8 com BOM; separadores seguem o idioma do usuário (pt-BR e es: ponto e vírgula e vírgula decimal, compatível com Excel; en: vírgula e ponto decimal), com coluna de moeda para valores; máx. 50.000 linhas.
 - PDF: A4 paisagem, cabeçalho com logotipo, nome do relatório, filtros aplicados, data de geração e usuário; rodapé com página "x de y"; máx. 5.000 linhas (acima disso, o usuário é orientado a exportar em CSV).
 - Geração: ≤ 10 segundos para 50.000 linhas em CSV.
 - Exportações são registradas no log de auditoria (F01) com o nome do relatório e os filtros.
@@ -723,6 +731,70 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 - Configurações > Auditoria: barra de filtros no topo, tabela de resultados, clicar em uma linha abre um painel lateral com detalhes e a diferença.
 - Links de atalho "Ver auditoria" nas páginas de paciente, agendamento, cobrança e usuário abrem o visualizador já filtrado por aquela entidade.
 
+### F16. Internacionalização e Perfis de País
+
+**Consome:**
+- F01: configurações da organização e contas de usuário (idioma padrão, preferência de idioma do usuário)
+- F02: unidades (país por unidade)
+- F03: serviços (preço por moeda)
+- F04: profissionais (registro em conselho por país)
+- F05: pacientes (documento de identificação, endereço e telefone por país)
+- F06: telas e mensagens da agenda (traduzidas)
+
+**Fornece:**
+- Idioma por usuário (pt-BR, en, es), com o padrão da organização, para todas as telas, mensagens, e-mails, PDFs e exportações (usado por todas as funcionalidades)
+- Perfil de país por unidade: moeda, identificação fiscal da organização e da unidade, tipos de documento de identificação e validação, campos de endereço, código de país do telefone, tipos de conselho profissional, formas de pagamento padrão, fusos horários disponíveis (usado por F02, F03, F04, F05, F08, F09, F10, F11, F12, F13, F14)
+- Formatação de datas, horas, números e valores conforme a localidade (usado por todas as funcionalidades)
+
+**Escopo Essencial (Core):**
+- Três idiomas de interface, com preferência por usuário e padrão da organização; formatação por localidade; país por unidade; os oito perfis de país abaixo (moeda, identificação fiscal, documentos de identificação, endereço, telefone, conselhos, formas de pagamento, fusos); preço de serviço por moeda; totais por moeda no painel e nos relatórios; lógica de calendário correta no horário de verão.
+
+**Adições do Escopo Completo (Full):**
+- Consulta de código postal para países além do Brasil (onde houver serviço público); modelos de documento padrão (F08) por idioma.
+
+**Capacidades:**
+- Idiomas: Português (Brasil) `pt-BR` (padrão), English `en`, Español `es`. Todo rótulo, mensagem, e-mail, PDF e texto de exportação existe nos três idiomas. Os textos em pt-BR deste PRD são a fonte; inglês e espanhol são traduções mantidas nos mesmos catálogos de mensagens. Uma tradução faltando faz o build falhar. Dados digitados pela clínica (nomes de serviços, motivos de cancelamento, observações, modelos) aparecem como foram digitados e não são traduzidos.
+- Escolha do idioma: cada usuário escolhe o idioma no menu do usuário; novos usuários e e-mails de convite usam o padrão da organização (definido pelo Administrador nas configurações da organização, padrão pt-BR). As páginas antes do login (login, redefinição de senha, convite) seguem o idioma do navegador quando for um dos três; senão, pt-BR. E-mails usam o idioma do destinatário.
+- Formatação por localidade: datas, horas e números seguem o idioma do usuário combinado com o país da unidade em contexto (ex.: pt-BR, es-MX, es-AR, en-US); quando o idioma não é falado naquele país, usa-se a região padrão do idioma (en → en-US, es → es-ES, pt → pt-BR).
+- País da organização: o país da sede define o tipo de identificação fiscal da organização (CNPJ no Brasil) e é o país padrão de novas unidades.
+- País da unidade: escolhido na criação da unidade, entre os oito perfis; define moeda, identificação fiscal, campos de endereço, código de telefone, fusos, tipos de conselho e formas de pagamento da unidade. O país não pode ser alterado depois que a unidade tem agendamentos, cobranças ou caixas.
+- Dinheiro: todo valor carrega sua moeda (ISO 4217) e é armazenado em unidades mínimas inteiras (CLP não tem casas decimais). Cobranças, pagamentos, pacotes, caixas e despesas usam a moeda da sua unidade. Serviços têm um preço por moeda usada pelas unidades ativas da organização; o agendamento registra o preço na moeda da unidade.
+- Perfis de país na V1:
+
+| País | Moeda | Documentos de identificação do paciente | Identificação fiscal da organização/unidade | Código postal | Telefone | Conselhos | Formas de pagamento padrão |
+|---|---|---|---|---|---|---|---|
+| Brasil (BR) | BRL | CPF | CNPJ | CEP (com consulta) | +55 | CRM, CRO, CREFITO, CRP, CRN, COREN, CRBM, CRF | Dinheiro, PIX, Cartão de débito, Cartão de crédito, Transferência |
+| Portugal (PT) | EUR | NIF | NIF/NIPC | 0000-000 | +351 | Ordem dos Médicos, Médicos Dentistas, Fisioterapeutas, Psicólogos, Nutricionistas, Enfermeiros | Numerário, Multibanco, MB WAY, Cartão, Transferência |
+| Espanha (ES) | EUR | DNI, NIE | NIF | 5 dígitos | +34 | Colegio de Médicos, Dentistas, Fisioterapeutas, Psicólogos, Dietistas-Nutricionistas, Enfermería | Efectivo, Tarjeta, Bizum, Transferencia |
+| México (MX) | MXN | CURP | RFC | 5 dígitos | +52 | Cédula profesional | Efectivo, Tarjeta, Transferencia (SPEI) |
+| Argentina (AR) | ARS | DNI | CUIT | CPA ou 4 dígitos | +54 | Matrícula nacional, Matrícula provincial | Efectivo, Tarjeta, Transferencia, Mercado Pago |
+| Chile (CL) | CLP | RUT | RUT | 7 dígitos (opcional) | +56 | Registro Nacional de Prestadores (Superintendencia de Salud) | Efectivo, Tarjeta, Transferencia |
+| Colômbia (CO) | COP | Cédula de ciudadanía, Cédula de extranjería | NIT | 6 dígitos (opcional) | +57 | ReTHUS | Efectivo, Tarjeta, Transferencia, PSE, Nequi |
+| Estados Unidos (US) | USD | Nenhum obrigatório (carteira de motorista ou state ID opcional; o SSN nunca é coletado) | EIN | ZIP (5 ou 9 dígitos) | +1 | Licença estadual (estado + número), NPI | Cash, Card, Check, Transfer |
+
+- Documentos de identificação: cada documento do paciente tem tipo e número; os dígitos verificadores são validados quando o documento os tem (CPF, NIF, DNI/NIE, CURP, CUIT, RUT, NIT, NPI). Um documento é único por tipo dentro da organização. O documento é opcional, como o CPF é hoje; a Recepção vê os documentos mascarados nos resultados de busca: o CPF exceto os 5 últimos dígitos (F05), os demais documentos exceto os 4 últimos caracteres. Responsáveis usam os mesmos tipos de documento.
+- Endereço: os campos seguem o país (ex.: Brasil: CEP, logradouro, número, complemento, bairro, cidade, UF; Estados Unidos: street, apartment, city, state, ZIP; Chile: calle, comuna, región). Telefones são armazenados em formato internacional; o código de país padrão é o da unidade.
+- Profissionais: os tipos de conselho e o formato do registro seguem os países das unidades onde o profissional atende.
+- Fusos horários: o fuso de cada unidade é escolhido entre os fusos do seu país. A lógica de calendário (horários de atendimento, funcionamento, agenda, recorrência, "hoje") fica correta nas mudanças de horário de verão (Portugal, Espanha, Chile, Estados Unidos e partes do México adotam).
+- Painel e relatórios: valores monetários aparecem por moeda (ex.: "R$ 12.400,00 · € 3.150,00") e nunca são somados entre moedas; contagens e taxas não são afetadas. Filtrar por uma unidade ou país mostra uma única moeda. As exportações CSV usam os separadores do idioma do usuário (pt-BR e es: ponto e vírgula e vírgula decimal; en: vírgula e ponto decimal) e incluem uma coluna de moeda.
+- Regras legais: só as regras brasileiras (LGPD, guarda de prontuário por 20 anos, prazo de 15 dias para solicitações do titular, termos de privacidade) têm validade legal na V1. Unidades em outros países aplicam as regras brasileiras, e o Administrador vê um aviso até que as regras de cada país sejam validadas com assessoria jurídica.
+
+**Experiência:**
+- Menu do usuário: "Idioma" com Português (Brasil), English e Español; a troca vale na hora, sem sair do sistema.
+- Configurações da organização: "Idioma padrão" e "País da sede"; o campo de identificação fiscal segue o país.
+- Formulário de unidade: "País" é o primeiro campo; identificação fiscal, campos de endereço e fusos se adaptam a ele; a moeda aparece somente para leitura.
+- Formulário de serviço: um campo de preço por moeda em uso, cada um com a máscara da sua moeda.
+- Formulário de paciente: "Documento" com os tipos do país (padrão: o país da unidade, com "Outro país" para pacientes estrangeiros) e um endereço que se adapta ao país.
+- Campos e valores monetários mostram o símbolo da moeda da unidade; os cartões de dinheiro do painel listam uma linha por moeda.
+- Unidades fora do Brasil mostram ao administrador o aviso: "As regras legais deste país ainda não foram validadas. O sistema aplica as regras brasileiras."
+
+**Tratamento de Erros:**
+- Documento de identificação inválido: "{Tipo} inválido." (ex.: "CPF inválido.", "NIF inválido.").
+- Documento já cadastrado: "Este {tipo} já está cadastrado para Maria S. Oliveira." com link para o cadastro.
+- Alterar o país de uma unidade com registros: "Não é possível alterar o país de uma unidade que já tem agendamentos, cobranças ou caixas."
+- Agendar um serviço sem preço na moeda da unidade: "Este serviço não tem preço em {moeda}. Defina o preço no catálogo antes de agendar nesta unidade."
+- Ativar uma unidade numa moeda em que serviços ativos não têm preço: um aviso lista os serviços sem preço nessa moeda.
+
 ## 7. Fora do Escopo
 
 **Comunicação e autoatendimento do paciente**
@@ -743,7 +815,7 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 - Emissão de nota fiscal (NFS-e) e qualquer documento fiscal.
 - Cálculo de comissão/repasse de profissionais.
 - Conciliação bancária com extratos (OFX) e integrações com sistemas contábeis.
-- Multi-moeda.
+- Conversão de moedas e totais consolidados entre moedas (os valores aparecem por moeda, F16).
 
 **Operações**
 - Controle de estoque e materiais.
@@ -757,7 +829,9 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 - Restringir usuários a unidades específicas (na V1 todos os usuários veem todas as unidades).
 - Autenticação de dois fatores e single sign-on (SSO).
 - Aplicativos móveis nativos e modo offline (o app web responsivo é o único cliente).
-- Idiomas de interface além do português do Brasil.
+- Idiomas de interface além de português do Brasil, inglês e espanhol.
+- Perfis de país além de Brasil, Portugal, Espanha, México, Argentina, Chile, Colômbia e Estados Unidos.
+- Validação legal de países além do Brasil (lei de privacidade, guarda de prontuário, regras de dados de saúde como a HIPAA); essas unidades aplicam as regras brasileiras na V1.
 - API pública para integrações de terceiros.
 - Importação de dados legados de outros sistemas (pode ser tratada como um serviço avulso fora do produto).
 
@@ -771,15 +845,16 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 | F04 | Profissionais e Horários de Trabalho | 1 | F01, F02, F03 |
 | F05 | Cadastro de Pacientes | 1 | F01 |
 | F06 | Agendamento e Agenda | 1 | F02, F03, F04, F05 |
-| F07 | Registro do Atendimento Clínico | 1 | F06 |
-| F08 | Documentos do Paciente | 2 | F01, F02, F04, F05 |
-| F09 | Cobrança e Pagamentos | 1 | F03, F06 |
+| F07 | Registro do Atendimento Clínico | 1 | F06, F16 |
+| F08 | Documentos do Paciente | 2 | F01, F02, F04, F05, F16 |
+| F09 | Cobrança e Pagamentos | 1 | F03, F06, F16 |
 | F10 | Pacotes de Sessões | 2 | F03, F05, F06, F09 |
 | F11 | Caixa e Despesas | 2 | F02, F09 |
 | F12 | Painel de Gestão | 2 | F05, F06, F09, F11 |
 | F13 | Relatórios e Exportação | 2 | F01, F06, F09 |
 | F14 | Linha do Tempo do Paciente e Solicitações LGPD | 2 | F05, F06, F07, F08, F09 |
 | F15 | Visualizador do Log de Auditoria | 2 | F01 |
+| F16 | Internacionalização e Perfis de País | 1 | F01, F02, F03, F04, F05, F06 |
 
 ### Funcionalidades de Fundação
 Estas funcionalidades montam a infraestrutura compartilhada do projeto. Em um projeto novo (greenfield), elas precisam ser implementadas sequencialmente antes ou junto com qualquer funcionalidade que dependa delas:
@@ -793,10 +868,11 @@ Funcionalidades da mesma onda podem ser construídas em paralelo. Uma onda só c
 - **Onda 1**: F01
 - **Onda 2**: F02, F03, F05, F15
 - **Onda 3**: F04
-- **Onda 4**: F06, F08
-- **Onda 5**: F07, F09
-- **Onda 6**: F10, F11, F13, F14
-- **Onda 7**: F12
+- **Onda 4**: F06
+- **Onda 5**: F16
+- **Onda 6**: F07, F08, F09
+- **Onda 7**: F10, F11, F13, F14
+- **Onda 8**: F12
 
 ### Níveis de prioridade
 - **1** = Essencial — o produto não funciona sem isso
@@ -841,6 +917,14 @@ graph TD
   F08 --> F14
   F09 --> F14
   F01 --> F15[F15 Visualizador de Auditoria]
+  F02 --> F16[F16 Internacionalização]
+  F03 --> F16
+  F04 --> F16
+  F05 --> F16
+  F06 --> F16
+  F16 --> F07
+  F16 --> F08
+  F16 --> F09
 ```
 
 ## 9. Critérios de Aceitação
@@ -973,7 +1057,7 @@ graph TD
 ### F13. Relatórios e Exportação
 - [ ] Cada um dos 5 relatórios retorna dados consistentes com os filtros e mostra totais.
 - [ ] Períodos maiores que 366 dias são rejeitados.
-- [ ] O CSV abre corretamente no Excel pt-BR (UTF-8 BOM, separador ponto e vírgula, decimal com vírgula) e suporta até 50.000 linhas geradas em ≤ 10 segundos.
+- [ ] O CSV abre corretamente no Excel no idioma do usuário (UTF-8 com BOM; pt-BR e es: separador ponto e vírgula e vírgula decimal; en: separador vírgula e ponto decimal) e suporta até 50.000 linhas geradas em ≤ 10 segundos.
 - [ ] O PDF inclui logotipo, nome do relatório, filtros, data/usuário de geração e numeração de páginas; acima de 5.000 linhas o usuário é orientado a exportar em CSV.
 - [ ] As faixas de atraso de recebíveis classificam corretamente as cobranças pelos dias em atraso.
 - [ ] Toda exportação cria um evento de auditoria com o nome do relatório e os filtros.
@@ -997,6 +1081,18 @@ graph TD
 - [ ] A exportação em CSV de até 100.000 linhas funciona e é ela própria auditada.
 - [ ] O link "Ver auditoria" na página do paciente abre o visualizador filtrado por aquele paciente.
 
+### F16. Internacionalização e Perfis de País
+- [ ] Cada usuário consegue alternar entre pt-BR, inglês e espanhol; toda tela, mensagem, e-mail e PDF das funcionalidades implementadas aparece no idioma escolhido, e nenhum texto de interface fica fixo no código (toda chave existe nos três catálogos; uma chave faltando faz o build falhar).
+- [ ] Novos usuários e e-mails de convite usam o idioma padrão da organização; a página de login segue o idioma do navegador entre os três; senão, pt-BR.
+- [ ] Datas, horas, números e valores seguem o idioma do usuário e o país da unidade (ex.: pt-BR "06/10/2026 14:30, R$ 1.234,56"; en-US "10/06/2026 2:30 PM, $1,234.56"; es-MX "06/10/2026 14:30, $1,234.56").
+- [ ] O país da unidade define moeda, identificação fiscal, campos de endereço, código de telefone, fusos, tipos de conselho e formas de pagamento; o país não pode ser alterado depois que a unidade tem agendamentos, cobranças ou caixas.
+- [ ] Documentos de pacientes e responsáveis são validados por tipo (CPF, NIF, DNI, NIE, CURP, CUIT, RUT, cédula, NIT) e são únicos por tipo dentro da organização; a Recepção os vê mascarados (CPF exceto os 5 últimos dígitos, demais documentos exceto os 4 últimos caracteres).
+- [ ] Todo valor é armazenado em unidades mínimas inteiras com sua moeda (CLP sem casas decimais); cobranças, pagamentos, pacotes, caixas e despesas sempre usam a moeda da sua unidade.
+- [ ] Agendar numa unidade registra o preço do serviço na moeda dessa unidade; um serviço sem preço nessa moeda não pode ser agendado ali.
+- [ ] Os totais monetários do painel e dos relatórios aparecem por moeda e nunca são somados entre moedas; as exportações CSV usam os separadores do idioma do usuário e incluem uma coluna de moeda.
+- [ ] A lógica de calendário fica correta nas mudanças de horário de verão (ex.: Europe/Madrid, America/Santiago, America/New_York): um intervalo de atendimento e um agendamento às 09:00 continuam às 09:00 no horário local antes e depois da mudança.
+- [ ] Unidades fora do Brasil aplicam as regras legais brasileiras e mostram o aviso ao administrador.
+
 ### Integração entre Funcionalidades
 - [ ] Contas de usuário ativas de F01 estão disponíveis para vinculação no formulário de profissional (F04), e usuários desativados não são listados.
 - [ ] O perfil da organização de F01 (nome, CNPJ, logotipo) aparece em documentos gerados (F08) e nos cabeçalhos de relatórios em PDF (F13).
@@ -1019,3 +1115,5 @@ graph TD
 - [ ] Os totais dos relatórios em F13 correspondem aos registros subjacentes de agendamento (F06) e cobrança/pagamento (F09) para os mesmos filtros.
 - [ ] A linha do tempo do paciente (F14) mostra agendamentos de F06, notas clínicas de F07, documentos de F08 e cobranças/pagamentos de F09, com a filtragem baseada em perfil aplicada.
 - [ ] A exportação LGPD (F14) contém os dados do paciente de F05, F06, F07, F08 e F09.
+- [ ] O idioma escolhido em F16 vale para os e-mails e telas de F01, a agenda de F06, os documentos de F08, os recibos de F09 e os relatórios e exportações de F13.
+- [ ] O perfil de país da unidade (F16) define o formulário de unidade de F02, os preços por moeda de F03, os tipos de conselho de F04, o documento, o endereço e o telefone do paciente em F05, as formas de pagamento e a moeda de F09, a moeda do caixa de F11 e os totais por moeda de F12 e F13.

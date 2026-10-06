@@ -9,7 +9,8 @@ import { cn } from "@/shared/ui/utils";
 import type { AgendaItem } from "../application/queries";
 import { latenessMinutes } from "../domain/agenda-time";
 import { DURATION_MAX, DURATION_MIN, DURATION_STEP } from "../domain/limits";
-import { STATUS_STAMPS, statusText, timeRange } from "./format";
+import { STATUS_STAMPS, useAgendaFormat } from "./format";
+import { useTranslations } from "next-intl";
 
 // Agenda block (design system 10.1, 5.11): a paper card with a 4 px stripe in the service color,
 // the patient's name, service and room, and the status written as a stamp. Short blocks show only
@@ -43,6 +44,8 @@ export function AppointmentBlock({
   onResize: (item: AgendaItem, durationMinutes: number) => void;
   onKeyMove: (item: AgendaItem, event: KeyboardEvent<HTMLElement>) => void;
 }) {
+  const fmt = useAgendaFormat();
+  const t = useTranslations();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: item.id,
     data: { item },
@@ -102,7 +105,7 @@ export function AppointmentBlock({
     }
   }
 
-  const label = `${item.patient.displayName}, ${item.service.name}, ${timeRange(item.startsAt, item.endsAt, timeZone)}, ${statusText(item.status).toLowerCase()}`;
+  const label = `${item.patient.displayName}, ${item.service.name}, ${fmt.timeRange(item.startsAt, item.endsAt, timeZone)}, ${fmt.statusText(item.status).toLowerCase()}`;
 
   return (
     <div
@@ -147,20 +150,22 @@ export function AppointmentBlock({
           </span>
         ) : null}
         <span className="flex flex-wrap items-center gap-1">
-          <Stamp variant={STATUS_STAMPS[item.status]}>{statusText(item.status)}</Stamp>
-          {item.isOverbooking ? <Stamp variant="warning">ENCAIXE</Stamp> : null}
-          {late !== null ? <span className="text-terracotta-text text-xs">atrasado {late} min</span> : null}
+          <Stamp variant={STATUS_STAMPS[item.status]}>{fmt.statusText(item.status)}</Stamp>
+          {item.isOverbooking ? <Stamp variant="warning">{t("scheduling.ui.overbookingTag")}</Stamp> : null}
+          {late !== null ? (
+            <span className="text-terracotta-text text-xs">{t("scheduling.ui.late", { minutes: late })}</span>
+          ) : null}
         </span>
       </button>
       {draggable ? (
         <span
           role="slider"
           tabIndex={0}
-          aria-label={`Duração de ${item.patient.displayName}`}
+          aria-label={t("scheduling.ui.durationOf", { patient: item.patient.displayName })}
           aria-valuemin={DURATION_MIN}
           aria-valuemax={DURATION_MAX}
           aria-valuenow={duration}
-          aria-valuetext={`${duration} minutos`}
+          aria-valuetext={t("scheduling.ui.durationValue", { minutes: duration })}
           className="hover:bg-rule-strong focus-visible:bg-rule-strong absolute inset-x-0 bottom-0 h-1.5 cursor-ns-resize outline-none"
           onPointerDown={startResize}
           onKeyDown={resizeKeys}

@@ -15,7 +15,9 @@ model Organization {
   id                     String   @id @db.Uuid
   legalName              String   @map("legal_name") @db.VarChar(150)
   tradeName              String?  @map("trade_name") @db.VarChar(150)
-  cnpj                   String?  @db.Char(14)
+  taxId                  String?  @map("tax_id") @db.VarChar(20)
+  country                String   @default("BR") @db.Char(2)
+  defaultLocale          String   @default("pt-BR") @map("default_locale") @db.VarChar(5)
   logoObjectKey          String?  @map("logo_object_key") @db.VarChar(255)
   logoVersion            Int      @default(0) @map("logo_version")
   timeZone               String   @default("America/Sao_Paulo") @map("time_zone") @db.VarChar(64)
@@ -49,6 +51,7 @@ model User {
   image            String?   @db.VarChar(255)
   role             String    @db.VarChar(20)
   status           String    @default("ACTIVE") @db.VarChar(20)
+  locale           String?   @db.VarChar(5)
   failedLoginCount Int       @default(0) @map("failed_login_count") @db.SmallInt
   lockedUntil      DateTime? @map("locked_until") @db.Timestamptz(6)
   lastLoginAt      DateTime? @map("last_login_at") @db.Timestamptz(6)
@@ -129,6 +132,7 @@ model Invitation {
   email          String    @db.VarChar(254)
   name           String    @db.VarChar(150)
   role           String    @db.VarChar(20)
+  locale         String    @default("pt-BR") @db.VarChar(5)
   tokenHash      String    @unique(map: "uq_invitation_token_hash") @map("token_hash") @db.Char(64)
   status         String    @default("PENDING") @db.VarChar(20)
   expiresAt      DateTime  @map("expires_at") @db.Timestamptz(6)
@@ -198,17 +202,19 @@ model Unit {
   id             String   @id @db.Uuid
   organizationId String   @map("organization_id") @db.Uuid
   name           String   @db.VarChar(80)
-  cnpj           String?  @db.Char(14)
+  country        String   @db.Char(2)
+  currency       String   @db.Char(3)
+  taxId          String?  @map("tax_id") @db.VarChar(20)
   timeZone       String   @map("time_zone") @db.VarChar(64)
-  phone          String?  @db.VarChar(11)
+  phone          String?  @db.VarChar(16)
   email          String?  @db.VarChar(254)
-  cep            String?  @db.Char(8)
+  postalCode     String?  @map("postal_code") @db.VarChar(10)
   street         String?  @db.VarChar(150)
   number         String?  @db.VarChar(20)
   complement     String?  @db.VarChar(80)
   district       String?  @db.VarChar(80)
   city           String?  @db.VarChar(80)
-  state          String?  @db.Char(2)
+  region         String?  @db.VarChar(64)
   active         Boolean  @default(true)
   version        Int      @default(1)
   createdById    String?  @map("created_by_id") @db.Uuid
@@ -320,7 +326,6 @@ model Service {
   name            String   @db.VarChar(100)
   description     String?  @db.VarChar(500)
   durationMinutes Int      @map("duration_minutes") @db.SmallInt
-  priceCents      Int      @map("price_cents")
   color           String   @db.VarChar(16)
   requiresRoom    Boolean  @default(false) @map("requires_room")
   active          Boolean  @default(true)
@@ -333,6 +338,7 @@ model Service {
   organization  Organization          @relation(fields: [organizationId], references: [id], map: "fk_service_org")
   category      ServiceCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict, map: "fk_service_category")
   allowedRooms  ServiceAllowedRoom[]
+  prices        ServicePrice[]
   priceChanges  ServicePriceChange[]
   professionals ProfessionalService[]
   appointments  Appointment[]
@@ -355,20 +361,36 @@ model ServiceAllowedRoom {
   @@map("service_allowed_room")
 }
 
+// One price per currency in use (PRD F16, ADR-029): amounts are integer minor units.
+model ServicePrice {
+  serviceId      String   @map("service_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  currency       String   @db.Char(3)
+  amountMinor    BigInt   @map("amount_minor")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade, map: "fk_service_price_service")
+
+  @@id([serviceId, currency], map: "pk_service_price")
+  @@index([organizationId, currency], map: "ix_service_price_org_currency")
+  @@map("service_price")
+}
+
 // Append-only: the runtime role may only insert and read (migration 0004).
 model ServicePriceChange {
-  id                 String   @id @db.Uuid
-  organizationId     String   @map("organization_id") @db.Uuid
-  serviceId          String   @map("service_id") @db.Uuid
-  previousPriceCents Int?     @map("previous_price_cents")
-  priceCents         Int      @map("price_cents")
-  changedAt          DateTime @default(now()) @map("changed_at") @db.Timestamptz(6)
-  changedById        String?  @map("changed_by_id") @db.Uuid
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                  String   @id @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+  serviceId           String   @map("service_id") @db.Uuid
+  currency            String   @db.Char(3)
+  previousAmountMinor BigInt?  @map("previous_amount_minor")
+  amountMinor         BigInt   @map("amount_minor")
+  changedAt           DateTime @default(now()) @map("changed_at") @db.Timestamptz(6)
+  changedById         String?  @map("changed_by_id") @db.Uuid
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   service Service @relation(fields: [serviceId], references: [id], onDelete: Restrict, map: "fk_price_change_service")
 
-  @@index([serviceId, changedAt(sort: Desc)], map: "ix_price_change_service_time")
+  @@index([serviceId, currency, changedAt(sort: Desc)], map: "ix_price_change_service_time")
   @@map("service_price_change")
 }
 
@@ -377,37 +399,59 @@ model ServicePriceChange {
 // in migration 0005.
 
 model Professional {
-  id               String    @id @db.Uuid
-  organizationId   String    @map("organization_id") @db.Uuid
-  fullName         String    @map("full_name") @db.VarChar(150)
-  displayName      String?   @map("display_name") @db.VarChar(60)
-  specialty        String?   @db.VarChar(100)
-  councilType      String    @default("NONE") @map("council_type") @db.VarChar(10)
-  councilOtherName String?   @map("council_other_name") @db.VarChar(20)
-  councilNumber    String?   @map("council_number") @db.VarChar(15)
-  councilState     String?   @map("council_state") @db.Char(2)
-  cpf              String?   @db.Char(11)
-  phone            String?   @db.VarChar(11)
-  email            String?   @db.VarChar(254)
-  color            String    @db.VarChar(16)
-  linkedUserId     String?   @unique(map: "uq_professional_linked_user") @map("linked_user_id") @db.Uuid
-  active           Boolean   @default(true)
-  deactivatedAt    DateTime? @map("deactivated_at") @db.Timestamptz(6)
-  version          Int       @default(1)
-  createdById      String?   @map("created_by_id") @db.Uuid
-  updatedById      String?   @map("updated_by_id") @db.Uuid
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id              String    @id @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  fullName        String    @map("full_name") @db.VarChar(150)
+  displayName     String?   @map("display_name") @db.VarChar(60)
+  specialty       String?   @db.VarChar(100)
+  hasNoCouncil    Boolean   @default(false) @map("has_no_council")
+  documentCountry String?   @map("document_country") @db.Char(2)
+  documentType    String?   @map("document_type") @db.VarChar(16)
+  documentNumber  String?   @map("document_number") @db.VarChar(32)
+  phone           String?   @db.VarChar(16)
+  email           String?   @db.VarChar(254)
+  color           String    @db.VarChar(16)
+  linkedUserId    String?   @unique(map: "uq_professional_linked_user") @map("linked_user_id") @db.Uuid
+  active          Boolean   @default(true)
+  deactivatedAt   DateTime? @map("deactivated_at") @db.Timestamptz(6)
+  version         Int       @default(1)
+  createdById     String?   @map("created_by_id") @db.Uuid
+  updatedById     String?   @map("updated_by_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization           @relation(fields: [organizationId], references: [id], map: "fk_professional_org")
-  linkedUser   User?                  @relation(fields: [linkedUserId], references: [id], onDelete: Restrict, map: "fk_professional_linked_user")
-  services     ProfessionalService[]
-  schedules    ProfessionalSchedule[]
-  timeOffs     ProfessionalTimeOff[]
-  appointments Appointment[]
+  organization  Organization               @relation(fields: [organizationId], references: [id], map: "fk_professional_org")
+  linkedUser    User?                      @relation(fields: [linkedUserId], references: [id], onDelete: Restrict, map: "fk_professional_linked_user")
+  registrations ProfessionalRegistration[]
+  services      ProfessionalService[]
+  schedules     ProfessionalSchedule[]
+  timeOffs      ProfessionalTimeOff[]
+  appointments  Appointment[]
 
   @@index([organizationId, active], map: "ix_professional_org_active")
   @@map("professional")
+}
+
+// One council registration per country (PRD F16): a doctor can hold a Brazilian CRM and a
+// Portuguese Ordem dos Médicos registration at the same time.
+model ProfessionalRegistration {
+  id               String   @id @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  professionalId   String   @map("professional_id") @db.Uuid
+  country          String   @db.Char(2)
+  councilType      String   @map("council_type") @db.VarChar(24)
+  councilOtherName String?  @map("council_other_name") @db.VarChar(40)
+  number           String?  @db.VarChar(20)
+  region           String?  @db.VarChar(8)
+  npi              String?  @db.Char(10)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Restrict, map: "fk_registration_professional")
+
+  @@unique([professionalId, country], map: "uq_registration_professional_country")
+  @@index([organizationId, professionalId], map: "ix_registration_professional")
+  @@map("professional_registration")
 }
 
 model ProfessionalService {
@@ -488,42 +532,46 @@ model ProfessionalTimeOff {
 // are hand-written in migration 0006.
 
 model Patient {
-  id                   String    @id @db.Uuid
-  organizationId       String    @map("organization_id") @db.Uuid
-  fullName             String    @map("full_name") @db.VarChar(150)
-  socialName           String?   @map("social_name") @db.VarChar(150)
-  normalizedName       String    @map("normalized_name") @db.VarChar(150)
-  birthDate            DateTime  @map("birth_date") @db.Date
-  sex                  String    @default("NOT_INFORMED") @db.VarChar(12)
-  cpf                  String?   @db.Char(11)
-  rg                   String?   @db.VarChar(20)
-  mobilePhone          String    @map("mobile_phone") @db.VarChar(11)
-  secondaryPhone       String?   @map("secondary_phone") @db.VarChar(11)
-  phoneDigits          String    @map("phone_digits") @db.VarChar(23)
-  email                String?   @db.VarChar(254)
-  cep                  String?   @db.Char(8)
-  street               String?   @db.VarChar(150)
-  number               String?   @db.VarChar(20)
-  complement           String?   @db.VarChar(80)
-  district             String?   @db.VarChar(80)
-  city                 String?   @db.VarChar(80)
-  state                String?   @db.Char(2)
-  occupation           String?   @db.VarChar(80)
-  referralSourceId     String?   @map("referral_source_id") @db.Uuid
-  observations         String?   @db.VarChar(2000)
-  guardianName         String?   @map("guardian_name") @db.VarChar(150)
-  guardianCpf          String?   @map("guardian_cpf") @db.Char(11)
-  guardianRelationship String?   @map("guardian_relationship") @db.VarChar(20)
-  guardianPhone        String?   @map("guardian_phone") @db.VarChar(11)
-  active               Boolean   @default(true)
-  inactiveReason       String?   @map("inactive_reason") @db.VarChar(12)
-  inactiveNote         String?   @map("inactive_note") @db.VarChar(200)
-  deactivatedAt        DateTime? @map("deactivated_at") @db.Timestamptz(6)
-  version              Int       @default(1)
-  createdById          String?   @map("created_by_id") @db.Uuid
-  updatedById          String?   @map("updated_by_id") @db.Uuid
-  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                     String    @id @db.Uuid
+  organizationId         String    @map("organization_id") @db.Uuid
+  fullName               String    @map("full_name") @db.VarChar(150)
+  socialName             String?   @map("social_name") @db.VarChar(150)
+  normalizedName         String    @map("normalized_name") @db.VarChar(150)
+  birthDate              DateTime  @map("birth_date") @db.Date
+  sex                    String    @default("NOT_INFORMED") @db.VarChar(12)
+  documentCountry        String?   @map("document_country") @db.Char(2)
+  documentType           String?   @map("document_type") @db.VarChar(16)
+  documentNumber         String?   @map("document_number") @db.VarChar(32)
+  rg                     String?   @db.VarChar(20)
+  mobilePhone            String    @map("mobile_phone") @db.VarChar(16)
+  secondaryPhone         String?   @map("secondary_phone") @db.VarChar(16)
+  phoneDigits            String    @map("phone_digits") @db.VarChar(34)
+  email                  String?   @db.VarChar(254)
+  addressCountry         String?   @map("address_country") @db.Char(2)
+  postalCode             String?   @map("postal_code") @db.VarChar(10)
+  street                 String?   @db.VarChar(150)
+  number                 String?   @db.VarChar(20)
+  complement             String?   @db.VarChar(80)
+  district               String?   @db.VarChar(80)
+  city                   String?   @db.VarChar(80)
+  region                 String?   @db.VarChar(64)
+  occupation             String?   @db.VarChar(80)
+  referralSourceId       String?   @map("referral_source_id") @db.Uuid
+  observations           String?   @db.VarChar(2000)
+  guardianName           String?   @map("guardian_name") @db.VarChar(150)
+  guardianDocumentType   String?   @map("guardian_document_type") @db.VarChar(16)
+  guardianDocumentNumber String?   @map("guardian_document_number") @db.VarChar(32)
+  guardianRelationship   String?   @map("guardian_relationship") @db.VarChar(20)
+  guardianPhone          String?   @map("guardian_phone") @db.VarChar(16)
+  active                 Boolean   @default(true)
+  inactiveReason         String?   @map("inactive_reason") @db.VarChar(12)
+  inactiveNote           String?   @map("inactive_note") @db.VarChar(200)
+  deactivatedAt          DateTime? @map("deactivated_at") @db.Timestamptz(6)
+  version                Int       @default(1)
+  createdById            String?   @map("created_by_id") @db.Uuid
+  updatedById            String?   @map("updated_by_id") @db.Uuid
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization   Organization    @relation(fields: [organizationId], references: [id], map: "fk_patient_org")
   referralSource ReferralSource? @relation(fields: [referralSourceId], references: [id], onDelete: Restrict, map: "fk_patient_referral_source")
@@ -535,6 +583,7 @@ model Patient {
   @@index([organizationId, active, normalizedName], map: "ix_patient_org_active_name")
   @@index([normalizedName(ops: raw("gin_trgm_ops"))], type: Gin, map: "ix_patient_name_trgm")
   @@index([phoneDigits(ops: raw("gin_trgm_ops"))], type: Gin, map: "ix_patient_phone_trgm")
+  @@index([organizationId, documentNumber], map: "ix_patient_document_number")
   @@map("patient")
 }
 
@@ -648,7 +697,8 @@ model Appointment {
   startsAt               DateTime  @map("starts_at") @db.Timestamptz(6)
   endsAt                 DateTime  @map("ends_at") @db.Timestamptz(6)
   durationMinutes        Int       @map("duration_minutes") @db.SmallInt
-  priceCents             Int       @map("price_cents")
+  priceMinor             BigInt    @map("price_minor")
+  currency               String    @db.Char(3)
   status                 String    @default("SCHEDULED") @db.VarChar(12)
   statusChangedAt        DateTime  @default(now()) @map("status_changed_at") @db.Timestamptz(6)
   isOverbooking          Boolean   @default(false) @map("is_overbooking")

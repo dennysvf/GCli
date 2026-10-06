@@ -1,3 +1,4 @@
+import type { Currency } from "@/shared/kernel/countries/codes";
 import { authorize } from "@/shared/authz/guard";
 import { can } from "@/shared/authz/permissions";
 import type { RequestContext } from "@/shared/context/types";
@@ -27,7 +28,7 @@ export type BookResult = {
   appointmentId: string;
   startsAt: string;
   endsAt: string;
-  priceCents: number;
+  price: { amountMinor: number; currency: Currency };
   isOverbooking: boolean;
   warnings: FindingDto[];
   version: number;
@@ -41,7 +42,8 @@ const AUDITED_FIELDS: (keyof AppointmentProps)[] = [
   "roomId",
   "startsAt",
   "durationMinutes",
-  "priceCents",
+  "priceMinor",
+  "currency",
   "status",
   "isOverbooking",
   "notes",
@@ -142,7 +144,8 @@ export async function bookAppointment(
     startsAt: range.start,
     durationMinutes,
     // PRD F06: price snapshot from the service at booking.
-    priceCents: service.priceCents,
+    priceMinor: refs.value.priceMinor,
+    currency: unit.currency,
     notes: data.notes,
     seriesId: null,
     seriesIndex: null,
@@ -161,7 +164,7 @@ export async function bookAppointment(
       appointmentId: props.id,
       startsAt: props.startsAt.toISOString(),
       endsAt: appointment.endsAt.toISOString(),
-      priceCents: props.priceCents,
+      price: { amountMinor: props.priceMinor, currency: props.currency },
       isOverbooking: props.isOverbooking,
       warnings: findingDtos(resolution.warnings),
       version: 1,

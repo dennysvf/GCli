@@ -1,0 +1,111 @@
+import { DOCUMENT_SPECS } from "../documents";
+import { TAX_ID_SPECS } from "../tax-id";
+import type { CountryProfile, Region } from "./types";
+
+export const BRAZIL_REGIONS: readonly Region[] = [
+  { code: "AC", name: "Acre" },
+  { code: "AL", name: "Alagoas" },
+  { code: "AP", name: "Amapá" },
+  { code: "AM", name: "Amazonas" },
+  { code: "BA", name: "Bahia" },
+  { code: "CE", name: "Ceará" },
+  { code: "DF", name: "Distrito Federal" },
+  { code: "ES", name: "Espírito Santo" },
+  { code: "GO", name: "Goiás" },
+  { code: "MA", name: "Maranhão" },
+  { code: "MT", name: "Mato Grosso" },
+  { code: "MS", name: "Mato Grosso do Sul" },
+  { code: "MG", name: "Minas Gerais" },
+  { code: "PA", name: "Pará" },
+  { code: "PB", name: "Paraíba" },
+  { code: "PR", name: "Paraná" },
+  { code: "PE", name: "Pernambuco" },
+  { code: "PI", name: "Piauí" },
+  { code: "RJ", name: "Rio de Janeiro" },
+  { code: "RN", name: "Rio Grande do Norte" },
+  { code: "RS", name: "Rio Grande do Sul" },
+  { code: "RO", name: "Rondônia" },
+  { code: "RR", name: "Roraima" },
+  { code: "SC", name: "Santa Catarina" },
+  { code: "SP", name: "São Paulo" },
+  { code: "SE", name: "Sergipe" },
+  { code: "TO", name: "Tocantins" },
+];
+
+// Brazilian IANA time zones offered for the organization (F01) and for each unit (F02, ADR-019).
+export const BRAZIL_TIME_ZONES = [
+  "America/Sao_Paulo",
+  "America/Manaus",
+  "America/Cuiaba",
+  "America/Campo_Grande",
+  "America/Porto_Velho",
+  "America/Boa_Vista",
+  "America/Rio_Branco",
+  "America/Eirunepe",
+  "America/Belem",
+  "America/Santarem",
+  "America/Araguaina",
+  "America/Fortaleza",
+  "America/Recife",
+  "America/Maceio",
+  "America/Bahia",
+  "America/Noronha",
+] as const;
+
+export const BR: CountryProfile = {
+  code: "BR",
+  nameKey: "countries.names.BR",
+  currency: "BRL",
+  formattingRegion: "pt-BR",
+  phoneCode: "55",
+  // Always with the area code (DDD): 10 digits for landlines, 11 for mobiles.
+  nationalPattern: /^[1-9]\d{9,10}$/,
+  // DDD followed by 9 and eight digits.
+  mobilePattern: /^\d{2}9\d{8}$/,
+  timeZones: BRAZIL_TIME_ZONES,
+  defaultTimeZone: "America/Sao_Paulo",
+  taxId: TAX_ID_SPECS.CNPJ,
+  identityDocuments: [DOCUMENT_SPECS.CPF],
+  address: {
+    fields: [
+      { name: "street", labelKey: "countries.address.street", required: false },
+      { name: "number", labelKey: "countries.address.number", required: false },
+      { name: "complement", labelKey: "countries.address.complement", required: false },
+      { name: "district", labelKey: "countries.address.district.BR", required: false },
+      { name: "city", labelKey: "countries.address.city", required: false },
+    ],
+    postalCode: {
+      labelKey: "countries.address.postalCodeLabel.BR",
+      pattern: /^\d{8}$/,
+      required: false,
+      lookup: "viacep",
+      normalize: (input) => input.replace(/\D/g, "").slice(0, 8),
+      format: (value) => (value.length > 5 ? `${value.slice(0, 5)}-${value.slice(5)}` : value),
+    },
+    region: { labelKey: "countries.address.regionLabel.BR", required: false, regions: BRAZIL_REGIONS },
+  },
+  councils: [
+    { type: "CRM", labelKey: "countries.councils.CRM", regionRequired: true, regions: BRAZIL_REGIONS },
+    { type: "CRO", labelKey: "countries.councils.CRO", regionRequired: true, regions: BRAZIL_REGIONS },
+    {
+      type: "CREFITO",
+      labelKey: "countries.councils.CREFITO",
+      regionRequired: true,
+      regions: BRAZIL_REGIONS,
+    },
+    { type: "CRP", labelKey: "countries.councils.CRP", regionRequired: true, regions: BRAZIL_REGIONS },
+    { type: "CRN", labelKey: "countries.councils.CRN", regionRequired: true, regions: BRAZIL_REGIONS },
+    { type: "COREN", labelKey: "countries.councils.COREN", regionRequired: true, regions: BRAZIL_REGIONS },
+    { type: "CRBM", labelKey: "countries.councils.CRBM", regionRequired: true, regions: BRAZIL_REGIONS },
+    { type: "CRF", labelKey: "countries.councils.CRF", regionRequired: true, regions: BRAZIL_REGIONS },
+    {
+      type: "OTHER",
+      labelKey: "countries.councils.OTHER",
+      regionRequired: true,
+      regions: BRAZIL_REGIONS,
+      needsName: true,
+    },
+  ],
+  paymentMethods: ["CASH", "PIX", "DEBIT_CARD", "CREDIT_CARD", "TRANSFER", "OTHER"],
+  legalRulesValidated: true,
+};

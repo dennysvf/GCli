@@ -10,14 +10,14 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { useRef, useState, type KeyboardEvent } from "react";
-import { formatMinute } from "@/shared/kernel/calendar-date";
 import type { PaletteColor } from "@/shared/kernel/palette";
 import { PALETTE } from "@/shared/ui/palette/palette";
 import { cn } from "@/shared/ui/utils";
 import type { AgendaItem } from "../application/queries";
 import { isOpen } from "../domain/status";
 import { AppointmentBlock, PX_PER_MINUTE } from "./appointment-block";
-import { localParts } from "./format";
+import { localParts, useAgendaFormat } from "./format";
+import { useTranslations } from "next-intl";
 
 // Day and Week grids (design system 10.1 and 5.11): a time ruler on the left and one column per
 // professional, room or day. Empty slots are buttons that start a booking; blocks can be dragged
@@ -107,6 +107,8 @@ function Column({
   onOpen: (item: AgendaItem) => void;
   onResize: (item: AgendaItem, durationMinutes: number) => void;
 }) {
+  const fmt = useAgendaFormat();
+  const t = useTranslations();
   const { setNodeRef, isOver } = useDroppable({ id: column.key, data: { column } });
   const height = (rulerEnd - rulerStart) * PX_PER_MINUTE;
   const y = (minute: number) => (minute - rulerStart) * PX_PER_MINUTE;
@@ -153,7 +155,9 @@ function Column({
             backgroundImage: "repeating-linear-gradient(45deg, transparent 0 6px, var(--rule) 6px 7px)",
           }}
         >
-          <span className="bg-paper-2 px-1">Unidade fechada: {column.closure}</span>
+          <span className="bg-paper-2 px-1">
+            {t("scheduling.ui.unitClosedColon")} {column.closure}
+          </span>
         </div>
       ) : null}
       {canBook && !column.closure
@@ -163,7 +167,7 @@ function Column({
               type="button"
               className="hover:bg-ink-blue-soft focus-visible:bg-ink-blue-soft absolute inset-x-0 outline-none"
               style={{ top: y(minute), height: granularity * PX_PER_MINUTE }}
-              aria-label={`Agendar às ${formatMinute(minute)}, ${column.label}`}
+              aria-label={t("scheduling.ui.slotLabel", { time: fmt.minute(minute), column: column.label })}
               onClick={() => onSlot(column, minute)}
               onKeyDown={(event) => {
                 if (event.key.toLowerCase() === "n") {
@@ -205,7 +209,7 @@ function Column({
           {/* Design system 10.1: the "now" label, the only terracotta text on the screen. */}
           {showNowLabel ? (
             <span className="text-terracotta-text bg-paper-0 absolute -top-2.5 left-1 px-1 text-xs tabular-nums">
-              agora {formatMinute(nowParts.minute)}
+              {t("scheduling.ui.now")} {fmt.minute(nowParts.minute)}
             </span>
           ) : null}
         </div>
@@ -241,6 +245,8 @@ export function TimeGrid({
   onMove: (item: AgendaItem, column: GridColumn, minute: number) => void;
   onResize: (item: AgendaItem, durationMinutes: number) => void;
 }) {
+  const fmt = useAgendaFormat();
+  const t = useTranslations();
   const bounds = columns.flatMap((column) => [...column.unitIntervals, ...(column.workingIntervals ?? [])]);
   const itemBounds = items.map((item) => {
     const start = localParts(item.startsAt, timeZone).minute;
@@ -263,8 +269,7 @@ export function TimeGrid({
   const [moving, setMoving] = useState<KeyboardMove | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const lastKeyMove = useRef(0);
-  const describe = (move: KeyboardMove) =>
-    `${columns[move.column]?.label ?? ""}, ${formatMinute(move.minute)}`;
+  const describe = (move: KeyboardMove) => `${columns[move.column]?.label ?? ""}, ${fmt.minute(move.minute)}`;
 
   function onBlockKey(item: AgendaItem, event: KeyboardEvent<HTMLElement>) {
     if (!canDrag || !isOpen(item.status)) return;
@@ -283,7 +288,7 @@ export function TimeGrid({
       lastKeyMove.current = Date.now();
       setMoving(picked);
       setAnnouncement(
-        `${item.patient.displayName} selecionado para reagendar: ${describe(picked)}. Use as setas e pressione espaço para soltar.`,
+        t("scheduling.ui.dragPickedFor", { patient: item.patient.displayName, where: describe(picked) }),
       );
       return;
     }
@@ -291,7 +296,7 @@ export function TimeGrid({
     if (key === "Escape") {
       event.preventDefault();
       setMoving(null);
-      setAnnouncement("Reagendamento cancelado.");
+      setAnnouncement(t("scheduling.ui.dragCancelled"));
       return;
     }
     if (key === " " || key === "Enter") {
@@ -301,10 +306,10 @@ export function TimeGrid({
       const column = columns[moving.column];
       const start = localParts(item.startsAt, timeZone).minute;
       if (!column || (moving.minute === start && column.key === columnOf(item))) {
-        setAnnouncement("Agendamento solto no mesmo horário.");
+        setAnnouncement(t("scheduling.ui.dragSameTime"));
         return;
       }
-      setAnnouncement("Agendamento solto. Confirme o novo horário.");
+      setAnnouncement(t("scheduling.ui.dragDropped"));
       onMove(item, column, moving.minute);
       return;
     }
@@ -350,18 +355,19 @@ export function TimeGrid({
       onDragEnd={onDragEnd}
       accessibility={{
         screenReaderInstructions: {
-          draggable:
-            "Para reagendar, pressione espaço, use as setas para mover um horário ou uma coluna e pressione espaço para soltar. Esc cancela.",
+          draggable: t("scheduling.ui.dragInstructions"),
         },
         // Keyboard moves are announced by the grid's own live region.
         announcements: {
-          onDragStart: () => "Agendamento selecionado para reagendar.",
+          onDragStart: () => t("scheduling.ui.dragPicked"),
           onDragOver: ({ over }) =>
             over
-              ? `Sobre ${String((over.data.current?.column as GridColumn | undefined)?.label ?? "")}.`
-              : "Fora da agenda.",
-          onDragEnd: () => "Agendamento solto. Confirme o novo horário.",
-          onDragCancel: () => "Reagendamento cancelado.",
+              ? t("scheduling.ui.dragOver", {
+                  column: String((over.data.current?.column as GridColumn | undefined)?.label ?? ""),
+                })
+              : t("scheduling.ui.dragOutside"),
+          onDragEnd: () => t("scheduling.ui.dragDropped"),
+          onDragCancel: () => t("scheduling.ui.dragCancelled"),
         },
       }}
     >
@@ -379,7 +385,7 @@ export function TimeGrid({
                   className="text-muted-foreground absolute right-2 -translate-y-1/2 text-xs tabular-nums"
                   style={{ top: (minute - rulerStart) * PX_PER_MINUTE }}
                 >
-                  {minute === rulerStart ? "" : formatMinute(minute)}
+                  {minute === rulerStart ? "" : fmt.minute(minute)}
                 </span>
               ))}
             </div>

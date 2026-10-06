@@ -5,7 +5,7 @@ import { parseInput } from "@/shared/kernel/validation";
 import type { Appointment } from "../domain/appointment";
 import { SchedulingErrors } from "../domain/errors";
 import { appointmentEvent, SCHEDULING_EVENTS } from "../domain/events";
-import { isOpen, STATUS_LABELS } from "../domain/status";
+import { isOpen } from "../domain/status";
 import { isActiveReason } from "./cancellation-reasons";
 import { finishChange, loadAppointment, saveChange } from "./changes";
 import type { SchedulingDeps } from "./ports";
@@ -55,9 +55,7 @@ export async function cancelAppointment(
   const selected = loaded.value;
   const selectedBefore = { ...selected.snapshot };
   if (data.scope === "THIS" && !isOpen(selectedBefore.status)) {
-    return fail(
-      SchedulingErrors.invalidTransition(STATUS_LABELS[selectedBefore.status], STATUS_LABELS.CANCELLED),
-    );
+    return fail(SchedulingErrors.invalidTransition(selectedBefore.status, "CANCELLED"));
   }
   if (data.scope !== "THIS" && !selectedBefore.seriesId) return fail(SchedulingErrors.notInSeries());
 

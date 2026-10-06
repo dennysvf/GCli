@@ -49,6 +49,8 @@ export type PdfPageProps = {
   title: string;
   subtitle?: string;
   footerNote: string;
+  // "Page {page} of {total}" in the language of the document; the placeholders are replaced per page.
+  pageLabel: string;
   children?: ReactNode;
 };
 
@@ -59,6 +61,7 @@ export function PdfDocument({
   title,
   subtitle,
   footerNote,
+  pageLabel,
   children,
 }: PdfPageProps) {
   return (
@@ -76,7 +79,11 @@ export function PdfDocument({
         {children}
         <View style={styles.footer} fixed>
           <Text>{footerNote}</Text>
-          <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
+          <Text
+            render={({ pageNumber, totalPages }) =>
+              pageLabel.replace("{page}", String(pageNumber)).replace("{total}", String(totalPages))
+            }
+          />
         </View>
       </Page>
     </Document>

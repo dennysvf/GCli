@@ -20,7 +20,8 @@ export const WEEKDAY_LABELS: Record<number, string> = {
   7: "Domingo",
 };
 
-// Returns field errors keyed as `days.<index>` (the form's field paths), or null when valid.
+// Returns field errors keyed as `days.<index>` (the form's field paths), or null when valid. Values
+// are catalog keys (units.validation.hours.*): the form shows them next to the weekday row.
 export function validateWeek(week: Week): Record<string, string> | null {
   const problems: Record<string, string> = {};
   const seen = new Set<number>();
@@ -28,36 +29,35 @@ export function validateWeek(week: Week): Record<string, string> | null {
   week.forEach((day, index) => {
     const key = `days.${index}`;
     if (!WEEKDAYS.includes(day.weekday as (typeof WEEKDAYS)[number]) || seen.has(day.weekday)) {
-      problems[key] = "Dia da semana inválido ou repetido.";
+      problems[key] = "units.validation.hours.weekdayInvalid";
       return;
     }
     seen.add(day.weekday);
-    const label = WEEKDAY_LABELS[day.weekday];
     const problem = validateDay(day);
-    if (problem) problems[key] = `${label}: ${problem}`;
+    if (problem) problems[key] = problem;
   });
 
   if (seen.size !== WEEKDAYS.length && Object.keys(problems).length === 0) {
-    problems.days = "Informe os sete dias da semana.";
+    problems.days = "units.validation.hours.sevenDays";
   }
   return Object.keys(problems).length > 0 ? problems : null;
 }
 
 function validateDay(day: DaySchedule): string | null {
-  if (!day.open) return day.intervals.length === 0 ? null : "dia fechado não pode ter horários.";
-  if (day.intervals.length === 0) return "informe ao menos um horário para um dia aberto.";
-  if (day.intervals.length > MAX_INTERVALS_PER_DAY) return "no máximo dois intervalos por dia.";
+  if (!day.open) return day.intervals.length === 0 ? null : "units.validation.hours.closedWithIntervals";
+  if (day.intervals.length === 0) return "units.validation.hours.needsInterval";
+  if (day.intervals.length > MAX_INTERVALS_PER_DAY) return "units.validation.hours.maxIntervals";
 
   for (const interval of day.intervals) {
-    if (interval.start < 0 || interval.end > DAY_MINUTES) return "horário fora do dia.";
+    if (interval.start < 0 || interval.end > DAY_MINUTES) return "units.validation.hours.outsideDay";
     if (interval.start % MINUTE_GRANULARITY !== 0 || interval.end % MINUTE_GRANULARITY !== 0) {
-      return "use horários em múltiplos de 5 minutos.";
+      return "units.validation.hours.granularity";
     }
-    if (interval.start >= interval.end) return "o horário de início deve ser anterior ao de término.";
+    if (interval.start >= interval.end) return "units.validation.hours.startBeforeEnd";
   }
   const [first, second] = day.intervals;
   if (first && second && second.start <= first.end) {
-    return "o segundo intervalo deve começar depois do fim do primeiro.";
+    return "units.validation.hours.secondAfterFirst";
   }
   return null;
 }

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 // Static security headers. The Content-Security-Policy with a per-request nonce is set in src/proxy.ts.
 const securityHeaders = [
@@ -26,4 +27,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// next-intl without locale routing (ADR-028): the locale comes from src/i18n/request.ts.
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
+
+export default withNextIntl(nextConfig);
