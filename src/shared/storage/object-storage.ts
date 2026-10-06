@@ -147,6 +147,9 @@ export function objectStorage(): ObjectStorage {
         endpoint,
         region: env.S3_REGION,
         forcePathStyle: env.S3_FORCE_PATH_STYLE,
+        // Presigned URLs must not carry the checksum of an empty body (ADR-031): the browser sends the real file.
+        requestChecksumCalculation: "WHEN_REQUIRED",
+        responseChecksumValidation: "WHEN_REQUIRED",
         credentials: { accessKeyId: env.S3_ACCESS_KEY_ID, secretAccessKey: env.S3_SECRET_ACCESS_KEY },
       });
     const client = create(env.S3_ENDPOINT);

@@ -208,10 +208,24 @@ export interface AgendaPdfRenderer {
   render(document: DailyAgendaDocument): Promise<Buffer>;
 }
 
+// State of the clinical note of an appointment, provided by clinical-records (F07). Until F07 is
+// registered the default knows no notes, so the agenda shows no reminder (ADR-007, ADR-022).
+export type ClinicalNoteState = "DRAFT" | "FINALIZED";
+
+export interface ClinicalNoteLookup {
+  // Only the state, never the content. A draft is reported to its author only.
+  noteStates(
+    organizationId: string,
+    appointmentIds: string[],
+    viewerUserId: string,
+  ): Promise<Map<string, ClinicalNoteState>>;
+}
+
 export type SchedulingDeps = {
   appointments: AppointmentRepository;
   series: SeriesRepository;
   directory: SchedulingDirectory;
   pdf: AgendaPdfRenderer;
+  clinicalNotes: () => ClinicalNoteLookup;
   clock: () => Date;
 };

@@ -8,6 +8,11 @@ import { QUEUES, type EmailJobData } from "@/shared/jobs/queues";
 import { logger } from "@/shared/logging/logger";
 import { sentryOptions } from "@/shared/observability/sentry";
 import { cleanupIdentityData } from "./jobs/identity-cleanup";
+import {
+  autoFinalizeExpiredDrafts,
+  cleanupClinicalUploads,
+  processClinicalAttachment,
+} from "./jobs/clinical-records";
 import { cleanupPatientUploads } from "./jobs/patients-cleanup";
 import { sendOutboxEmail } from "./jobs/email-send";
 import { startOutboxLoop } from "./outbox-dispatcher";
@@ -43,10 +48,27 @@ async function main() {
     if (removed) logger.info({ removed }, "unused consent uploads removed");
   });
 
+  // F07: HEIC conversion and thumbnails, auto-finalization of expired drafts, unused upload intents.
+  await boss.work<EmailJobData>(QUEUES.clinicalAttachmentProcess, async (jobs) => {
+    for (const job of jobs)
+      await processClinicalAttachment({ payload: job.data.payload, retryCount: job.retryCount });
+  });
+  await boss.work(QUEUES.clinicalNotesAutoFinalize, async () => {
+    const changed = await autoFinalizeExpiredDrafts();
+    if (changed) logger.info({ changed }, "clinical notes locked and finalized");
+  });
+  await boss.work(QUEUES.clinicalUploadsCleanup, async () => {
+    const removed = await cleanupClinicalUploads();
+    if (removed) logger.info({ removed }, "unused clinical upload intents removed");
+  });
+
   // Monthly on day 1 at 03:00, and daily at 03:30 (server time).
   await boss.schedule(QUEUES.auditEnsurePartitions, "0 3 1 * *");
   await boss.schedule(QUEUES.identityCleanup, "30 3 * * *");
   await boss.schedule(QUEUES.patientsCleanup, "45 3 * * *");
+  // F07: every 5 minutes, and daily at 04:00.
+  await boss.schedule(QUEUES.clinicalNotesAutoFinalize, "*/5 * * * *");
+  await boss.schedule(QUEUES.clinicalUploadsCleanup, "0 4 * * *");
   await boss.send(QUEUES.auditEnsurePartitions, {}, { singletonKey: "startup" });
 
   const stopOutbox = startOutboxLoop(boss);

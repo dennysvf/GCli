@@ -1,3 +1,4 @@
+import { can } from "@/shared/authz/permissions";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction } from "@/shared/db/transaction";
 import { daysBetween, isoWeekday, addDays } from "@/shared/kernel/calendar-date";
@@ -338,6 +339,8 @@ export type AppointmentDetails = AgendaItem & {
   }[];
   createdById: string | null;
   createdAt: string;
+  // F07: state of the appointment's clinical note, only for users who can read clinical records.
+  clinicalNote: { state: "NONE" | "DRAFT" | "FINALIZED" } | null;
 };
 
 // Details for the side panel and the read API for F07, F09, F10 and F14.
@@ -385,8 +388,17 @@ export async function getAppointment(
     ),
   ]);
   if (!item) return fail(SchedulingErrors.notFound());
+  const clinicalNote = can(ctx, "clinical:read")
+    ? {
+        state:
+          (await deps.clinicalNotes().noteStates(ctx.organizationId, [appointmentId], ctx.user.id)).get(
+            appointmentId,
+          ) ?? ("NONE" as const),
+      }
+    : null;
   return ok({
     ...item,
+    clinicalNote,
     exceptionJustification: record.exceptionJustification,
     exceptionCodes: record.exceptionCodes,
     cancellation: record.cancellation

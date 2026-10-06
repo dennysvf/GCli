@@ -28,6 +28,8 @@ export type ClinicalNoteProps = {
   status: NoteStatus;
   content: NoteContent;
   createdAt: Date;
+  // Last autosave of the draft or of the edit draft.
+  draftSavedAt: Date;
   locksAt: Date;
   finalizedAt: Date | null;
   finalizedById: string | null;
@@ -79,6 +81,7 @@ export class ClinicalNote {
         status: "DRAFT",
         content: input.content,
         createdAt: input.now,
+        draftSavedAt: input.now,
         locksAt: new Date(input.now.getTime() + LOCK_WINDOW_MS),
         finalizedAt: null,
         finalizedById: null,
@@ -140,7 +143,7 @@ export class ClinicalNote {
     if (this.props.status !== "DRAFT") return fail(ClinicalErrors.noteAlreadyFinalized());
     const tooLong = checkLength(content);
     if (tooLong) return fail(tooLong);
-    this.props = { ...this.props, content };
+    this.props = { ...this.props, content, draftSavedAt: now };
     return ok(undefined);
   }
 
@@ -177,7 +180,7 @@ export class ClinicalNote {
     if (blocked) return fail(blocked);
     const tooLong = checkLength(content);
     if (tooLong) return fail(tooLong);
-    this.props = { ...this.props, editDraft: content };
+    this.props = { ...this.props, editDraft: content, draftSavedAt: now };
     return ok(undefined);
   }
 
