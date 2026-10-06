@@ -22,7 +22,7 @@ services:
   # publishes container images). S3 API on port 8333.
   seaweedfs:
     image: chrislusf/seaweedfs:latest
-    command: server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json -s3.allowedOrigins=http://localhost:3000,http://localhost:3001
+    command: server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json -s3.allowedOrigins=http://localhost:3000,http://localhost:3001,http://localhost:3101
     ports:
       - "8333:8333"
     volumes:

@@ -18,6 +18,27 @@ export function writeBackup(userId: string, noteKey: string, backup: LocalBackup
   }
 }
 
+// The stored text itself, as one primitive, so a component can read it with useSyncExternalStore
+// (null on the server and when storage is unavailable).
+export function readBackupRaw(userId: string, noteKey: string): string | null {
+  try {
+    return window.localStorage.getItem(key(userId, noteKey));
+  } catch {
+    return null;
+  }
+}
+
+export function parseBackup(raw: string | null): LocalBackup | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<LocalBackup>;
+    if (typeof parsed.html !== "string" || typeof parsed.savedAt !== "string") return null;
+    return { html: parsed.html, savedAt: parsed.savedAt, baseVersion: Number(parsed.baseVersion ?? 0) };
+  } catch {
+    return null;
+  }
+}
+
 export function readBackup(userId: string, noteKey: string): LocalBackup | null {
   try {
     const raw = window.localStorage.getItem(key(userId, noteKey));

@@ -103,3 +103,6 @@ export type { SaveResult, FinalizeResult, EditResult, PublishResult } from "./ap
 export type { AddendumResult } from "./application/addenda";
 export type { AlertResult } from "./application/alerts";
 export type { AttachmentSummary, UploadIntentResult } from "./application/attachments";
+export { ClinicalRecordView } from "./ui/clinical-record-view";
+export { ClinicalNotesTable } from "./ui/clinical-notes-table";
+export type { RecordActions } from "./ui/record-actions";
