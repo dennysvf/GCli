@@ -8,6 +8,8 @@ import { services } from "@/modules/services";
 import { units } from "@/modules/units";
 import type { RequestContext } from "@/shared/context/types";
 import { db } from "@/shared/db/client";
+import { isLocale } from "@/shared/i18n/locales";
+import { isCountryCode } from "@/shared/kernel/countries/codes";
 import { addDays, isoWeekday } from "@/shared/kernel/calendar-date";
 import { newId } from "@/shared/kernel/ids";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
@@ -131,12 +133,16 @@ async function main(): Promise<number> {
     );
     return 1;
   }
+  const organization = await db().organization.findUniqueOrThrow({ where: { id: admin.organizationId } });
   const ctx: RequestContext = {
     kind: "user",
     requestId: newId(),
     organizationId: admin.organizationId,
     user: { id: admin.id, name: admin.name, email: admin.email, role: "ADMINISTRATOR" },
     sessionId: "seed-demo",
+    // The demo clinic is Brazilian; the language follows the organization default (PRD F16).
+    locale: isLocale(organization.defaultLocale) ? organization.defaultLocale : "pt-BR",
+    organizationCountry: isCountryCode(organization.country) ? organization.country : "BR",
     linkedProfessionalId: null,
     ipAddress: null,
     userAgent: "seed-demo",
@@ -179,7 +185,17 @@ async function main(): Promise<number> {
     requiresRoom: boolean;
   }) =>
     must(
-      await services.createService(ctx, { ...input, description: null, allowedRoomIds: [] }),
+      await services.createService(ctx, {
+        name: input.name,
+        categoryId: input.categoryId,
+        durationMinutes: input.durationMinutes,
+        // PRD F16: one price per currency; the demo clinic sells in reais.
+        prices: [{ currency: "BRL", amountMinor: input.priceCents }],
+        color: input.color,
+        requiresRoom: input.requiresRoom,
+        description: null,
+        allowedRoomIds: [],
+      }),
       "createService",
     ).serviceId;
   const consulta = await service({
@@ -265,10 +281,26 @@ async function main(): Promise<number> {
   ) => {
     const id = must(
       await professionals.createProfessional(ctx, {
-        ...input,
-        councilOtherName: null,
-        councilState: input.councilType === "NONE" ? null : "SP",
-        cpf: null,
+        fullName: input.fullName,
+        displayName: input.displayName,
+        specialty: input.specialty,
+        color: input.color,
+        // PRD F16: registrations per country; "NONE" means the professional has no council.
+        hasNoCouncil: input.councilType === "NONE",
+        registrations:
+          input.councilType === "NONE"
+            ? []
+            : [
+                {
+                  country: "BR",
+                  councilType: input.councilType,
+                  councilOtherName: null,
+                  number: input.councilNumber,
+                  region: "SP",
+                  npi: null,
+                },
+              ],
+        document: null,
         phone: null,
         email: null,
         linkedUserId: input.linkedUserId ?? null,
