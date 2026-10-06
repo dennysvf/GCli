@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { forbidden, notFound } from "next/navigation";
+import { ClinicalNotesTable, clinicalRecords } from "@/modules/clinical-records";
 import { getOrganizationProfile } from "@/modules/identity";
 import { requirePermission } from "@/modules/identity/next";
 import {
@@ -15,6 +16,7 @@ import { AppointmentsTable, scheduling } from "@/modules/scheduling";
 import { can } from "@/shared/authz/permissions";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
 import { PageHeader } from "@/shared/ui/app-shell/page-header";
+import { Button } from "@/shared/ui/components/button";
 import { Stamp } from "@/shared/ui/components/stamp";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
 import {
@@ -43,6 +45,10 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
   }
   const details = patient.value;
   const canManage = can(ctx, "patient:manage");
+  // PRD F07: the clinical tab exists only for those the records policy lets in. The check is made
+  // before asking for the notes, so Front Desk users never trigger a denial just by opening the page.
+  const canOpenRecords = await clinicalRecords.canAccessPatientRecords(ctx, patientId);
+  const notes = canOpenRecords ? await clinicalRecords.listPatientNotes(ctx, { patientId }) : null;
   const [profile, sources, tags, consents, terms, appointments] = await Promise.all([
     getOrganizationProfile(ctx),
     patients.listItems(ctx, "referral-source"),
@@ -67,13 +73,20 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
           </Link>
         }
         actions={
-          canManage ? (
-            <PatientActiveControl
-              patientId={patientId}
-              active={details.active}
-              action={setPatientActiveAction}
-            />
-          ) : null
+          <>
+            {canOpenRecords ? (
+              <Button asChild variant="outline">
+                <Link href={`/patients/${patientId}/records`}>{t("clinicalRecords.ui.openRecord")}</Link>
+              </Button>
+            ) : null}
+            {canManage ? (
+              <PatientActiveControl
+                patientId={patientId}
+                active={details.active}
+                action={setPatientActiveAction}
+              />
+            ) : null}
+          </>
         }
       />
       <IncompleteRecordAlert patient={details} />
@@ -83,6 +96,7 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
         <TabsList>
           <TabsTrigger value="data">{t("common.data")}</TabsTrigger>
           {appointments ? <TabsTrigger value="appointments">{t("common.appointments")}</TabsTrigger> : null}
+          {notes ? <TabsTrigger value="records">{t("clinicalRecords.ui.tab")}</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="data" className="grid gap-8 pt-4">
           <PatientForm
@@ -129,6 +143,15 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
               </>
             ) : (
               <p className="text-muted-foreground">{t("patients.ui.appointmentsLoadError")}</p>
+            )}
+          </TabsContent>
+        ) : null}
+        {notes ? (
+          <TabsContent value="records" className="grid gap-4 pt-4">
+            {notes.ok ? (
+              <ClinicalNotesTable patientId={patientId} items={notes.value.items} total={notes.value.total} />
+            ) : (
+              <p className="text-muted-foreground">{t("clinicalRecords.ui.loadError")}</p>
             )}
           </TabsContent>
         ) : null}

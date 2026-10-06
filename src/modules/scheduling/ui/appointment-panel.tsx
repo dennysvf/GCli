@@ -8,6 +8,7 @@ import { useLocale } from "next-intl";
 import { formatLocale, formatMoney } from "@/shared/i18n/format";
 import type { Locale } from "@/shared/i18n/locales";
 import type { CountryCode, Currency } from "@/shared/kernel/countries/codes";
+import { Alert } from "@/shared/ui/components/alert";
 import { Button } from "@/shared/ui/components/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/shared/ui/components/sheet";
 import { Stamp } from "@/shared/ui/components/stamp";
@@ -44,6 +45,9 @@ export type Permissions = {
   canRevertAnyTime: boolean;
   linkedProfessionalId: string | null;
 };
+
+// PRD F07: the clinical record opens from an appointment the patient has arrived for.
+const RECORD_STATUSES: AppointmentStatus[] = ["CHECKED_IN", "IN_PROGRESS", "COMPLETED"];
 
 // Button text per target status (PRD F06 lifecycle; "desfazer" for the backward moves).
 function transitionLabel(from: AppointmentStatus, to: AppointmentStatus, t: (key: string) => string): string {
@@ -285,6 +289,22 @@ export function AppointmentPanel({
                         {t("scheduling.ui.cancelAppointment")}
                       </Button>
                     </div>
+                  ) : null}
+                  {details.clinicalNote &&
+                  permissions.linkedProfessionalId === details.professional.id &&
+                  details.status === "COMPLETED" &&
+                  details.clinicalNote.state !== "FINALIZED" ? (
+                    // PRD F07: a reminder when the appointment is completed without a finalized note.
+                    <Alert variant="warning">{t("scheduling.ui.recordReminder")}</Alert>
+                  ) : null}
+                  {details.clinicalNote &&
+                  (RECORD_STATUSES.includes(details.status) || details.clinicalNote.state !== "NONE") ? (
+                    <Link
+                      href={`/patients/${details.patient.id}/records?appointment=${details.id}`}
+                      className="text-primary text-sm hover:underline"
+                    >
+                      {t("scheduling.ui.openRecord")}
+                    </Link>
                   ) : null}
                   <Link
                     href={`/patients/${details.patient.id}`}

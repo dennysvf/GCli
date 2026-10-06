@@ -220,7 +220,9 @@
     "durationValue": "{minutes} minutos",
     "selectPatient": "Seleccione el paciente.",
     "serviceOption": "{name} · {minutes} min · {price}",
-    "dragOver": "Sobre {column}."
+    "dragOver": "Sobre {column}.",
+    "openRecord": "Abrir historia clínica",
+    "recordReminder": "Aún no finalizó el registro de esta cita."
   },
   "findings": {
     "SCHEDULING_PROFESSIONAL_CONFLICT": "{professional} ya tiene una cita de {start} a {end}. ¿Desea registrarla como sobrecupo?",
