@@ -10,7 +10,9 @@ const BATCH_SIZE = 50;
 type OutboxRow = { id: string; type: string; payload: Record<string, unknown> };
 
 function queueFor(type: string): string | null {
-  return type.startsWith("email.") ? QUEUES.emailSend : null;
+  if (type.startsWith("email.")) return QUEUES.emailSend;
+  if (type === "clinical.attachment-process") return QUEUES.clinicalAttachmentProcess;
+  return null;
 }
 
 export async function dispatchOutboxBatch(boss: PgBoss): Promise<number> {

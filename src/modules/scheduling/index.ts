@@ -4,6 +4,7 @@ import { professionals } from "@/modules/professionals";
 import { services } from "@/modules/services";
 import { units } from "@/modules/units";
 import type { RequestContext } from "@/shared/context/types";
+import { definePort } from "@/shared/ports/registry";
 import { exportDailyAgenda } from "./application/agenda-pdf";
 import { bookAppointment } from "./application/book-appointment";
 import { getBookingOptions } from "./application/booking-options";
@@ -17,13 +18,19 @@ import {
 import { changeAppointmentStatus } from "./application/change-status";
 import { previewConflicts } from "./application/check-conflicts";
 import { findNextAvailableSlots } from "./application/find-available-slots";
-import type { SchedulingDeps } from "./application/ports";
+import type { ClinicalNoteLookup, SchedulingDeps } from "./application/ports";
 import { getAgenda, getAppointment, listAppointments, listPatientAppointments } from "./application/queries";
 import { rescheduleAppointment } from "./application/reschedule-appointment";
 import { bookSeries, editSeries, previewSeries, previewSeriesEdit } from "./application/series";
 import { updateAppointment } from "./application/update-appointment";
 import { reactPdfAgendaRenderer } from "./infrastructure/agenda-pdf";
 import { schedulingDirectory } from "./infrastructure/directory";
+import { noClinicalNotes } from "./infrastructure/no-clinical-notes";
+import {
+  appointmentsForRecords,
+  getAppointmentForRecord,
+  professionalPatientRelation,
+} from "./infrastructure/records-reads";
 import { prismaAppointmentRepository } from "./infrastructure/prisma-appointment-repository";
 import { prismaSeriesRepository } from "./infrastructure/prisma-series-repository";
 import {
@@ -33,11 +40,15 @@ import {
   unitsAppointments,
 } from "./infrastructure/ports";
 
+// F07 registers the real lookup (ADR-022); until then no appointment has a note.
+const clinicalNoteLookup = definePort<ClinicalNoteLookup>("scheduling.ClinicalNoteLookup", noClinicalNotes);
+
 const deps: SchedulingDeps = {
   appointments: prismaAppointmentRepository,
   series: prismaSeriesRepository,
   directory: schedulingDirectory,
   pdf: reactPdfAgendaRenderer,
+  clinicalNotes: () => clinicalNoteLookup.get(),
   clock: () => new Date(),
 };
 
@@ -63,6 +74,12 @@ export const scheduling = {
   getBookingOptions: (ctx: RequestContext, input: unknown) => getBookingOptions(deps, ctx, input),
   findNextAvailableSlots: (ctx: RequestContext, input: unknown) => findNextAvailableSlots(deps, ctx, input),
   exportDailyAgenda: (ctx: RequestContext, input: unknown) => exportDailyAgenda(deps, ctx, input),
+  // Facts clinical-records (F07) needs; no own-agenda filter, the clinical policy decides access.
+  getAppointmentForRecord,
+  professionalPatientRelation,
+  appointmentsForRecords,
+  registerClinicalNoteLookup: (implementation: ClinicalNoteLookup | null) =>
+    clinicalNoteLookup.register(implementation),
   // Cancellation reasons
   listCancellationReasons: (ctx: RequestContext, options?: { activeOnly?: boolean }) =>
     listCancellationReasons(ctx, options),
@@ -98,6 +115,8 @@ export type { FindingDto } from "./application/booking";
 export type { SeriesPreview, OccurrencePreview } from "./application/series";
 export type { CancellationReasonItem } from "./application/cancellation-reasons";
 export type { AvailableSlotDto } from "./application/find-available-slots";
+export type { ClinicalNoteLookup, ClinicalNoteState } from "./application/ports";
+export type { AppointmentForList, AppointmentForRecord } from "./infrastructure/records-reads";
 export { schedulingCatalog } from "./messages/catalog";
 export { AgendaView, type AgendaActions, type AgendaViewProps } from "./ui/agenda-view";
 export type { AgendaBy, AgendaViewKind, ToolbarState } from "./ui/agenda-toolbar";

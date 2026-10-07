@@ -220,7 +220,9 @@
     "durationValue": "{minutes} minutos",
     "selectPatient": "Selecione o paciente.",
     "serviceOption": "{name} · {minutes} min · {price}",
-    "dragOver": "Sobre {column}."
+    "dragOver": "Sobre {column}.",
+    "openRecord": "Abrir prontuário",
+    "recordReminder": "Você ainda não finalizou o registro deste atendimento."
   },
   "findings": {
     "SCHEDULING_PROFESSIONAL_CONFLICT": "{professional} já possui atendimento das {start} às {end}. Deseja registrar como encaixe?",

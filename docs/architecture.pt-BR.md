@@ -463,6 +463,16 @@ Cada ADR vale até ser substituído por um novo ADR. Para mudar uma decisão, ad
 - *Por quê:* Unidades em Portugal, Espanha, Chile ou Estados Unidos mudam de deslocamento durante o ano, então um deslocamento fixo deslocaria ou sobreporia intervalos em parte dele. As conversões que o `Intl` oferece bastam; nenhuma biblioteca de datas é necessária.
 - *Trade-off:* A verificação faz mais trabalho (uma conversão por intervalo e data), pequeno para o horizonte de 53 semanas. Os testes fixam transições reais de 2026 e 2027.
 
+**ADR-031 — Upload direto pré-assinado para anexos clínicos (refina o ADR-009 e o ADR-023)**
+- *Decisão:* Os anexos clínicos (até 20 MB, até 10 por nota) vão do navegador direto ao bucket privado por uma URL PUT pré-assinada que assina o tipo e o tamanho. O servidor emite a URL após a autorização, e uma etapa de confirmação lê os metadados do objeto e seus primeiros bytes (magic bytes) antes de criar o registro; se não bater, o objeto é apagado. O navegador acessa o bucket pela variável opcional `S3_PUBLIC_ENDPOINT` (padrão `S3_ENDPOINT`), que entra em `connect-src` e `img-src` na CSP, e o bucket tem uma regra CORS que permite `PUT` e `GET` a partir de `APP_URL`.
+- *Por quê:* O ADR-023 limitou o upload pelo servidor a 10 MB e citou a F07 como a funcionalidade que poderia adotar o upload direto. Arquivos de 20 MB sobrecarregariam o processo web, e o navegador consegue mostrar o progresso por arquivo.
+- *Trade-off:* Mais peças (CSP, CORS, endpoint público, uma tabela de intenções e um job de limpeza de envios não confirmados). O tamanho assinado e a checagem de magic bytes mantêm o servidor no controle do que é armazenado.
+
+**ADR-032 — Notas clínicas em HTML sanitizado com trava no banco (complementa o ADR-005 e a seção 6)**
+- *Decisão:* Notas e adendos são armazenados como HTML sanitizado no servidor contra uma lista estrita de tags (`p`, `br`, `strong`, `em`, `h2`, `h3`, `ul`, `ol`, `li`, sem atributos), mais um texto simples derivado usado para limites, prévias e exportações. A nota guarda `locks_at = created_at + 24 h`; um trigger `BEFORE UPDATE` recusa mudanças de conteúdo depois desse instante. A edição de uma nota finalizada usa um rascunho de edição visível só ao autor; publicá-lo guarda o conteúdo substituído como versão. Um job finaliza os rascunhos que expiram.
+- *Por quê:* O PRD diz que a nota travada fica travada para sempre, o que o banco deve garantir mesmo que a aplicação tenha um bug. Uma versão por edição real, e não por salvamento automático, mantém o histórico útil.
+- *Trade-off:* A sanitização acontece em toda gravação e leitura, e o trigger compara com o início da transação, então um salvamento que começa milissegundos antes do travamento pode ser confirmado.
+
 ## 13. Evolução para SaaS
 
 O desenho da V1 mantém estes passos como acréscimos, sem reescrita:

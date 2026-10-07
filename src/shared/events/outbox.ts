@@ -3,7 +3,7 @@ import { newId } from "@/shared/kernel/ids";
 
 // Transactional outbox (architecture 5.4): messages are written in the same transaction as the
 // business change and delivered by the worker (src/worker/outbox-dispatcher.ts).
-export type OutboxMessageType = "email.invitation" | "email.password-reset";
+export type OutboxMessageType = "email.invitation" | "email.password-reset" | "clinical.attachment-process";
 
 type OutboxClient = {
   outboxMessage: { create(args: { data: Prisma.OutboxMessageUncheckedCreateInput }): unknown };

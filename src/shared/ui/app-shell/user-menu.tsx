@@ -1,5 +1,6 @@
 "use client";
 
+import { clearDeviceData } from "./device-data";
 import { LogOut } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -81,7 +82,7 @@ export function UserMenu({
           ))}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
-        <form action={signOutAction}>
+        <form action={signOutAction} onSubmit={clearDeviceData}>
           <DropdownMenuItem asChild>
             <button type="submit" className="w-full">
               <LogOut />
