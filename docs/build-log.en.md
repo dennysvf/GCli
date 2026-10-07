@@ -1,10 +1,10 @@
 # Build log — how GCli was built
 
-This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F06). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
+This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F07 and F16). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
 
 The work was done as a pair: a product owner and an AI coding assistant. The product owner answered questions, made the business decisions and approved each stage; the assistant ran the interviews, wrote documents and code, ran the tests and recorded what it found along the way.
 
-> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06.
+> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations.
 
 Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 
@@ -25,9 +25,12 @@ Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 11. [Fourth feature: F04 — Professionals and Working Hours](#11-fourth-feature-f04--professionals-and-working-hours)
 12. [Fifth feature: F05 — Patient Registry](#12-fifth-feature-f05--patient-registry)
 13. [Sixth feature: F06 — Scheduling and Agenda](#13-sixth-feature-f06--scheduling-and-agenda)
-14. [Problems found and how they were solved](#14-problems-found-and-how-they-were-solved)
-15. [Reproducing the environment from scratch](#15-reproducing-the-environment-from-scratch)
-16. [Lessons learned](#16-lessons-learned)
+14. [F16 — Internationalization and Country Profiles](#14-f16--internationalization-and-country-profiles)
+15. [Seventh feature: F07 — Clinical Encounter Records](#15-seventh-feature-f07--clinical-encounter-records)
+16. [Environments: development and production](#16-environments-development-and-production)
+17. [Problems found and how they were solved](#17-problems-found-and-how-they-were-solved)
+18. [Reproducing the environment from scratch](#18-reproducing-the-environment-from-scratch)
+19. [Lessons learned](#19-lessons-learned)
 
 ---
 
@@ -556,7 +559,114 @@ Final check: lint and types clean, 103 unit tests, 184 integration tests and 15 
 
 ---
 
-## 14. Problems found and how they were solved
+## 14. F16 — Internationalization and Country Profiles
+
+Before moving on to clinical records and billing, the product gained a new feature in the PRD: **F16**. The interface now exists in Brazilian Portuguese, English and Spanish, and each unit follows its country's conventions (currency, identity documents, phone, address, professional councils and time zones) for Brazil, Portugal, Spain, Mexico, Argentina, Chile, Colombia and the United States. Legal rules are still validated only for Brazil. It came **before** F07 on purpose: extracting text and adding a currency to every amount is cheap with six features done, and would mean migrating financial records after F09.
+
+### 14.1 Decisions made in the interview
+
+| Decision | Result |
+|---|---|
+| Library | next-intl, with no language prefix in URLs: the language is `user.locale ?? organization.defaultLocale` and travels in `RequestContext` |
+| Where text lives | One catalog per module and language (`src/modules/<module>/messages/{pt-BR,en,es}.json`) plus shared catalogs (`common`, `validation`, `shell`, `countries`, `email`) |
+| Use cases without text | Errors and validations carry message **keys** and parameters; the boundary (Server Action, route, worker, PDF) translates them |
+| Money | Integer `amount_minor` + `currency` on every amount column; `Money` refuses to add different currencies and totals are grouped by currency |
+| Countries | A typed registry per country in `src/shared/kernel/countries/` (documents, tax ID, phone, address, councils, payment methods, time zones) |
+| Daylight saving time | Every local time to instant conversion goes through `zonedTimeToUtc`, tested on real 2026 and 2027 transitions |
+| Translations | Produced with the extraction, following a glossary in the design system; en and es were reviewed and accepted by the product owner |
+
+The decisions became **ADR-028** (catalogs with next-intl), **ADR-029** (country profiles and money with currency) and **ADR-030** (DST-correct calendar, superseding ADR-021). The spec and plan are in [F16-internationalization-and-country-profiles/](F16-internationalization-and-country-profiles/).
+
+### 14.2 Implementation
+
+| Stage | Commit | What went in |
+|---|---|---|
+| PRD and spec | `5276be5`, `f480feb` | F16 in the PRD in both languages; spec and plan |
+| 1 — Language core | `a89d228` | ADRs 028–030, locale resolution, server translator, formatters, translated shell and language switcher |
+| 2 — Country kernel | `c9ad64d` | Profiles of the eight countries, documents, phones (libphonenumber-js), generic addresses, `Money` and time zone conversions |
+| 3 — Data model | `fe8f9be` | Migration `0008_internationalization`: country and currency per unit, `service_price` per currency, `professional_registration` per country, generic documents and phones |
+| 4 — Everything translated | `12d9f9a` | Every screen, email and the agenda PDF in three languages; a lint rule that refuses literal text in JSX; a test that fails when a key, an ICU message or a placeholder differs between languages |
+| Fixes | `6f66ec7`, `c3e2638` | Test of the agenda PDF language; indexes declared in the Prisma schema so `migrate dev` does not try to drop them |
+
+It was the largest change so far (345 files), because it touched every existing screen. Next, the **demo data** (`npm run seed:demo`, PR #19) was updated to the new model: services priced per currency, professionals with council registrations, patients and a week of appointments, with two sample users.
+
+### 14.3 What F16 left in place
+
+- **Catalogs per module** and the rule that no interface text is a literal in code: every new feature is born in three languages.
+- **Country profiles** used in forms and, later, in documents (F08), receipts (F09) and reports (F13).
+- **Money with currency** before any charge exists.
+
+---
+
+## 15. Seventh feature: F07 — Clinical Encounter Records
+
+F07 is the clinical record: the professional writes the note of each encounter, attaches exams and photos, reads the patient's history and, after 24 hours, can only complement it with addenda. It is the most sensitive data in the product, so the spec started from what the database must guarantee even if the application has a bug.
+
+### 15.1 Decisions made in the interview
+
+| Decision | Result |
+|---|---|
+| Attachment upload | Straight from the browser to the bucket through a presigned URL with signed type and size; the server confirms by reading the file's first bytes (**ADR-031**) |
+| Text format | Tiptap editor and HTML sanitized on the server against a short allowlist of tags (**ADR-032**) |
+| When the 24-hour clock starts | When the draft is created, at the first save with text |
+| Draft never finalized | Finalized automatically when the 24 hours end and marked "Finalizado automaticamente" (PRD updated) |
+| Editing a finalized note | An edit draft that only the author sees; "Salvar alterações" keeps the previous content as a version |
+| Clinical alerts | One field per patient ("Alergia a dipirona"), with history, shown only on clinical screens |
+| Browser copy | Only when a save fails, removed on sign-out |
+| Attachments | Only while the note is editable; anything arriving later goes to the patient's documents (F08) |
+
+### 15.2 What the database guarantees
+
+- **24-hour lock:** a trigger refuses any content change after `locks_at`.
+- **One note per appointment:** a partial unique index.
+- **Append-only history:** versions, addenda and the alert history have no `UPDATE` or `DELETE` for the application role, and no clinical table has `DELETE`.
+
+Every note read is audited, and every unauthorized attempt returns 403 and a permission-denied event.
+
+### 15.3 Implementation in 5 stages
+
+| Stage | Commit | What went in |
+|---|---|---|
+| 1 — Documentation and foundations | `dfc67a5` | PRD, ADR-031 and ADR-032, design system patterns; storage range reads, public storage URL and CSP |
+| 2 — Database and domain | `52be141` | Migration `0009_clinical_records` with seven tables, the lock trigger and grants; the note lifecycle as a domain entity |
+| 3 — Use cases and jobs | `83af942` | Drafts, finalization, editing, addenda, attachments, alerts; HEIC conversion, auto-finalization and upload cleanup in the worker |
+| 4 — Screens | `a987efa` | Split-screen record, editor with autosave and local copy, attachments with progress and thumbnails |
+| 5 — Integrations | `d2085bf` | Clinical record tab on the patient page, "Abrir prontuário" and the reminder in the agenda, E2E journeys |
+| CI fixes | `d0f3739` | See 15.4 |
+
+After the merge (PR #20), a second PR (#21) added the script that applies the CORS rule to the bucket (`npm run setup:storage-cors`) and the HEIC conversion test with a real photo.
+
+### 15.4 Problems found in F07
+
+| Problem | Cause | Solution |
+|---|---|---|
+| The presigned upload returned `400 BadDigest` | The AWS SDK computes a checksum by default, and the signed checksum did not match the file the browser sent | `requestChecksumCalculation: "WHEN_REQUIRED"` on the S3 client |
+| Text typed right after clicking Bold disappeared (CI only) | Clicking the button took the focus away from the editor | Toolbar buttons keep the focus (`preventDefault` on `mousedown`), and the test waits for the focused editor |
+| The concurrent booking test failed in CI | With six simultaneous bookings, PostgreSQL sometimes resolves the conflict with a deadlock instead of the constraint violation | Deadlocks and serialization errors also become "Este horário acabou de ser ocupado" |
+| The local copy of the draft stayed after the note was created | It was stored under the "new" draft key, and only the note's key was cleared | Clear both keys when the save is confirmed |
+| The PR was merged before the last commit | The commit was pushed after the merge and ended up outside `main` | A new branch from `main` with the commit and a separate PR (#21) |
+
+### 15.5 What F07 left in place
+
+- **Clinical notes, versions, addenda and attachments** read by the timeline and the LGPD export (F14).
+- **Direct uploads to the bucket** confirmed by the bytes, reused by documents (F08).
+- **The clinical access rule** (`canAccessPatientRecords`), which F08 uses for clinical categories.
+
+---
+
+## 16. Environments: development and production
+
+Planning how the CORS rule will be applied to R2 once production exists exposed a risk: the operational scripts always read `.env`, which points to the local environment. The split is ready before the first deploy (which has not happened yet):
+
+- **`.env`**: local development, unchanged.
+- **Production**: the app and the worker get their variables from the hosting provider's secrets; no `.env*` file goes into the Docker image.
+- **`.env.prod`** (template in `.env.prod.example`, ignored by git): only for running `npm run setup:storage-cors:prod` and `npm run setup:admin:prod` from your machine. The scripts print the target (database host, bucket, URL), without credentials, before writing.
+
+The name is not `.env.production` on purpose: Next.js loads that file in every `next build`, and a local build would silently use the production database and bucket.
+
+---
+
+## 17. Problems found and how they were solved
 
 This may be the most useful section for anyone reproducing the project. All of these problems showed up because **each stage was actually executed**, not just written.
 
@@ -579,7 +689,7 @@ This may be the most useful section for anyone reproducing the project. All of t
 
 ---
 
-## 15. Reproducing the environment from scratch
+## 18. Reproducing the environment from scratch
 
 ### Prerequisites
 
@@ -642,9 +752,19 @@ If your network or antivirus intercepts HTTPS (errors such as `UNABLE_TO_VERIFY_
 EXTRA_CA_CERTS=/path/to/root-certificate.pem docker compose --profile app build
 ```
 
+### Production operations
+
+The operational scripts have a `:prod` variant that reads `.env.prod` (copy it from `.env.prod.example`). Each prints its target before writing:
+
+```bash
+npm run setup:storage-cors:prod -- --dry-run   # check the bucket and origin
+npm run setup:storage-cors:prod                # bucket CORS rule (ADR-031)
+npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ...
+```
+
 ---
 
-## 16. Lessons learned
+## 19. Lessons learned
 
 1. **Interview before document.** One question at a time, always with a recommendation, settles more than a long document written in the dark.
 2. **End-to-end IDs** (F01 → story → criterion → test → commit) make the project traceable at no extra cost.
@@ -661,3 +781,5 @@ EXTRA_CA_CERTS=/path/to/root-certificate.pem docker compose --profile app build
 13. **Measure the performance target, do not assume it.** The F05 search test inserts 100,000 patients and checks the p95, and `EXPLAIN ANALYZE` shows which index each query uses. A missing index would have been caught by the test, not in production.
 14. **A green unit test is not a working screen.** Three real problems in F06 (a broken production build, a worker that no longer started, keyboard dragging that did nothing) only appeared in the production build and the browser journeys.
 15. **When a test fails, check whether the product is right first.** Two E2E failures were the agenda correctly refusing a booking outside the professional's hours and during her vacation; the fix was in the test's assumptions, not in the code.
+16. **A merge does not wait for the last push.** The F07 PR was merged while a fix commit was still being pushed, and the commit ended up outside `main`. Before merging, check that the green CI belongs to the branch's last commit.
+17. **Every operational script must say where it will write.** Running the CORS script "for production" would have written to the local environment, with no error at all. Printing the target first and offering `--dry-run` prevents that mistake.

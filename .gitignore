@@ -16,6 +16,7 @@ src/generated/
 # env files (the example file is committed)
 .env*
 !.env.example
+!.env.prod.example
 
 # testing
 coverage/

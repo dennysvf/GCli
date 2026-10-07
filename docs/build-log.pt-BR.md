@@ -1,10 +1,10 @@
 # Diário de bordo — como o GCli foi construído
 
-Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F06). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
+Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F07 e F16). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
 
 O trabalho foi feito em dupla: uma pessoa responsável pelo produto e um assistente de programação com IA. A pessoa respondeu perguntas, tomou as decisões de negócio e aprovou cada etapa; o assistente conduziu entrevistas, escreveu documentos e código, rodou os testes e registrou o que encontrou pelo caminho.
 
-> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06.
+> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação.
 
 English version: [build-log.en.md](build-log.en.md).
 
@@ -25,9 +25,12 @@ English version: [build-log.en.md](build-log.en.md).
 11. [Quarta funcionalidade: F04 — Profissionais e Horários de Atendimento](#11-quarta-funcionalidade-f04--profissionais-e-horários-de-atendimento)
 12. [Quinta funcionalidade: F05 — Cadastro de Pacientes](#12-quinta-funcionalidade-f05--cadastro-de-pacientes)
 13. [Sexta funcionalidade: F06 — Agenda e Agendamentos](#13-sexta-funcionalidade-f06--agenda-e-agendamentos)
-14. [Problemas encontrados e como foram resolvidos](#14-problemas-encontrados-e-como-foram-resolvidos)
-15. [Como reproduzir o ambiente do zero](#15-como-reproduzir-o-ambiente-do-zero)
-16. [Lições aprendidas](#16-lições-aprendidas)
+14. [F16 — Internacionalização e Perfis de País](#14-f16--internacionalização-e-perfis-de-país)
+15. [Sétima funcionalidade: F07 — Registro do Atendimento Clínico](#15-sétima-funcionalidade-f07--registro-do-atendimento-clínico)
+16. [Ambientes: desenvolvimento e produção](#16-ambientes-desenvolvimento-e-produção)
+17. [Problemas encontrados e como foram resolvidos](#17-problemas-encontrados-e-como-foram-resolvidos)
+18. [Como reproduzir o ambiente do zero](#18-como-reproduzir-o-ambiente-do-zero)
+19. [Lições aprendidas](#19-lições-aprendidas)
 
 ---
 
@@ -556,7 +559,114 @@ Verificação final: lint e tipos sem erros, 103 testes unitários, 184 testes d
 
 ---
 
-## 14. Problemas encontrados e como foram resolvidos
+## 14. F16 — Internacionalização e Perfis de País
+
+Antes de seguir para o prontuário e o financeiro, o produto ganhou uma funcionalidade nova no PRD: a **F16**. A interface passa a existir em português do Brasil, inglês e espanhol, e cada unidade segue as convenções do seu país (moeda, documentos, telefone, endereço, conselhos profissionais e fusos) para Brasil, Portugal, Espanha, México, Argentina, Chile, Colômbia e Estados Unidos. As regras legais continuam validadas só para o Brasil. Ela veio **antes** da F07 de propósito: extrair os textos e colocar moeda em cada valor custa pouco com seis funcionalidades prontas, e custaria uma migração de registros financeiros depois da F09.
+
+### 14.1 Decisões tomadas na entrevista
+
+| Decisão | Resultado |
+|---|---|
+| Biblioteca | next-intl, sem prefixo de idioma na URL: o idioma é `user.locale ?? organization.defaultLocale` e vai no `RequestContext` |
+| Onde ficam os textos | Um catálogo por módulo e idioma (`src/modules/<módulo>/messages/{pt-BR,en,es}.json`) e catálogos compartilhados (`common`, `validation`, `shell`, `countries`, `email`) |
+| Casos de uso sem texto | Erros e validações carregam **chaves** de mensagem e parâmetros; a fronteira (Server Action, rota, worker, PDF) traduz |
+| Dinheiro | `amount_minor` inteiro + `currency` em toda coluna de valor; `Money` recusa somar moedas diferentes e os totais são agrupados por moeda |
+| Países | Um registro tipado por país em `src/shared/kernel/countries/` (documentos, identificação fiscal, telefone, endereço, conselhos, meios de pagamento, fusos) |
+| Fusos com horário de verão | Toda conversão de hora local para instante passa por `zonedTimeToUtc`, com testes nas transições reais de 2026 e 2027 |
+| Traduções | Feitas junto com a extração, seguindo um glossário do design system; en e es foram revisadas e aceitas pela pessoa responsável pelo produto |
+
+As decisões viraram o **ADR-028** (catálogos com next-intl), o **ADR-029** (perfis de país e dinheiro com moeda) e o **ADR-030** (calendário correto com horário de verão, substituindo o ADR-021). A especificação e o plano estão em [F16-internationalization-and-country-profiles/](F16-internationalization-and-country-profiles/).
+
+### 14.2 Implementação
+
+| Etapa | Commit | O que entrou |
+|---|---|---|
+| PRD e especificação | `5276be5`, `f480feb` | F16 no PRD nos dois idiomas; spec e plano |
+| 1 — Núcleo de idiomas | `a89d228` | ADRs 028–030, resolução do idioma, tradutor no servidor, formatadores, shell traduzido e seletor de idioma |
+| 2 — Kernel de países | `c9ad64d` | Perfis dos oito países, documentos, telefones (libphonenumber-js), endereços genéricos, `Money` e as conversões de fuso |
+| 3 — Modelo de dados | `fe8f9be` | Migration `0008_internationalization`: país e moeda por unidade, `service_price` por moeda, `professional_registration` por país, documentos e telefones genéricos |
+| 4 — Tudo traduzido | `12d9f9a` | Todas as telas, e-mails e o PDF da agenda nos três idiomas; regra de lint que recusa texto literal em JSX; teste que falha quando uma chave, uma mensagem ICU ou um parâmetro difere entre os idiomas |
+| Ajustes | `6f66ec7`, `c3e2638` | Teste do idioma do PDF da agenda; índices declarados no schema do Prisma para o `migrate dev` não tentar removê-los |
+
+Foi a maior mudança até aqui (345 arquivos), porque tocou todas as telas existentes. Em seguida, os **dados de demonstração** (`npm run seed:demo`, PR #19) foram atualizados para o modelo novo: serviços com preço por moeda, profissionais com registro no conselho, pacientes e uma semana de agendamentos, com duas usuárias de exemplo.
+
+### 14.3 O que a F16 deixou pronto
+
+- **Catálogos por módulo** e a regra de que nenhum texto de interface é literal no código: cada funcionalidade nova já nasce em três idiomas.
+- **Perfis de país** usados nos formulários e, depois, nos documentos (F08), recibos (F09) e relatórios (F13).
+- **Dinheiro com moeda** antes de existir qualquer cobrança.
+
+---
+
+## 15. Sétima funcionalidade: F07 — Registro do Atendimento Clínico
+
+A F07 é o prontuário: o profissional escreve o registro de cada atendimento, anexa exames e fotos, lê o histórico do paciente e, depois de 24 horas, só pode complementar com adendos. É o dado mais sensível do produto, então a especificação começou pelo que o banco precisa garantir mesmo que a aplicação tenha um bug.
+
+### 15.1 Decisões tomadas na entrevista
+
+| Decisão | Resultado |
+|---|---|
+| Upload dos anexos | Direto do navegador para o bucket por URL pré-assinada, com tipo e tamanho assinados; o servidor confirma lendo os primeiros bytes do arquivo (**ADR-031**) |
+| Formato do texto | Editor Tiptap e HTML sanitizado no servidor com uma lista curta de tags permitidas (**ADR-032**) |
+| Quando o relógio de 24 horas começa | Na criação do rascunho, ou seja, no primeiro salvamento com texto |
+| Rascunho nunca finalizado | É finalizado automaticamente ao fim das 24 horas e marcado "Finalizado automaticamente" (PRD atualizado) |
+| Editar um registro finalizado | Um rascunho de edição que só o autor vê; "Salvar alterações" guarda o conteúdo anterior como versão |
+| Alertas clínicos | Um campo por paciente ("Alergia a dipirona"), com histórico, mostrado só nas telas clínicas |
+| Cópia no navegador | Só quando um salvamento falha, removida ao sair do sistema |
+| Anexos | Só enquanto o registro pode ser editado; o que chegar depois vai para os documentos do paciente (F08) |
+
+### 15.2 O que o banco garante
+
+- **Bloqueio de 24 horas:** um *trigger* recusa qualquer alteração de conteúdo depois de `locks_at`.
+- **Um registro por agendamento:** índice único parcial.
+- **Histórico só de inclusão:** versões, adendos e o histórico de alertas não têm `UPDATE` nem `DELETE` para o usuário da aplicação, e nenhuma tabela clínica tem `DELETE`.
+
+Toda leitura de registro é auditada, e toda tentativa sem permissão gera 403 e um evento de permissão negada.
+
+### 15.3 Implementação em 5 etapas
+
+| Etapa | Commit | O que entrou |
+|---|---|---|
+| 1 — Documentação e base | `dfc67a5` | PRD, ADR-031 e ADR-032, padrões do design system; armazenamento com leitura parcial, URL pública do storage e CSP |
+| 2 — Banco e domínio | `52be141` | Migration `0009_clinical_records` com sete tabelas, o trigger de bloqueio e as permissões; o ciclo de vida do registro como entidade de domínio |
+| 3 — Casos de uso e jobs | `83af942` | Rascunho, finalização, edição, adendos, anexos, alertas; conversão de HEIC, finalização automática e limpeza de uploads no worker |
+| 4 — Telas | `a987efa` | Tela dividida do prontuário, editor com salvamento automático e cópia local, anexos com progresso e miniaturas |
+| 5 — Integrações | `d2085bf` | Aba Prontuário no paciente, "Abrir prontuário" e o lembrete na agenda, jornadas E2E |
+| Correções do CI | `d0f3739` | Ver 15.4 |
+
+Depois do merge (PR #20), um segundo PR (#21) trouxe o script que aplica a regra de CORS no bucket (`npm run setup:storage-cors`) e o teste de conversão de HEIC com uma foto real.
+
+### 15.4 Problemas encontrados na F07
+
+| Problema | Causa | Solução |
+|---|---|---|
+| O upload pré-assinado voltava com `400 BadDigest` | O SDK da AWS calcula um checksum por padrão, e o checksum assinado não batia com o arquivo enviado pelo navegador | `requestChecksumCalculation: "WHEN_REQUIRED"` no cliente S3 |
+| Texto digitado logo depois de clicar em Negrito sumia (só no CI) | O clique no botão tirava o foco do editor | Os botões da barra não tiram o foco (`preventDefault` no `mousedown`), e o teste espera o editor focado |
+| Teste de agendamentos simultâneos falhou no CI | Com seis reservas ao mesmo tempo, o PostgreSQL às vezes resolve o conflito com *deadlock* em vez da violação da constraint | *Deadlock* e erro de serialização também viram "Este horário acabou de ser ocupado" |
+| A cópia local do rascunho continuava depois de criar o registro | Ela ficava sob a chave do rascunho "novo", e só a chave do registro era apagada | Limpar as duas chaves ao confirmar o salvamento |
+| O PR foi mergeado antes do último commit | O commit foi enviado depois do merge e ficou fora da `main` | Branch nova a partir da `main` com o commit e um PR separado (#21) |
+
+### 15.5 O que a F07 deixou pronto
+
+- **Registros clínicos, versões, adendos e anexos** lidos pela linha do tempo e pela exportação LGPD (F14).
+- **Upload direto ao bucket** com confirmação pelos bytes, reaproveitado pelos documentos (F08).
+- **A regra de acesso clínico** (`canAccessPatientRecords`), que a F08 usa nas categorias clínicas.
+
+---
+
+## 16. Ambientes: desenvolvimento e produção
+
+Ao planejar como a regra de CORS será aplicada no R2 quando houver produção, apareceu um risco: os scripts de operação liam sempre o `.env`, que aponta para o ambiente local. A separação ficou pronta antes do primeiro deploy (que ainda não aconteceu):
+
+- **`.env`**: desenvolvimento local, sem mudança.
+- **Produção**: a aplicação e o worker recebem as variáveis dos *secrets* da hospedagem; nenhum `.env*` entra na imagem Docker.
+- **`.env.prod`** (modelo em `.env.prod.example`, ignorado pelo git): só para rodar da própria máquina `npm run setup:storage-cors:prod` e `npm run setup:admin:prod`. Os scripts mostram o destino (host do banco, bucket, URL), sem credenciais, antes de gravar.
+
+O nome não é `.env.production` de propósito: o Next.js carrega esse arquivo em todo `next build`, e um build local passaria a usar o banco e o bucket de produção sem ninguém perceber.
+
+---
+
+## 17. Problemas encontrados e como foram resolvidos
 
 Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos esses problemas apareceram porque **cada etapa foi executada de verdade**, e não só escrita.
 
@@ -579,7 +689,7 @@ Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos es
 
 ---
 
-## 15. Como reproduzir o ambiente do zero
+## 18. Como reproduzir o ambiente do zero
 
 ### Pré-requisitos
 
@@ -642,9 +752,19 @@ Se a sua rede ou o seu antivírus intercepta HTTPS (erros como `UNABLE_TO_VERIFY
 EXTRA_CA_CERTS=/caminho/para/certificado-raiz.pem docker compose --profile app build
 ```
 
+### Operação em produção
+
+Os scripts de operação têm uma versão `:prod`, que lê o `.env.prod` (copie de `.env.prod.example`). Cada um mostra o destino antes de gravar:
+
+```bash
+npm run setup:storage-cors:prod -- --dry-run   # confira bucket e origem
+npm run setup:storage-cors:prod                # regra de CORS do bucket (ADR-031)
+npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ...
+```
+
 ---
 
-## 16. Lições aprendidas
+## 19. Lições aprendidas
 
 1. **Entrevista antes de documento.** Uma pergunta por vez, sempre com uma recomendação, resolve mais do que um documento longo escrito no escuro.
 2. **IDs de ponta a ponta** (F01 → história → critério → teste → commit) tornam o projeto rastreável sem esforço extra.
@@ -661,3 +781,5 @@ EXTRA_CA_CERTS=/caminho/para/certificado-raiz.pem docker compose --profile app b
 13. **Medir a meta de desempenho, não supor.** O teste de busca da F05 insere 100 mil pacientes e confere o p95, e o `EXPLAIN ANALYZE` mostra qual índice cada consulta usa. Um índice faltando teria sido pego pelo teste, não em produção.
 14. **Teste unitário verde não é tela funcionando.** Três problemas reais da F06 (build de produção quebrado, worker que não subia mais, arrastar pelo teclado que não fazia nada) só apareceram no build de produção e nas jornadas no navegador.
 15. **Quando um teste falha, confira primeiro se o produto está certo.** Duas falhas de E2E eram a agenda recusando corretamente um agendamento fora do horário da profissional e durante as férias dela; a correção estava nas premissas do teste, não no código.
+16. **Um merge não espera o último push.** O PR da F07 foi mergeado enquanto um commit de correção ainda subia, e o commit ficou fora da `main`. Antes de mergear, conferir se o CI verde é do último commit da branch.
+17. **Todo script de operação deve dizer onde vai gravar.** Rodar o script do CORS "para produção" teria gravado no ambiente local, sem erro nenhum. Mostrar o destino antes e ter um `--dry-run` evita esse engano.

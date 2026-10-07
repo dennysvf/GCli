@@ -3,9 +3,12 @@ import { registerModules } from "@/composition";
 import { identity } from "@/modules/identity";
 import { createTranslator } from "@/shared/i18n/translator";
 import { errorMessage } from "@/shared/kernel/action-result";
+import { getEnv } from "@/shared/config/env";
 import { db } from "@/shared/db/client";
+import { describeTarget } from "./target";
 
-// First organization and administrator (spec F01 section 3). Runs once per environment:
+// First organization and administrator (spec F01 section 3). Runs once per environment
+// (setup:admin:prod reads .env.prod instead of .env):
 //   npm run setup:admin -- --org-name "Clínica Exemplo" --admin-name "Ana Lima" --admin-email ana@exemplo.com.br
 // Optional: --legal-name "Clínica Exemplo Ltda" --tax-id 12.ABC.345/01DE-35 --country PT --locale pt-BR
 const USAGE =
@@ -28,6 +31,7 @@ async function main(): Promise<number> {
     return 1;
   }
 
+  console.log(describeTarget(getEnv(), ["database", "app"]));
   registerModules();
   const result = await identity.setupFirstAdministrator({
     organizationName: values["org-name"],
