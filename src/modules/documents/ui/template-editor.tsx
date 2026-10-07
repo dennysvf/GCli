@@ -127,7 +127,7 @@ export function TemplateEditor({
       </div>
 
       <div className="grid max-w-3xl gap-2">
-        <Label htmlFor="template-body">{t("ui.templateBody")}</Label>
+        <p className="text-sm font-medium">{t("ui.templateBody")}</p>
         <RichTextEditor
           key={template?.id ?? "new"}
           initialHtml={html}
@@ -151,7 +151,12 @@ export function TemplateEditor({
                     {t("ui.insertVariable")}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="max-h-80 overflow-y-auto">
+                <DropdownMenuContent
+                  align="start"
+                  className="max-h-80 overflow-y-auto"
+                  // The text goes where the cursor is, so the editor keeps the focus when the menu closes.
+                  onCloseAutoFocus={(event) => event.preventDefault()}
+                >
                   {VARIABLE_GROUPS.map((group) => (
                     <DropdownMenuGroup key={group.group}>
                       <DropdownMenuLabel>{t(`variables.groups.${group.group}`)}</DropdownMenuLabel>
@@ -190,7 +195,12 @@ export function TemplateEditor({
       </div>
 
       <Dialog open={fieldDialog} onOpenChange={setFieldDialog}>
-        <DialogContent>
+        <DialogContent
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            editorRef.current?.commands.focus();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>{t("ui.freeField")}</DialogTitle>
             <DialogDescription>{t("ui.freeFieldHint")}</DialogDescription>

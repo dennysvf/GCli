@@ -1,6 +1,7 @@
 import { hash } from "@node-rs/argon2";
 import { parseArgs } from "node:util";
 import { registerModules } from "@/composition";
+import { documents } from "@/modules/documents";
 import { patients } from "@/modules/patients";
 import { professionals } from "@/modules/professionals";
 import { scheduling } from "@/modules/scheduling";
@@ -117,6 +118,57 @@ const PATIENTS = [
     mobilePhone: "11993332211",
   },
 ] as const;
+
+// A tiny valid PDF with one line of text, so the demo documents open in the preview. Offsets are
+// computed, so viewers do not need to repair the file.
+function demoPdf(text: string): Uint8Array {
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+    "",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  const stream = `BT /F1 18 Tf 72 760 Td (${text.replace(/[()\\]/g, "")}) Tj ET`;
+  objects[3] = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
+  let body = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  objects.forEach((object, index) => {
+    offsets.push(body.length);
+    body += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xref = body.length;
+  body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets) body += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  body += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return new TextEncoder().encode(body);
+}
+
+// Sends one file the way the browser does (PRD F08, ADR-031): intent, PUT, confirm.
+async function uploadDemoDocument(
+  ctx: RequestContext,
+  input: { patientId: string; categoryId: string; title: string; fileName: string },
+) {
+  const bytes = demoPdf(input.title);
+  const intent = must(
+    await documents.createUploadIntent(ctx, {
+      patientId: input.patientId,
+      categoryId: input.categoryId,
+      title: input.title,
+      fileName: input.fileName,
+      contentType: "application/pdf",
+      size: bytes.length,
+    }),
+    "createUploadIntent",
+  );
+  const response = await fetch(intent.url, {
+    method: "PUT",
+    body: bytes as BodyInit,
+    headers: intent.headers,
+  });
+  if (!response.ok) throw new Error(`upload of ${input.fileName} failed with ${response.status}`);
+  must(await documents.confirmUpload(ctx, { uploadId: intent.uploadId }), "confirmUpload");
+}
 
 async function main(): Promise<number> {
   const { values } = parseArgs({ options: { force: { type: "boolean" } } });
@@ -532,6 +584,52 @@ async function main(): Promise<number> {
     });
   }
 
+  // Documents (PRD F08): files in a plain and in a clinical category for two patients, and a
+  // declaration issued from the default template. The clinical ones are visible only to
+  // professionals with an appointment with the patient.
+  const categories = must(await documents.listCategories(ctx), "listCategories");
+  const categoryOf = (clinical: boolean) =>
+    categories.find((item) => item.clinical === clinical && !item.system);
+  const plainCategory = categoryOf(false);
+  const clinicalCategory = categoryOf(true);
+  let documentCount = 0;
+  if (plainCategory && clinicalCategory) {
+    for (const patientId of patientIds.slice(0, 2)) {
+      await uploadDemoDocument(ctx, {
+        patientId,
+        categoryId: plainCategory.id,
+        title: "Documento de identidade",
+        fileName: "documento-de-identidade.pdf",
+      });
+      await uploadDemoDocument(ctx, {
+        patientId,
+        categoryId: clinicalCategory.id,
+        title: "Hemograma completo",
+        fileName: "hemograma.pdf",
+      });
+      documentCount += 2;
+    }
+    const issuable = must(
+      await documents.listTemplates(ctx, { forPatientId: patientIds[0] }),
+      "listTemplates",
+    );
+    const declaration = issuable.find((template) => !template.clinical);
+    if (declaration) {
+      must(
+        await documents.generateDocument(ctx, {
+          patientId: patientIds[0],
+          templateId: declaration.id,
+          professionalId: beatriz,
+          unitId: main.id,
+          fields: { hora_inicio: "09:00", hora_fim: "10:00" },
+          confirmMissing: true,
+        }),
+        "generateDocument",
+      );
+      documentCount += 1;
+    }
+  }
+
   console.log("Dados de demonstração criados:");
   console.log(
     `- 5 serviços, 4 profissionais, ${patientIds.length} pacientes, ${booked} agendamentos avulsos`,
@@ -539,6 +637,7 @@ async function main(): Promise<number> {
   console.log(
     `- série de fisioterapia: ${series.ok ? `${series.value.appointmentIds.length} sessões` : series.error.code}`,
   );
+  console.log(`- ${documentCount} documentos de pacientes (enviados, clínicos e uma declaração emitida)`);
   console.log(
     `- usuários (senha ${PASSWORD}): rita@clinicademo.com.br (Recepção), beatriz@clinicademo.com.br (Profissional)`,
   );

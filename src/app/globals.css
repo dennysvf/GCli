@@ -323,7 +323,6 @@
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
   padding: 2rem 2.25rem;
-  aspect-ratio: auto;
   min-height: 24rem;
   & h2,
   & h3,

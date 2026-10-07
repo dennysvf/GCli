@@ -50,7 +50,9 @@ export function DocumentsTable({
       <TableBody>
         {items.map((item) => (
           <TableRow key={item.id}>
-            <TableCell className="whitespace-nowrap">{format.date(item.createdAt, timeZone)}</TableCell>
+            <TableCell className="whitespace-nowrap tabular-nums">
+              {format.date(item.createdAt, timeZone)}
+            </TableCell>
             <TableCell className="grid gap-1 whitespace-normal">
               <span className="font-medium">{item.title}</span>
               <span className="flex flex-wrap gap-1">
@@ -74,7 +76,9 @@ export function DocumentsTable({
             </TableCell>
             <TableCell>{item.categoryName}</TableCell>
             <TableCell>{item.authorName}</TableCell>
-            <TableCell className="text-right whitespace-nowrap">{sizeText(item.sizeBytes)}</TableCell>
+            <TableCell className="text-right whitespace-nowrap tabular-nums">
+              {sizeText(item.sizeBytes)}
+            </TableCell>
             <TableCell className="whitespace-nowrap">
               <span className="flex flex-wrap justify-end gap-1">
                 {item.previewable ? (

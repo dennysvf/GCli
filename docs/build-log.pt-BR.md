@@ -1,10 +1,10 @@
 # Diário de bordo — como o GCli foi construído
 
-Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F07 e F16). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
+Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F08 e F16). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
 
 O trabalho foi feito em dupla: uma pessoa responsável pelo produto e um assistente de programação com IA. A pessoa respondeu perguntas, tomou as decisões de negócio e aprovou cada etapa; o assistente conduziu entrevistas, escreveu documentos e código, rodou os testes e registrou o que encontrou pelo caminho.
 
-> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação.
+> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação → F08.
 
 English version: [build-log.en.md](build-log.en.md).
 
@@ -28,9 +28,10 @@ English version: [build-log.en.md](build-log.en.md).
 14. [F16 — Internacionalização e Perfis de País](#14-f16--internacionalização-e-perfis-de-país)
 15. [Sétima funcionalidade: F07 — Registro do Atendimento Clínico](#15-sétima-funcionalidade-f07--registro-do-atendimento-clínico)
 16. [Ambientes: desenvolvimento e produção](#16-ambientes-desenvolvimento-e-produção)
-17. [Problemas encontrados e como foram resolvidos](#17-problemas-encontrados-e-como-foram-resolvidos)
-18. [Como reproduzir o ambiente do zero](#18-como-reproduzir-o-ambiente-do-zero)
-19. [Lições aprendidas](#19-lições-aprendidas)
+17. [Oitava funcionalidade: F08 — Documentos do Paciente](#17-oitava-funcionalidade-f08--documentos-do-paciente)
+18. [Problemas encontrados e como foram resolvidos](#18-problemas-encontrados-e-como-foram-resolvidos)
+19. [Como reproduzir o ambiente do zero](#19-como-reproduzir-o-ambiente-do-zero)
+20. [Lições aprendidas](#20-lições-aprendidas)
 
 ---
 
@@ -666,7 +667,62 @@ O nome não é `.env.production` de propósito: o Next.js carrega esse arquivo e
 
 ---
 
-## 17. Problemas encontrados e como foram resolvidos
+## 17. Oitava funcionalidade: F08 — Documentos do Paciente
+
+A F08 guarda os arquivos do paciente (exames, cópias de documentos, termos assinados) e emite documentos a partir de modelos (atestado, declaração de comparecimento, receituário). Como a F07, ela lida com dado de saúde, então a especificação começou pelo que o banco precisa garantir e pelo que a recepção pode ou não ver.
+
+### 17.1 Decisões tomadas na entrevista
+
+| Decisão | Resultado |
+|---|---|
+| Escopo | Essencial e Completo juntos: envio, categorias, cota, arquivamento, modelos e PDF |
+| Cota de 50 GB | Conta só os arquivos da F08 (enviados e gerados) e bloqueia só os envios; PDFs gerados somam, mas nunca são bloqueados |
+| Categorias clínicas | Exame e Laudo externo nascem clínicas; a recepção pode enviar para elas, mas depois não vê o arquivo |
+| Indicador clínico | Só pode ser ligado, nunca desligado, e um gatilho do banco garante isso |
+| Correções | Gerente e Administrador restauram arquivados; quem enviou, ou um gestor, corrige título e categoria; documento emitido não muda |
+| Alerta de 80% | Aviso no diálogo de envio, uso nas configurações e um e-mail aos administradores a cada vez que o uso cruza 80% |
+| Quem assina | Em modelo clínico, só o profissional do próprio usuário; em modelo comum, qualquer profissional ativo |
+
+As decisões viraram o **ADR-033** (código compartilhado entre F07 e F08, contador de cota sob trava e `frame-src` para a pré-visualização) e uma seção nova no design system (5.13). A especificação e o plano estão em [F08-patient-documents/](F08-patient-documents/).
+
+### 17.2 O que o banco garante
+
+- **Cota sem corrida:** uma linha por organização guarda o total de bytes e é atualizada sob trava na mesma transação do documento; dois envios que terminam juntos não passam ambos do limite.
+- **Indicador clínico irreversível:** um gatilho recusa a mudança de verdadeiro para falso.
+- **Sem exclusão:** documentos, categorias e modelos não têm `DELETE`; arquivar e desativar escondem sem apagar.
+- **Padrões criados uma vez:** índices únicos parciais e `ON CONFLICT DO NOTHING` fazem duas primeiras utilizações simultâneas criarem um só conjunto de categorias e modelos.
+
+### 17.3 Implementação em 5 etapas
+
+| Etapa | O que entrou |
+|---|---|
+| 1 — Documentação e base | PRD, ADR-033 e design system; detecção de tipo pelos bytes (com DOCX), conversão de HEIC, sanitizador e editor Tiptap movidos para `src/shared`; conversor de HTML para PDF; permissões, fila e e-mail da cota |
+| 2 — Banco e módulo | Migration `0010_patient_documents`, domínio puro (limites, cota, variáveis de modelo), portas, políticas e catálogos nos três idiomas |
+| 3 — Envio e correções | Categorias, cota, envio direto ao bucket com confirmação, HEIC no worker, listagem com regra clínica, abertura auditada, arquivar e restaurar, aba Documentos |
+| 4 — Modelos e PDF | Modelos com variáveis e campos livres, resolvedores, prévia, geração sem documento parcial, diálogo "Emitir documento" e a página de configurações |
+| 5 — Acabamento | Dados de demonstração, jornadas E2E, revisão do design system e este diário |
+
+### 17.4 Problemas encontrados na F08
+
+| Problema | Causa | Solução |
+|---|---|---|
+| Os arquivos começavam a subir assim que eram soltos | O PRD pede escolher a categoria de cada arquivo antes do envio | A fila ganhou o estado "aguardando": o envio só começa em "Enviar" |
+| O PDF falharia com negrito e itálico no texto do modelo | A fonte do PDF só tinha o itálico em woff2 variável, que o motor não lê | Fonte estática itálica (OFL) junto das outras |
+| Um receituário não cabia no campo livre | O limite de 200 caracteres era pequeno demais para uma prescrição | Campos livres com até 1.000 caracteres e várias linhas |
+| Os testes precisavam trocar o renderizador e o armazenamento | A regra de lint proíbe importar arquivos internos de outro módulo, inclusive em testes | `createDocuments(adjust)` na API pública troca um adaptador sem expor o módulo |
+| O teste de renderização do PDF não rodava como unitário | O `tsx` não resolve os exports do `@react-pdf` por import estático | O analisador do HTML foi separado (unitário) e a renderização ficou no teste de integração |
+| O alerta de 80% não aparecia no teste | A conta do teste deixava o uso abaixo do limite depois do envio | Teste corrigido; a regra de cruzamento tem teste próprio |
+| Os envios do navegador falharam em todas as jornadas E2E, inclusive as do F07 | Rodar `setup:storage-cors` no ambiente local gravou no bucket uma regra só para `localhost:3001`, que substitui as origens liberadas pelo servidor SeaweedFS (3000, 3001 e 3101) | O script aceita várias origens separadas por vírgula, e o bucket local recebeu as três; a regra vale por bucket, então cada ambiente precisa listar todas as suas origens |
+
+### 17.5 O que a F08 deixou pronto
+
+- **Registros de documento** (tipo, categoria, título, data, autor, arquivo e indicador clínico) lidos pela linha do tempo e pela exportação LGPD (F14).
+- **Código compartilhado** de envio direto, conversão de imagem, sanitização e edição de texto rico, usado também pelo prontuário.
+- **Base de PDF** com texto rico e assinatura, reaproveitável por recibos (F09) e relatórios (F13).
+
+---
+
+## 18. Problemas encontrados e como foram resolvidos
 
 Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos esses problemas apareceram porque **cada etapa foi executada de verdade**, e não só escrita.
 
@@ -689,7 +745,7 @@ Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos es
 
 ---
 
-## 18. Como reproduzir o ambiente do zero
+## 19. Como reproduzir o ambiente do zero
 
 ### Pré-requisitos
 
@@ -764,7 +820,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 19. Lições aprendidas
+## 20. Lições aprendidas
 
 1. **Entrevista antes de documento.** Uma pergunta por vez, sempre com uma recomendação, resolve mais do que um documento longo escrito no escuro.
 2. **IDs de ponta a ponta** (F01 → história → critério → teste → commit) tornam o projeto rastreável sem esforço extra.
@@ -783,3 +839,5 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 15. **Quando um teste falha, confira primeiro se o produto está certo.** Duas falhas de E2E eram a agenda recusando corretamente um agendamento fora do horário da profissional e durante as férias dela; a correção estava nas premissas do teste, não no código.
 16. **Um merge não espera o último push.** O PR da F07 foi mergeado enquanto um commit de correção ainda subia, e o commit ficou fora da `main`. Antes de mergear, conferir se o CI verde é do último commit da branch.
 17. **Todo script de operação deve dizer onde vai gravar.** Rodar o script do CORS "para produção" teria gravado no ambiente local, sem erro nenhum. Mostrar o destino antes e ter um `--dry-run` evita esse engano.
+18. **Compartilhe o que duas funcionalidades usam antes de copiar.** O envio direto, a conversão de HEIC, o sanitizador e o editor nasceram no prontuário; a F08 os moveu para `src/shared` no primeiro estágio, e o prontuário continuou passando nos mesmos testes. Copiar teria feito as duas versões se afastarem.
+19. **Regra de dados sensíveis vira regra do banco.** O indicador clínico que nunca desliga e a cota sem corrida estão em gatilho e trava de linha, não só no código: um erro de aplicação não os quebra.
