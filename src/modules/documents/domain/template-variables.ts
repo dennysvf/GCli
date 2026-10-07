@@ -21,6 +21,22 @@ export type VariableName = (typeof VARIABLE_GROUPS)[number]["names"][number];
 
 export const KNOWN_VARIABLES: readonly string[] = VARIABLE_GROUPS.flatMap((group) => group.names);
 
+// Catalog key (under documents.variables and documents.missing) of each variable.
+export const VARIABLE_KEYS: Record<VariableName, string> = {
+  "paciente.nome": "patientName",
+  "paciente.cpf": "patientDocument",
+  "paciente.data_nascimento": "patientBirthDate",
+  "profissional.nome": "professionalName",
+  "profissional.registro": "professionalRegistration",
+  "profissional.especialidade": "professionalSpecialty",
+  "unidade.nome": "unitName",
+  "unidade.endereco": "unitAddress",
+  "clinica.nome": "clinicName",
+  "clinica.cnpj": "clinicTaxId",
+  data_hoje: "today",
+  data_extenso: "todayLong",
+};
+
 export const FIELD_PREFIX = "campo:";
 
 // What a missing value prints on the page, so the paper copy keeps room to write it by hand.

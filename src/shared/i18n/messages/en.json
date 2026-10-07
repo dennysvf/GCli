@@ -195,7 +195,8 @@
       "patientLists": "Patient lists",
       "cancellationReasons": "Cancellation reasons",
       "privacyTerms": "Privacy terms",
-      "users": "Users"
+      "users": "Users",
+      "documents": "Documents"
     },
     "roles": {
       "ADMINISTRATOR": "Administrator",

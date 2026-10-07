@@ -42,3 +42,15 @@ export async function getStorageUsageAction() {
     toActionResult(await documents.getStorageUsage(ctx), ctx.locale, "documents"),
   );
 }
+
+export async function previewDocumentAction(input: unknown) {
+  return withRequestContext(async (ctx) =>
+    toActionResult(await documents.previewDocument(ctx, input), ctx.locale, "documents"),
+  );
+}
+
+export async function generateDocumentAction(input: unknown) {
+  return withRequestContext(async (ctx) =>
+    toActionResult(await documents.generateDocument(ctx, input), ctx.locale, "documents"),
+  );
+}

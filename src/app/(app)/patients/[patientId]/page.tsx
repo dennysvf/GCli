@@ -23,8 +23,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components
 import {
   archiveDocumentAction,
   confirmDocumentUploadAction,
+  generateDocumentAction,
   getStorageUsageAction,
   listDocumentsAction,
+  previewDocumentAction,
   restoreDocumentAction,
   updateDocumentAction,
 } from "./documents/actions";
@@ -75,9 +77,13 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
   const documentsPage = can(ctx, "document:read")
     ? await documents.listPatientDocuments(ctx, { patientId })
     : null;
-  const [documentCategories, documentUsage] = documentsPage?.ok
-    ? await Promise.all([documents.listCategories(ctx), documents.getStorageUsage(ctx)])
-    : [null, null];
+  const [documentCategories, documentUsage, issueOptions] = documentsPage?.ok
+    ? await Promise.all([
+        documents.listCategories(ctx),
+        documents.getStorageUsage(ctx),
+        can(ctx, "document:generate") ? documents.getIssueOptions(ctx, patientId) : null,
+      ])
+    : [null, null, null];
 
   return (
     <div className="grid gap-6">
@@ -190,7 +196,10 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
                 archive: archiveDocumentAction,
                 restore: restoreDocumentAction,
                 usage: getStorageUsageAction,
+                preview: previewDocumentAction,
+                generate: generateDocumentAction,
               }}
+              issue={issueOptions?.ok ? issueOptions.value : null}
             />
           </TabsContent>
         ) : null}

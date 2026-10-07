@@ -1,6 +1,6 @@
 "use client";
 
-import { EditorContent, useEditor, type Editor } from "@tiptap/react";
+import { EditorContent, useEditor, type Editor, type Extensions } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -23,6 +23,9 @@ export type RichTextEditorProps = {
   toolbarExtra?: (editor: Editor) => ReactNode;
   // Gives the owner a handle on the editor, to insert text at the cursor.
   onReady?: (editor: Editor) => void;
+  // Extra Tiptap extensions that only change how the text looks (for example the variable tokens
+  // of F08); they must not add formatting the server would refuse.
+  extensions?: Extensions;
 };
 
 export function RichTextEditor({
@@ -35,6 +38,7 @@ export function RichTextEditor({
   className,
   toolbarExtra,
   onReady,
+  extensions: lookExtensions = [],
 }: RichTextEditorProps) {
   const t = useTranslations("common.richText");
   const format = useFormatters();
@@ -54,6 +58,7 @@ export function RichTextEditor({
         strike: false,
         underline: false,
       }),
+      ...lookExtensions,
     ],
     editorProps: {
       attributes: {

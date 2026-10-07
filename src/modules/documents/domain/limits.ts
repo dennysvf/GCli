@@ -20,7 +20,9 @@ export const TEMPLATE_NAME_MAX = 120;
 // Spec F08: a template body has at most 20,000 characters of text; the HTML is capped at four times.
 export const TEMPLATE_MAX_CHARACTERS = 20_000;
 export const TEMPLATE_MAX_HTML_BYTES = TEMPLATE_MAX_CHARACTERS * 4;
-export const FIELD_VALUE_MAX = 200;
+// A free field of a template (a prescription, the days of leave) is up to 1,000 characters and may
+// have several lines (spec F08 deviation: a simple prescription does not fit in 200).
+export const FIELD_VALUE_MAX = 1_000;
 export const FIELD_NAME_PATTERN = /^[a-z0-9_]{1,40}$/;
 
 // Spec F08: an archive reason of 3 to 500 characters.

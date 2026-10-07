@@ -36,7 +36,7 @@ export type DocumentPdfInput = {
   title: string;
   // Resolved body: the sanitized HTML of the template with the values substituted.
   bodyHtml: string;
-  signature: { name: string; registration: string | null; line: string };
+  signature: { name: string; registration: string | null };
   footerNote: string;
   pageLabel: string;
 };

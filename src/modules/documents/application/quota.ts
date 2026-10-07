@@ -26,6 +26,19 @@ export function usageOf(usedBytes: number): StorageUsage {
 
 type UsageRow = { used_bytes: bigint; alert_sent_at: Date | null };
 
+// Takes the row lock of the organization's documents (creating the row on first use). Besides the
+// quota, it serializes the checks of the template limit, so two activations cannot both pass it.
+export async function lockOrganizationDocuments(uow: UnitOfWork, organizationId: string): Promise<void> {
+  await uow.tx.$executeRaw`
+    INSERT INTO document_storage_usage (organization_id, used_bytes, updated_at)
+    VALUES (${organizationId}::uuid, 0, now())
+    ON CONFLICT DO NOTHING`;
+  await uow.tx.$queryRaw`
+    SELECT organization_id FROM document_storage_usage
+    WHERE organization_id = ${organizationId}::uuid
+    FOR UPDATE`;
+}
+
 // Reads the counter without locking it (the soft check of an upload intent and the screens).
 export async function readUsedBytes(uow: UnitOfWork): Promise<number> {
   const row = await uow.tx.documentStorageUsage.findFirst({ select: { usedBytes: true } });

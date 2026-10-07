@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/shared/ui/components/button";
 import { Checkbox } from "@/shared/ui/components/checkbox";
@@ -9,10 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import type { CategoryItem } from "../application/categories";
 import type { DocumentItem, DocumentPage } from "../application/documents";
+import type { IssueOptions } from "../application/generation";
 import type { StorageUsage } from "../application/quota";
 import type { DocumentActions } from "./document-actions";
 import { ArchiveDocumentDialog, EditDocumentDialog } from "./document-dialogs";
 import { DocumentsTable } from "./documents-table";
+import { IssueDocumentDialog } from "./issue-document-dialog";
 import { PreviewDialog } from "./preview-dialog";
 import { UploadDialog } from "./upload-dialog";
 
@@ -32,8 +34,8 @@ type Props = {
   timeZone: string;
   canUpload: boolean;
   actions: DocumentActions;
-  // The "Emitir documento" dialog (F08 Full Scope), rendered by the page next to "Enviar arquivos".
-  issueSlot?: ReactNode;
+  // What the "Emitir documento" dialog offers (F08 Full Scope); null when the user may not issue.
+  issue: IssueOptions | null;
 };
 
 export function DocumentsTab({
@@ -44,7 +46,7 @@ export function DocumentsTab({
   timeZone,
   canUpload,
   actions,
-  issueSlot,
+  issue,
 }: Props) {
   const t = useTranslations("documents");
   const [items, setItems] = useState<DocumentItem[]>(initialPage.items);
@@ -158,7 +160,14 @@ export function DocumentsTab({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {issueSlot}
+          {issue ? (
+            <IssueDocumentDialog
+              patientId={patientId}
+              options={issue}
+              actions={actions}
+              onIssued={() => void reload()}
+            />
+          ) : null}
           {canUpload ? (
             <UploadDialog
               patientId={patientId}
