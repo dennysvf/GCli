@@ -1,5 +1,5 @@
 import { authorize } from "@/shared/authz/guard";
-import type { RequestContext } from "@/shared/context/types";
+import type { AnyContext, RequestContext } from "@/shared/context/types";
 import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/shared/i18n/locales";
 import { fail, ok, type Result } from "@/shared/kernel/result";
@@ -277,7 +277,7 @@ export type AdministratorContact = { name: string; email: string; locale: Locale
 
 // Active administrators and the language of their emails (PRD F16): the user's own, else the
 // organization's. Provided to F08 for the storage quota alert.
-export async function listAdministratorContacts(ctx: RequestContext): Promise<AdministratorContact[]> {
+export async function listAdministratorContacts(ctx: AnyContext): Promise<AdministratorContact[]> {
   const result = await withTransaction(ctx, async (uow) => {
     const [organization, admins] = await Promise.all([
       uow.tx.organization.findFirst({ select: { defaultLocale: true } }),

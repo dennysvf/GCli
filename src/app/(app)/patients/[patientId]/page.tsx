@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { forbidden, notFound } from "next/navigation";
 import { ClinicalNotesTable, clinicalRecords } from "@/modules/clinical-records";
+import { DocumentsTab, documents } from "@/modules/documents";
 import { getOrganizationProfile } from "@/modules/identity";
 import { requirePermission } from "@/modules/identity/next";
 import {
@@ -19,6 +20,14 @@ import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import { Button } from "@/shared/ui/components/button";
 import { Stamp } from "@/shared/ui/components/stamp";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
+import {
+  archiveDocumentAction,
+  confirmDocumentUploadAction,
+  getStorageUsageAction,
+  listDocumentsAction,
+  restoreDocumentAction,
+  updateDocumentAction,
+} from "./documents/actions";
 import {
   openConsentFileAction,
   recordConsentAction,
@@ -59,7 +68,16 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
       ? scheduling.listPatientAppointments(ctx, patientId)
       : null,
   ]);
-  const today = dateInTimeZone(new Date(), profile.ok ? profile.value.timeZone : "America/Sao_Paulo");
+  const timeZone = profile.ok ? profile.value.timeZone : "America/Sao_Paulo";
+  const today = dateInTimeZone(new Date(), timeZone);
+  // PRD F08: the Documentos tab. The use cases decide what the user may see (clinical documents
+  // only with the F07 records policy), so a failed read simply hides the tab.
+  const documentsPage = can(ctx, "document:read")
+    ? await documents.listPatientDocuments(ctx, { patientId })
+    : null;
+  const [documentCategories, documentUsage] = documentsPage?.ok
+    ? await Promise.all([documents.listCategories(ctx), documents.getStorageUsage(ctx)])
+    : [null, null];
 
   return (
     <div className="grid gap-6">
@@ -97,6 +115,7 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
           <TabsTrigger value="data">{t("common.data")}</TabsTrigger>
           {appointments ? <TabsTrigger value="appointments">{t("common.appointments")}</TabsTrigger> : null}
           {notes ? <TabsTrigger value="records">{t("clinicalRecords.ui.tab")}</TabsTrigger> : null}
+          {documentsPage?.ok ? <TabsTrigger value="documents">{t("documents.ui.tab")}</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="data" className="grid gap-8 pt-4">
           <PatientForm
@@ -153,6 +172,26 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
             ) : (
               <p className="text-muted-foreground">{t("clinicalRecords.ui.loadError")}</p>
             )}
+          </TabsContent>
+        ) : null}
+        {documentsPage?.ok && documentCategories?.ok ? (
+          <TabsContent value="documents" className="grid gap-4 pt-4">
+            <DocumentsTab
+              patientId={patientId}
+              initialPage={documentsPage.value}
+              categories={documentCategories.value}
+              usage={documentUsage?.ok ? documentUsage.value : null}
+              timeZone={timeZone}
+              canUpload={can(ctx, "document:upload")}
+              actions={{
+                confirmUpload: confirmDocumentUploadAction,
+                list: listDocumentsAction,
+                update: updateDocumentAction,
+                archive: archiveDocumentAction,
+                restore: restoreDocumentAction,
+                usage: getStorageUsageAction,
+              }}
+            />
           </TabsContent>
         ) : null}
       </Tabs>

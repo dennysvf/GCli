@@ -1,4 +1,4 @@
-import type { RequestContext } from "@/shared/context/types";
+import type { AnyContext, RequestContext } from "@/shared/context/types";
 import type { Locale } from "@/shared/i18n/locales";
 import type { CountryCode } from "@/shared/kernel/countries/codes";
 import type { FileReader } from "@/shared/kernel/file-types";
@@ -101,7 +101,8 @@ export interface DocumentsDirectory {
   ): Promise<ProfessionalForDocument | null>;
   professionals(ctx: RequestContext): Promise<ProfessionalOption[]>;
   userNames(ctx: RequestContext, userIds: string[]): Promise<Map<string, string>>;
-  administrators(ctx: RequestContext): Promise<{ name: string; email: string; locale: Locale }[]>;
+  // Also used by the worker (a system context), for the storage quota alert.
+  administrators(ctx: AnyContext): Promise<{ name: string; email: string; locale: Locale }[]>;
 }
 
 export type DocumentsDeps = {

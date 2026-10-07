@@ -13,6 +13,7 @@ import {
   cleanupClinicalUploads,
   processClinicalAttachment,
 } from "./jobs/clinical-records";
+import { cleanupDocumentUploads, processDocumentFileJob } from "./jobs/documents";
 import { cleanupPatientUploads } from "./jobs/patients-cleanup";
 import { sendOutboxEmail } from "./jobs/email-send";
 import { startOutboxLoop } from "./outbox-dispatcher";
@@ -62,6 +63,16 @@ async function main() {
     if (removed) logger.info({ removed }, "unused clinical upload intents removed");
   });
 
+  // F08: HEIC conversion of documents and unused upload intents.
+  await boss.work<EmailJobData>(QUEUES.documentsFileProcess, async (jobs) => {
+    for (const job of jobs)
+      await processDocumentFileJob({ payload: job.data.payload, retryCount: job.retryCount });
+  });
+  await boss.work(QUEUES.documentsUploadsCleanup, async () => {
+    const removed = await cleanupDocumentUploads();
+    if (removed) logger.info({ removed }, "unused document upload intents removed");
+  });
+
   // Monthly on day 1 at 03:00, and daily at 03:30 (server time).
   await boss.schedule(QUEUES.auditEnsurePartitions, "0 3 1 * *");
   await boss.schedule(QUEUES.identityCleanup, "30 3 * * *");
@@ -69,6 +80,8 @@ async function main() {
   // F07: every 5 minutes, and daily at 04:00.
   await boss.schedule(QUEUES.clinicalNotesAutoFinalize, "*/5 * * * *");
   await boss.schedule(QUEUES.clinicalUploadsCleanup, "0 4 * * *");
+  // F08: daily at 04:15.
+  await boss.schedule(QUEUES.documentsUploadsCleanup, "15 4 * * *");
   await boss.send(QUEUES.auditEnsurePartitions, {}, { singletonKey: "startup" });
 
   const stopOutbox = startOutboxLoop(boss);
