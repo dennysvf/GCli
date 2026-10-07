@@ -656,7 +656,7 @@ After the merge (PR #20), a second PR (#21) added the script that applies the CO
 
 ## 16. Environments: development and production
 
-Applying the CORS rule to the production R2 bucket exposed a risk: the operational scripts always read `.env`, which points to the local environment. The fix separated the roles:
+Planning how the CORS rule will be applied to R2 once production exists exposed a risk: the operational scripts always read `.env`, which points to the local environment. The split is ready before the first deploy (which has not happened yet):
 
 - **`.env`**: local development, unchanged.
 - **Production**: the app and the worker get their variables from the hosting provider's secrets; no `.env*` file goes into the Docker image.

@@ -656,7 +656,7 @@ Depois do merge (PR #20), um segundo PR (#21) trouxe o script que aplica a regra
 
 ## 16. Ambientes: desenvolvimento e produção
 
-Ao aplicar a regra de CORS no R2 de produção apareceu um risco: os scripts de operação liam sempre o `.env`, que aponta para o ambiente local. A solução separou os papéis:
+Ao planejar como a regra de CORS será aplicada no R2 quando houver produção, apareceu um risco: os scripts de operação liam sempre o `.env`, que aponta para o ambiente local. A separação ficou pronta antes do primeiro deploy (que ainda não aconteceu):
 
 - **`.env`**: desenvolvimento local, sem mudança.
 - **Produção**: a aplicação e o worker recebem as variáveis dos *secrets* da hospedagem; nenhum `.env*` entra na imagem Docker.
