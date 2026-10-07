@@ -87,7 +87,9 @@ function columnsOf(props: Readonly<AppointmentProps>) {
 }
 
 // PostgreSQL reports a violated exclusion constraint as SQLSTATE 23P01; the driver adapter wraps
-// it, so the code and the constraint name are searched in the whole error chain.
+// it, so the code and the constraint name are searched in the whole error chain. Two saves that
+// insert overlapping ranges at the same instant can also make PostgreSQL abort one of them as a
+// deadlock (40P01, Prisma P2034): that save lost the same race, so it is the same answer.
 export function isExclusionViolation(error: unknown): boolean {
   const seen = new Set<unknown>();
   const visit = (value: unknown): boolean => {
@@ -98,7 +100,10 @@ export function isExclusionViolation(error: unknown): boolean {
       const field = record[key];
       if (
         typeof field === "string" &&
-        (field === "23P01" || /exclusion constraint|ex_appointment_/.test(field))
+        (field === "23P01" ||
+          field === "40P01" ||
+          field === "P2034" ||
+          /exclusion constraint|ex_appointment_|deadlock detected/.test(field))
       ) {
         return true;
       }

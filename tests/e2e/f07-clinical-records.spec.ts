@@ -69,12 +69,17 @@ test("F07: a professional writes, attaches and finalizes a clinical note", async
   // Bold and a list in the editor; the first autosave creates the note.
   const editor = page.getByRole("textbox", { name: "Texto do registro" });
   await editor.click();
+  // Typing waits for the editor to hold the focus again after each toolbar click.
   await page.getByRole("button", { name: "Negrito" }).click();
+  await expect(editor).toBeFocused();
   await page.keyboard.type("Dor lombar");
   await page.getByRole("button", { name: "Negrito" }).click();
+  await expect(editor).toBeFocused();
   await page.keyboard.type(" há 3 semanas.");
   await page.getByRole("button", { name: "Lista", exact: true }).click();
+  await expect(editor).toBeFocused();
   await page.keyboard.type("Piora ao sentar");
+  await expect(editor).toContainText("Dor lombar há 3 semanas.Piora ao sentar");
   await expect(page.getByText(/Rascunho salvo às \d{2}:\d{2}/)).toBeVisible({ timeout: 30_000 });
 
   // Attachments go straight to the bucket; the image is processed by the worker.

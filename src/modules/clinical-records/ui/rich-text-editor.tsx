@@ -117,6 +117,8 @@ export function RichTextEditor({
             size="sm"
             aria-pressed={tool.active}
             className={cn(tool.active && "bg-accent")}
+            // The editor keeps the focus, so typing right after a click is never lost.
+            onMouseDown={(event) => event.preventDefault()}
             onClick={tool.run}
           >
             {tool.label}
