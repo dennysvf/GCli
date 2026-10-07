@@ -1,0 +1,100 @@
+{
+  "errors": {
+    "DOCUMENT_FILE_UNSUPPORTED": "El archivo {fileName} no es compatible. Envíe PDF, imágenes o DOCX de hasta 20 MB.",
+    "DOCUMENT_BATCH_LIMIT": "Envíe hasta 20 archivos a la vez.",
+    "DOCUMENT_QUOTA_EXCEEDED": "El espacio de almacenamiento de la clínica está agotado (50 GB). Comuníquese con el administrador.",
+    "DOCUMENT_UPLOAD_NOT_FOUND": "El envío del archivo no se completó. Intente enviarlo de nuevo.",
+    "DOCUMENT_NOT_FOUND": "Documento no encontrado.",
+    "DOCUMENT_STALE": "Este documento fue modificado por otra persona. Recargue para ver la versión más reciente.",
+    "DOCUMENT_CATEGORY_INVALID": "Elija una categoría activa.",
+    "DOCUMENT_CATEGORY_NAME_TAKEN": "Ya existe una categoría con este nombre.",
+    "DOCUMENT_CATEGORY_LIMIT": "La clínica puede tener hasta 30 categorías activas.",
+    "DOCUMENT_CATEGORY_SYSTEM": "La categoría Documento emitido la usan los documentos generados y no se puede modificar.",
+    "DOCUMENT_GENERATED_READ_ONLY": "Los documentos emitidos no se pueden editar.",
+    "DOCUMENT_ARCHIVE_REASON_REQUIRED": "Indique el motivo del archivado (mínimo 3 caracteres).",
+    "DOCUMENT_ALREADY_ARCHIVED": "Este documento ya está archivado.",
+    "DOCUMENT_NOT_ARCHIVED": "Este documento no está archivado.",
+    "DOCUMENT_TEMPLATE_NOT_FOUND": "Plantilla no encontrada o desactivada.",
+    "DOCUMENT_TEMPLATE_LIMIT": "La clínica puede tener hasta 50 plantillas activas. Desactive una para crear otra.",
+    "DOCUMENT_TEMPLATE_NAME_TAKEN": "Ya existe una plantilla con este nombre.",
+    "DOCUMENT_TEMPLATE_EMPTY": "Escriba el texto de la plantilla.",
+    "DOCUMENT_TEMPLATE_TOO_LONG": "La plantilla puede tener como máximo 20.000 caracteres.",
+    "DOCUMENT_TEMPLATE_UNKNOWN_VARIABLE": "La variable {variable} no existe. Use el menú Insertar variable.",
+    "DOCUMENT_TEMPLATE_INVALID_FIELD": "El campo {field} no es válido. Use minúsculas, números y _ (hasta 40 caracteres).",
+    "DOCUMENT_TEMPLATE_CLINICAL_ONLY": "Solo los profesionales que atienden a este paciente pueden emitir este documento.",
+    "DOCUMENT_SIGNER_NOT_ALLOWED": "En los documentos clínicos, el profesional debe ser usted.",
+    "DOCUMENT_PROFESSIONAL_INVALID": "Elija un profesional activo.",
+    "DOCUMENT_UNIT_INVALID": "Elija una unidad activa.",
+    "DOCUMENT_MISSING_VALUES": "Este documento tiene información en blanco. Confirme para generarlo de todos modos.",
+    "DOCUMENT_GENERATION_FAILED": "No fue posible generar el documento. Intente de nuevo."
+  },
+  "validation": {
+    "required": "Complete este campo.",
+    "invalid": "Valor no válido.",
+    "titleTooLong": "El título puede tener como máximo 200 caracteres.",
+    "fieldTooLong": "El campo puede tener como máximo 200 caracteres."
+  },
+  "variables": {
+    "patientName": "Nombre del paciente",
+    "patientDocument": "Documento del paciente (CPF)",
+    "patientBirthDate": "Fecha de nacimiento del paciente",
+    "professionalName": "Nombre del profesional",
+    "professionalRegistration": "Matrícula del profesional",
+    "professionalSpecialty": "Especialidad del profesional",
+    "unitName": "Nombre de la unidad",
+    "unitAddress": "Dirección de la unidad",
+    "clinicName": "Nombre de la clínica",
+    "clinicTaxId": "Identificación fiscal de la clínica (CNPJ)",
+    "today": "Fecha de hoy",
+    "todayLong": "Fecha de hoy completa",
+    "groups": {
+      "patient": "Paciente",
+      "professional": "Profesional",
+      "unit": "Unidad",
+      "clinic": "Clínica",
+      "date": "Fecha"
+    }
+  },
+  "missing": {
+    "patientName": "El nombre del paciente no está registrado.",
+    "patientDocument": "El documento del paciente no está registrado.",
+    "patientBirthDate": "La fecha de nacimiento del paciente no está registrada.",
+    "professionalName": "El nombre del profesional no está registrado.",
+    "professionalRegistration": "La matrícula del profesional no está registrada.",
+    "professionalSpecialty": "La especialidad del profesional no está registrada.",
+    "unitName": "El nombre de la unidad no está registrado.",
+    "unitAddress": "La dirección de la unidad no está registrada.",
+    "clinicName": "El nombre de la clínica no está registrado.",
+    "clinicTaxId": "La identificación fiscal de la clínica no está registrada.",
+    "today": "La fecha de hoy no está disponible.",
+    "todayLong": "La fecha de hoy no está disponible.",
+    "field": "El campo {label} está en blanco.",
+    "question": "¿Desea generarlo de todos modos?"
+  },
+  "defaults": {
+    "categories": {
+      "EXAM": "Examen",
+      "SIGNED_TERM": "Formulario firmado",
+      "PERSONAL_DOCUMENT": "Documento personal",
+      "EXTERNAL_REPORT": "Informe externo",
+      "OTHER": "Otro",
+      "ISSUED": "Documento emitido"
+    },
+    "templates": {
+      "CERTIFICATE": "Certificado médico",
+      "ATTENDANCE_DECLARATION": "Constancia de asistencia",
+      "PRESCRIPTION": "Receta simple"
+    }
+  },
+  "types": {
+    "CERTIFICATE": "Certificado",
+    "ATTENDANCE_DECLARATION": "Constancia de asistencia",
+    "PRESCRIPTION": "Receta",
+    "REFERRAL": "Derivación",
+    "OTHER": "Otro"
+  },
+  "pdf": {
+    "page": "Página {page} de {total}",
+    "signature": "Firma"
+  }
+}

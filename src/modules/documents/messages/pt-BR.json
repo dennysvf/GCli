@@ -1,0 +1,100 @@
+{
+  "errors": {
+    "DOCUMENT_FILE_UNSUPPORTED": "O arquivo {fileName} não é suportado. Envie PDF, imagens ou DOCX de até 20 MB.",
+    "DOCUMENT_BATCH_LIMIT": "Envie até 20 arquivos por vez.",
+    "DOCUMENT_QUOTA_EXCEEDED": "O espaço de armazenamento da clínica está esgotado (50 GB). Contate o administrador.",
+    "DOCUMENT_UPLOAD_NOT_FOUND": "O envio do arquivo não foi concluído. Tente enviar novamente.",
+    "DOCUMENT_NOT_FOUND": "Documento não encontrado.",
+    "DOCUMENT_STALE": "Este documento foi alterado por outra pessoa. Recarregue para ver a versão mais recente.",
+    "DOCUMENT_CATEGORY_INVALID": "Escolha uma categoria ativa.",
+    "DOCUMENT_CATEGORY_NAME_TAKEN": "Já existe uma categoria com este nome.",
+    "DOCUMENT_CATEGORY_LIMIT": "A clínica pode ter até 30 categorias ativas.",
+    "DOCUMENT_CATEGORY_SYSTEM": "A categoria Documento emitido é usada pelos documentos gerados e não pode ser alterada.",
+    "DOCUMENT_GENERATED_READ_ONLY": "Documentos emitidos não podem ser editados.",
+    "DOCUMENT_ARCHIVE_REASON_REQUIRED": "Informe o motivo do arquivamento (mínimo de 3 caracteres).",
+    "DOCUMENT_ALREADY_ARCHIVED": "Este documento já está arquivado.",
+    "DOCUMENT_NOT_ARCHIVED": "Este documento não está arquivado.",
+    "DOCUMENT_TEMPLATE_NOT_FOUND": "Modelo não encontrado ou desativado.",
+    "DOCUMENT_TEMPLATE_LIMIT": "A clínica pode ter até 50 modelos ativos. Desative um modelo para criar outro.",
+    "DOCUMENT_TEMPLATE_NAME_TAKEN": "Já existe um modelo com este nome.",
+    "DOCUMENT_TEMPLATE_EMPTY": "Escreva o texto do modelo.",
+    "DOCUMENT_TEMPLATE_TOO_LONG": "O modelo pode ter no máximo 20.000 caracteres.",
+    "DOCUMENT_TEMPLATE_UNKNOWN_VARIABLE": "A variável {variable} não existe. Use o menu Inserir variável.",
+    "DOCUMENT_TEMPLATE_INVALID_FIELD": "O campo {field} é inválido. Use letras minúsculas, números e _ (até 40 caracteres).",
+    "DOCUMENT_TEMPLATE_CLINICAL_ONLY": "Somente profissionais que atendem este paciente podem emitir este documento.",
+    "DOCUMENT_SIGNER_NOT_ALLOWED": "Em documentos clínicos, o profissional deve ser você.",
+    "DOCUMENT_PROFESSIONAL_INVALID": "Escolha um profissional ativo.",
+    "DOCUMENT_UNIT_INVALID": "Escolha uma unidade ativa.",
+    "DOCUMENT_MISSING_VALUES": "Há informações em branco neste documento. Confirme para gerar mesmo assim.",
+    "DOCUMENT_GENERATION_FAILED": "Não foi possível gerar o documento. Tente novamente."
+  },
+  "validation": {
+    "required": "Preencha este campo.",
+    "invalid": "Valor inválido.",
+    "titleTooLong": "O título pode ter no máximo 200 caracteres.",
+    "fieldTooLong": "O campo pode ter no máximo 200 caracteres."
+  },
+  "variables": {
+    "patientName": "Nome do paciente",
+    "patientDocument": "CPF do paciente",
+    "patientBirthDate": "Data de nascimento do paciente",
+    "professionalName": "Nome do profissional",
+    "professionalRegistration": "Registro do profissional",
+    "professionalSpecialty": "Especialidade do profissional",
+    "unitName": "Nome da unidade",
+    "unitAddress": "Endereço da unidade",
+    "clinicName": "Nome da clínica",
+    "clinicTaxId": "CNPJ da clínica",
+    "today": "Data de hoje",
+    "todayLong": "Data de hoje por extenso",
+    "groups": {
+      "patient": "Paciente",
+      "professional": "Profissional",
+      "unit": "Unidade",
+      "clinic": "Clínica",
+      "date": "Data"
+    }
+  },
+  "missing": {
+    "patientName": "O nome do paciente não está cadastrado.",
+    "patientDocument": "O CPF do paciente não está cadastrado.",
+    "patientBirthDate": "A data de nascimento do paciente não está cadastrada.",
+    "professionalName": "O nome do profissional não está cadastrado.",
+    "professionalRegistration": "O registro do profissional no conselho não está cadastrado.",
+    "professionalSpecialty": "A especialidade do profissional não está cadastrada.",
+    "unitName": "O nome da unidade não está cadastrado.",
+    "unitAddress": "O endereço da unidade não está cadastrado.",
+    "clinicName": "O nome da clínica não está cadastrado.",
+    "clinicTaxId": "O CNPJ da clínica não está cadastrado.",
+    "today": "A data de hoje não está disponível.",
+    "todayLong": "A data de hoje não está disponível.",
+    "field": "O campo {label} está em branco.",
+    "question": "Deseja gerar mesmo assim?"
+  },
+  "defaults": {
+    "categories": {
+      "EXAM": "Exame",
+      "SIGNED_TERM": "Termo assinado",
+      "PERSONAL_DOCUMENT": "Documento pessoal",
+      "EXTERNAL_REPORT": "Laudo externo",
+      "OTHER": "Outro",
+      "ISSUED": "Documento emitido"
+    },
+    "templates": {
+      "CERTIFICATE": "Atestado",
+      "ATTENDANCE_DECLARATION": "Declaração de comparecimento",
+      "PRESCRIPTION": "Receituário simples"
+    }
+  },
+  "types": {
+    "CERTIFICATE": "Atestado",
+    "ATTENDANCE_DECLARATION": "Declaração de comparecimento",
+    "PRESCRIPTION": "Receituário",
+    "REFERRAL": "Encaminhamento",
+    "OTHER": "Outro"
+  },
+  "pdf": {
+    "page": "Página {page} de {total}",
+    "signature": "Assinatura"
+  }
+}

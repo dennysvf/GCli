@@ -1,4 +1,5 @@
 import { clinicalRecordsCatalog, registerClinicalRecordsPorts } from "@/modules/clinical-records";
+import { documentsCatalog } from "@/modules/documents";
 import { identityCatalog } from "@/modules/identity";
 import { unitsCatalog } from "@/modules/units";
 import { patientsCatalog } from "@/modules/patients";
@@ -24,6 +25,7 @@ export function registerModules(): void {
   registerCatalog("patients", patientsCatalog);
   registerCatalog("scheduling", schedulingCatalog);
   registerCatalog("clinicalRecords", clinicalRecordsCatalog);
+  registerCatalog("documents", documentsCatalog);
   subscribeServicesEvents(eventBus);
   registerServicesPorts();
   // F04: linked professionals for identity (F01) and professional counts for services (F03).

@@ -47,6 +47,12 @@ const TENANT_MODELS = new Set<string>([
   "ClinicalAttachmentUpload",
   "ClinicalAlert",
   "ClinicalAlertChange",
+  // F08
+  "DocumentCategory",
+  "DocumentTemplate",
+  "PatientDocument",
+  "PatientDocumentUpload",
+  "DocumentStorageUsage",
 ]);
 // The organization row itself is scoped by its id.
 const ORGANIZATION_MODEL = "Organization";

@@ -44,6 +44,11 @@ model Organization {
   clinicalUploads      ClinicalAttachmentUpload[]
   clinicalAlerts       ClinicalAlert[]
   clinicalAlertChanges ClinicalAlertChange[]
+  documentCategories   DocumentCategory[]
+  patientDocuments     PatientDocument[]
+  documentUploads      PatientDocumentUpload[]
+  documentTemplates    DocumentTemplate[]
+  documentStorageUsage DocumentStorageUsage?
 
   @@map("organization")
 }
@@ -581,13 +586,14 @@ model Patient {
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization   Organization    @relation(fields: [organizationId], references: [id], map: "fk_patient_org")
-  referralSource ReferralSource? @relation(fields: [referralSourceId], references: [id], onDelete: Restrict, map: "fk_patient_referral_source")
+  organization   Organization      @relation(fields: [organizationId], references: [id], map: "fk_patient_org")
+  referralSource ReferralSource?   @relation(fields: [referralSourceId], references: [id], onDelete: Restrict, map: "fk_patient_referral_source")
   tags           PatientTag[]
   consents       ConsentRecord[]
   appointments   Appointment[]
   clinicalNotes  ClinicalNote[]
   clinicalAlerts ClinicalAlert[]
+  documents      PatientDocument[]
 
   @@index([organizationId, normalizedName, birthDate], map: "ix_patient_org_identity")
   @@index([organizationId, active, normalizedName], map: "ix_patient_org_active_name")
@@ -987,4 +993,119 @@ model ClinicalAlertChange {
 
   @@index([alertId, createdAt], map: "ix_clinical_alert_change_alert")
   @@map("clinical_alert_change")
+}
+
+// F08 patient documents. Hand-written parts of the migration: case-insensitive unique names, the
+// partial unique indexes of the default rows, the clinical flag trigger and the grants.
+model DocumentCategory {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String   @db.VarChar(60)
+  isClinical     Boolean  @default(false) @map("is_clinical")
+  systemKey      String?  @map("system_key") @db.VarChar(30)
+  active         Boolean  @default(true)
+  sortOrder      Int      @default(0) @map("sort_order")
+  version        Int      @default(1)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], map: "fk_document_category_org")
+  documents    PatientDocument[]
+
+  @@index([organizationId, active, sortOrder], map: "ix_document_category_org")
+  @@map("document_category")
+}
+
+model DocumentTemplate {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String   @db.VarChar(120)
+  type           String   @db.VarChar(30)
+  isClinical     Boolean  @default(false) @map("is_clinical")
+  bodyHtml       String   @map("body_html")
+  bodyText       String   @map("body_text")
+  fields         Json     @default("[]")
+  systemKey      String?  @map("system_key") @db.VarChar(30)
+  active         Boolean  @default(true)
+  version        Int      @default(1)
+  createdById    String?  @map("created_by_id") @db.Uuid
+  updatedById    String?  @map("updated_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], map: "fk_document_template_org")
+  documents    PatientDocument[]
+
+  @@index([organizationId, active, name], map: "ix_document_template_org")
+  @@map("document_template")
+}
+
+model PatientDocument {
+  id                String    @id @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  patientId         String    @map("patient_id") @db.Uuid
+  kind              String    @db.VarChar(10)
+  categoryId        String    @map("category_id") @db.Uuid
+  title             String    @db.VarChar(200)
+  isClinical        Boolean   @default(false) @map("is_clinical")
+  status            String    @default("READY") @db.VarChar(12)
+  fileName          String    @map("file_name") @db.VarChar(255)
+  sourceContentType String    @map("source_content_type") @db.VarChar(100)
+  sourceObjectKey   String    @map("source_object_key") @db.VarChar(200)
+  objectKey         String?   @map("object_key") @db.VarChar(200)
+  contentType       String?   @map("content_type") @db.VarChar(100)
+  sizeBytes         Int       @map("size_bytes")
+  storedBytes       Int       @map("stored_bytes")
+  authorUserId      String    @map("author_user_id") @db.Uuid
+  professionalId    String?   @map("professional_id") @db.Uuid
+  unitId            String?   @map("unit_id") @db.Uuid
+  templateId        String?   @map("template_id") @db.Uuid
+  templateVersion   Int?      @map("template_version")
+  fieldValues       Json?     @map("field_values")
+  archivedAt        DateTime? @map("archived_at") @db.Timestamptz(6)
+  archivedById      String?   @map("archived_by_id") @db.Uuid
+  archiveReason     String?   @map("archive_reason") @db.VarChar(500)
+  version           Int       @default(1)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], map: "fk_patient_document_org")
+  patient      Patient           @relation(fields: [patientId], references: [id], onDelete: Restrict, map: "fk_patient_document_patient")
+  category     DocumentCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict, map: "fk_patient_document_category")
+  template     DocumentTemplate? @relation(fields: [templateId], references: [id], onDelete: Restrict, map: "fk_patient_document_template")
+
+  @@index([organizationId, patientId, archivedAt, createdAt(sort: Desc), id(sort: Desc)], map: "ix_patient_document_list")
+  @@index([organizationId, categoryId], map: "ix_patient_document_category")
+  @@map("patient_document")
+}
+
+model PatientDocumentUpload {
+  id                  String   @id @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+  patientId           String   @map("patient_id") @db.Uuid
+  userId              String   @map("user_id") @db.Uuid
+  categoryId          String   @map("category_id") @db.Uuid
+  title               String   @db.VarChar(200)
+  objectKey           String   @map("object_key") @db.VarChar(200)
+  fileName            String   @map("file_name") @db.VarChar(255)
+  declaredContentType String   @map("declared_content_type") @db.VarChar(100)
+  declaredSize        Int      @map("declared_size")
+  documentId          String?  @map("document_id") @db.Uuid
+  expiresAt           DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_patient_document_upload_org")
+
+  @@map("patient_document_upload")
+}
+
+model DocumentStorageUsage {
+  organizationId String    @id @map("organization_id") @db.Uuid
+  usedBytes      BigInt    @default(0) @map("used_bytes")
+  alertSentAt    DateTime? @map("alert_sent_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_document_storage_usage_org")
+
+  @@map("document_storage_usage")
 }

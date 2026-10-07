@@ -1,0 +1,100 @@
+{
+  "errors": {
+    "DOCUMENT_FILE_UNSUPPORTED": "The file {fileName} is not supported. Upload a PDF, images or DOCX of up to 20 MB.",
+    "DOCUMENT_BATCH_LIMIT": "Upload up to 20 files at a time.",
+    "DOCUMENT_QUOTA_EXCEEDED": "The clinic's storage space is full (50 GB). Contact the administrator.",
+    "DOCUMENT_UPLOAD_NOT_FOUND": "The file upload did not finish. Try uploading it again.",
+    "DOCUMENT_NOT_FOUND": "Document not found.",
+    "DOCUMENT_STALE": "This document was changed by someone else. Reload to see the latest version.",
+    "DOCUMENT_CATEGORY_INVALID": "Choose an active category.",
+    "DOCUMENT_CATEGORY_NAME_TAKEN": "A category with this name already exists.",
+    "DOCUMENT_CATEGORY_LIMIT": "The clinic can have up to 30 active categories.",
+    "DOCUMENT_CATEGORY_SYSTEM": "The Issued document category is used by generated documents and cannot be changed.",
+    "DOCUMENT_GENERATED_READ_ONLY": "Issued documents cannot be edited.",
+    "DOCUMENT_ARCHIVE_REASON_REQUIRED": "Enter the reason for archiving (at least 3 characters).",
+    "DOCUMENT_ALREADY_ARCHIVED": "This document is already archived.",
+    "DOCUMENT_NOT_ARCHIVED": "This document is not archived.",
+    "DOCUMENT_TEMPLATE_NOT_FOUND": "Template not found or deactivated.",
+    "DOCUMENT_TEMPLATE_LIMIT": "The clinic can have up to 50 active templates. Deactivate one to create another.",
+    "DOCUMENT_TEMPLATE_NAME_TAKEN": "A template with this name already exists.",
+    "DOCUMENT_TEMPLATE_EMPTY": "Write the template text.",
+    "DOCUMENT_TEMPLATE_TOO_LONG": "A template can have at most 20,000 characters.",
+    "DOCUMENT_TEMPLATE_UNKNOWN_VARIABLE": "The variable {variable} does not exist. Use the Insert variable menu.",
+    "DOCUMENT_TEMPLATE_INVALID_FIELD": "The field {field} is invalid. Use lowercase letters, numbers and _ (up to 40 characters).",
+    "DOCUMENT_TEMPLATE_CLINICAL_ONLY": "Only professionals who see this patient can issue this document.",
+    "DOCUMENT_SIGNER_NOT_ALLOWED": "In clinical documents, the professional must be you.",
+    "DOCUMENT_PROFESSIONAL_INVALID": "Choose an active professional.",
+    "DOCUMENT_UNIT_INVALID": "Choose an active unit.",
+    "DOCUMENT_MISSING_VALUES": "This document has blank information. Confirm to generate it anyway.",
+    "DOCUMENT_GENERATION_FAILED": "The document could not be generated. Try again."
+  },
+  "validation": {
+    "required": "Fill in this field.",
+    "invalid": "Invalid value.",
+    "titleTooLong": "The title can have at most 200 characters.",
+    "fieldTooLong": "The field can have at most 200 characters."
+  },
+  "variables": {
+    "patientName": "Patient name",
+    "patientDocument": "Patient ID document (CPF)",
+    "patientBirthDate": "Patient date of birth",
+    "professionalName": "Professional name",
+    "professionalRegistration": "Professional council registration",
+    "professionalSpecialty": "Professional specialty",
+    "unitName": "Unit name",
+    "unitAddress": "Unit address",
+    "clinicName": "Clinic name",
+    "clinicTaxId": "Clinic tax ID (CNPJ)",
+    "today": "Today's date",
+    "todayLong": "Today's date in full",
+    "groups": {
+      "patient": "Patient",
+      "professional": "Professional",
+      "unit": "Unit",
+      "clinic": "Clinic",
+      "date": "Date"
+    }
+  },
+  "missing": {
+    "patientName": "The patient's name is not registered.",
+    "patientDocument": "The patient's ID document is not registered.",
+    "patientBirthDate": "The patient's date of birth is not registered.",
+    "professionalName": "The professional's name is not registered.",
+    "professionalRegistration": "The professional's council registration is not registered.",
+    "professionalSpecialty": "The professional's specialty is not registered.",
+    "unitName": "The unit's name is not registered.",
+    "unitAddress": "The unit's address is not registered.",
+    "clinicName": "The clinic's name is not registered.",
+    "clinicTaxId": "The clinic's tax ID is not registered.",
+    "today": "Today's date is not available.",
+    "todayLong": "Today's date is not available.",
+    "field": "The field {label} is blank.",
+    "question": "Generate it anyway?"
+  },
+  "defaults": {
+    "categories": {
+      "EXAM": "Exam",
+      "SIGNED_TERM": "Signed form",
+      "PERSONAL_DOCUMENT": "Personal document",
+      "EXTERNAL_REPORT": "External report",
+      "OTHER": "Other",
+      "ISSUED": "Issued document"
+    },
+    "templates": {
+      "CERTIFICATE": "Medical certificate",
+      "ATTENDANCE_DECLARATION": "Attendance declaration",
+      "PRESCRIPTION": "Simple prescription"
+    }
+  },
+  "types": {
+    "CERTIFICATE": "Certificate",
+    "ATTENDANCE_DECLARATION": "Attendance declaration",
+    "PRESCRIPTION": "Prescription",
+    "REFERRAL": "Referral",
+    "OTHER": "Other"
+  },
+  "pdf": {
+    "page": "Page {page} of {total}",
+    "signature": "Signature"
+  }
+}
