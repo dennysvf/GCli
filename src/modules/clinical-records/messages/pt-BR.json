@@ -71,14 +71,7 @@
     "finalizedToast": "Registro finalizado",
     "changesSavedToast": "Alterações salvas",
     "editor": {
-      "label": "Texto do registro",
-      "toolbar": "Formatação",
-      "bold": "Negrito",
-      "italic": "Itálico",
-      "heading": "Título",
-      "subheading": "Subtítulo",
-      "bulletList": "Lista",
-      "orderedList": "Lista numerada"
+      "label": "Texto do registro"
     },
     "status": {
       "saving": "Salvando…",

@@ -71,14 +71,7 @@
     "finalizedToast": "Record finalized",
     "changesSavedToast": "Changes saved",
     "editor": {
-      "label": "Record text",
-      "toolbar": "Formatting",
-      "bold": "Bold",
-      "italic": "Italic",
-      "heading": "Heading",
-      "subheading": "Subheading",
-      "bulletList": "List",
-      "orderedList": "Numbered list"
+      "label": "Record text"
     },
     "status": {
       "saving": "Saving…",

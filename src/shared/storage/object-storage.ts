@@ -32,8 +32,9 @@ export interface ObjectStorage {
   ): Promise<string>;
   // Download URL for the browser, signed against the public endpoint (ADR-031).
   presignBrowserGet(key: string, expiresInSeconds?: number, options?: PresignGetOptions): Promise<string>;
-  // First bytes of an object, to check the real file type (magic bytes).
-  getRange(key: string, length: number): Promise<Uint8Array | null>;
+  // A slice of an object, to check the real file type (magic bytes, the end of a ZIP). Starts at
+  // the first byte unless `offset` says otherwise.
+  getRange(key: string, length: number, offset?: number): Promise<Uint8Array | null>;
 }
 
 export type PresignGetOptions = { contentDisposition?: string };
@@ -86,10 +87,14 @@ class S3ObjectStorage implements ObjectStorage {
     await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
   }
 
-  async getRange(key: string, length: number) {
+  async getRange(key: string, length: number, offset = 0) {
     try {
       const response = await this.client.send(
-        new GetObjectCommand({ Bucket: this.bucket, Key: key, Range: `bytes=0-${length - 1}` }),
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Range: `bytes=${offset}-${offset + length - 1}`,
+        }),
       );
       return response.Body ? await response.Body.transformToByteArray() : null;
     } catch (error) {

@@ -12,6 +12,7 @@ type OutboxRow = { id: string; type: string; payload: Record<string, unknown> };
 function queueFor(type: string): string | null {
   if (type.startsWith("email.")) return QUEUES.emailSend;
   if (type === "clinical.attachment-process") return QUEUES.clinicalAttachmentProcess;
+  if (type === "documents.file-process") return QUEUES.documentsFileProcess;
   return null;
 }
 

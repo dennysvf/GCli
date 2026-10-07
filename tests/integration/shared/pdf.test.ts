@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { describe, expect, it } from "vitest";
 import { PdfDocument, PdfTable } from "@/shared/pdf/document";
+import { PdfRichText } from "@/shared/pdf/rich-text";
 import { renderPdf } from "@/shared/pdf/render";
 
 describe("shared PDF base (ADR-024)", () => {
@@ -33,5 +34,24 @@ describe("shared PDF base (ADR-024)", () => {
     expect(bytes.subarray(0, 5).toString("latin1")).toBe("%PDF-");
     // 80 rows do not fit on one A4 page.
     expect(bytes.toString("latin1").match(/\/Type \/Page\b/g)?.length ?? 0).toBeGreaterThan(1);
+  });
+
+  it("F08: renders every allowed rich text tag, including italics, into a PDF file", async () => {
+    const bytes = await renderPdf(
+      createElement(
+        PdfDocument,
+        {
+          documentTitle: "Atestado",
+          clinicName: "Clínica Exemplo",
+          title: "Atestado",
+          footerNote: "Rodapé",
+          pageLabel: "Página {page} de {total}",
+        },
+        createElement(PdfRichText, {
+          html: "<h2>Título</h2><h3>Sub</h3><p>Texto <strong>forte</strong> <em>itálico</em><br>linha</p><p></p><ul><li>Um</li><li>Dois</li></ul><ol><li>Primeiro</li></ol>",
+        }),
+      ),
+    );
+    expect(bytes.subarray(0, 5).toString("latin1")).toBe("%PDF-");
   });
 });

@@ -26,6 +26,7 @@ import {
   changeUserRole,
   deactivateUser,
   getUserNames,
+  listAdministratorContacts,
   listLinkableUsers,
   listUsers,
   reactivateUser,
@@ -88,10 +89,10 @@ export const identity = {
 
 // Provided to other features (PRD F01 Provides): F08 and F13 read the organization profile,
 // F04 lists users that can be linked to a professional profile.
-export { getOrganizationProfile, getUserNames, listLinkableUsers };
+export { getOrganizationProfile, getUserNames, listAdministratorContacts, listLinkableUsers };
 export { IDENTITY_EVENTS } from "./events";
 export type { OrganizationProfile } from "./application/organization";
-export type { LinkableUser, UserList, UserListItem } from "./application/users";
+export type { AdministratorContact, LinkableUser, UserList, UserListItem } from "./application/users";
 export type { InvitationPreview } from "./application/invitations";
 
 export { homeFor } from "./application/sign-in";

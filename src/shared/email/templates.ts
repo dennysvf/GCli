@@ -82,3 +82,27 @@ ${button(t, input.url, t("email.passwordReset.button"))}
   ].join("\n");
   return { to: input.to, subject: t("email.passwordReset.subject", params), html, text };
 }
+
+// PRD F08: the administrators learn when the document storage reaches 80% of the quota.
+export function storageQuotaAlertEmail(
+  input: { to: string; name: string; percent: number; quotaGb: number },
+  context: EmailContext,
+): EmailMessage {
+  const t = createTranslator(context.locale);
+  const params = { name: input.name, percent: input.percent, quota: input.quotaGb };
+  const html = layout(
+    t,
+    context.locale,
+    t("email.storageQuota.title"),
+    `<p>${escapeHtml(t("email.storageQuota.greeting", params))}</p>
+<p>${escapeHtml(t("email.storageQuota.body", params))}</p>
+<p style="font-size:14px">${escapeHtml(t("email.storageQuota.advice", params))}</p>`,
+  );
+  const text = [
+    t("email.storageQuota.greeting", params),
+    "",
+    t("email.storageQuota.body", params),
+    t("email.storageQuota.advice", params),
+  ].join("\n");
+  return { to: input.to, subject: t("email.storageQuota.subject", params), html, text };
+}

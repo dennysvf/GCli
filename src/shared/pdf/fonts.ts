@@ -18,6 +18,12 @@ export function registerPdfFonts(): void {
     fonts: [
       { src: path.join(FONTS_DIR, "source-sans-3-latin-400-normal.woff"), fontWeight: 400 },
       { src: path.join(FONTS_DIR, "source-sans-3-latin-600-normal.woff"), fontWeight: 600 },
+      // Emphasis in generated documents (F08): the sanitized HTML subset allows italics.
+      {
+        src: path.join(FONTS_DIR, "source-sans-3-latin-400-italic.woff"),
+        fontWeight: 400,
+        fontStyle: "italic",
+      },
     ],
   });
   Font.register({

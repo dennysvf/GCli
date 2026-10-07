@@ -1,3 +1,4 @@
+import { detectFileType } from "@/shared/kernel/file-types";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import { ClinicalErrors } from "./errors";
 import { ATTACHMENT_MAX_BYTES, ATTACHMENT_MAX_PER_NOTE, FILE_NAME_MAX, IN_ERROR_WINDOW_MS } from "./limits";
@@ -21,26 +22,11 @@ export function declaredAttachmentType(contentType: string): AttachmentType | nu
   return DECLARED_TYPES[contentType.toLowerCase()] ?? null;
 }
 
-const HEIC_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs", "mif1", "msf1"]);
-
-function ascii(bytes: Uint8Array, start: number, length: number): string {
-  return String.fromCharCode(...bytes.slice(start, start + length));
-}
-
-// The real type of a file from its first bytes; what the client declared is never trusted.
+// The real type of a file from its first bytes; what the client declared is never trusted. The
+// detection is shared with F08 (ADR-033); a ZIP is not an attachment type here.
 export function detectAttachmentType(bytes: Uint8Array): AttachmentType | null {
-  if (bytes.length >= 4 && ascii(bytes, 0, 4) === "%PDF") return "application/pdf";
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
-  if (
-    bytes.length >= 8 &&
-    [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((byte, index) => bytes[index] === byte)
-  ) {
-    return "image/png";
-  }
-  if (bytes.length >= 12 && ascii(bytes, 4, 4) === "ftyp" && HEIC_BRANDS.has(ascii(bytes, 8, 4))) {
-    return "image/heic";
-  }
-  return null;
+  const detected = detectFileType(bytes);
+  return detected === null || detected === "application/zip" ? null : detected;
 }
 
 export function checkAttachmentSize(size: number): Result<void> {
