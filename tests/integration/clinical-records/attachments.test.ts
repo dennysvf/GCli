@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { clinicalRecords } from "@/modules/clinical-records";
 import { db } from "@/shared/db/client";
@@ -155,6 +157,31 @@ describe("clinical attachments", () => {
     expect(again.ok && again.value.processed).toBe(false);
     const details = await clinicalRecords.getNote(world.pro, noteId);
     expect(details.ok && details.value.attachments[0]?.thumbnailUrl).toContain("X-Amz-Expires=300");
+  });
+
+  it("F07: HEIC uploads are converted to JPG with a thumbnail and the original is kept", async () => {
+    const heic = new Uint8Array(await readFile(join(__dirname, "fixtures", "sample.heic")));
+    const uploaded = await uploadAttachment(world.pro, noteId, {
+      name: "foto.heic",
+      contentType: "image/heic",
+      bytes: heic,
+    });
+    expect(uploaded.result.ok && uploaded.result.value.contentType).toBe("image/heic");
+    if (!uploaded.result.ok) return;
+    const job = { organizationId: world.organizationId, attachmentId: uploaded.result.value.attachmentId };
+    const processed = await clinicalRecords.processAttachment(job);
+    expect(processed.ok && processed.value.processed).toBe(true);
+    const row = await db().clinicalAttachment.findUniqueOrThrow({ where: { id: job.attachmentId } });
+    expect(row.status).toBe("READY");
+    expect(row.contentType).toBe("image/jpeg");
+    expect(row.objectKey).not.toBe(row.sourceObjectKey);
+    const served = await objectStorage().get(row.objectKey ?? "");
+    expect(Array.from(served?.body.slice(0, 3) ?? [])).toEqual([0xff, 0xd8, 0xff]);
+    expect(await objectStorage().head(row.thumbnailKey ?? "")).not.toBeNull();
+    // The HEIC original stays in the record.
+    expect(await objectStorage().head(row.sourceObjectKey)).not.toBeNull();
+    const again = await clinicalRecords.processAttachment(job);
+    expect(again.ok && again.value.processed).toBe(false);
   });
 
   it("F07: attachments close when the note locks and are private to the author while a draft", async () => {
