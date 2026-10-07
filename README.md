@@ -79,7 +79,10 @@ CLAUDE.md         Regras de engenharia resumidas para desenvolvimento assistido 
 - [x] Design system "Tinta e Papel" (documento e aplicação nas telas)
 - [x] F04 — Profissionais e horários de atendimento
 - [x] F05 — Cadastro de pacientes
-- [ ] F06 em diante, seguindo as ondas de execução do PRD
+- [x] F06 — Agenda e agendamentos
+- [x] F16 — Internacionalização e perfis de país
+- [x] F07 — Registro do atendimento clínico
+- [ ] F08 em diante, seguindo as ondas de execução do PRD
 - [ ] Deploy de uma versão de demonstração
 
 ## Como rodar localmente
@@ -97,4 +100,11 @@ npm run dev:worker            # em outro terminal: envia os e-mails
 npm run seed:demo             # opcional, depois de aceitar o convite: dados de demonstração
 ```
 
-O convite do administrador chega no Mailpit (http://localhost:8025). Testes: `npm test`, `npm run test:integration` e `npm run test:e2e`. Para rodar tudo em contêineres: `docker compose --profile app up -d --build` (http://localhost:3000). O passo a passo completo está no [diário de bordo](docs/build-log.pt-BR.md#15-como-reproduzir-o-ambiente-do-zero).
+O convite do administrador chega no Mailpit (http://localhost:8025). Testes: `npm test`, `npm run test:integration` e `npm run test:e2e`. Para rodar tudo em contêineres: `docker compose --profile app up -d --build` (http://localhost:3000). O passo a passo completo está no [diário de bordo](docs/build-log.pt-BR.md#18-como-reproduzir-o-ambiente-do-zero).
+
+### Ambientes: desenvolvimento e produção
+
+- **`.env`** é o ambiente local (a partir de `.env.example`), usado por `npm run dev`, pelo worker, pelo Prisma e pelos scripts.
+- **Produção não lê arquivo `.env`**: a aplicação e o worker recebem as variáveis dos _secrets_ da hospedagem. O `.dockerignore` deixa todos os `.env*` fora da imagem.
+- **`.env.prod`** (a partir de `.env.prod.example`, ignorado pelo git) existe só para rodar, da sua máquina, os scripts de operação contra produção: `npm run setup:storage-cors:prod` e `npm run setup:admin:prod`. Os scripts mostram o destino (banco, bucket, URL) antes de gravar, e o CORS aceita `-- --dry-run`.
+- Não use os nomes `.env.production` nem `.env.production.local`: o Next.js os carrega em todo `next build`, e um build local passaria a usar o banco e o bucket de produção.

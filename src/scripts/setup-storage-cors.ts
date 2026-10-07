@@ -1,11 +1,13 @@
 import { parseArgs } from "node:util";
 import { GetBucketCorsCommand, PutBucketCorsCommand, S3Client } from "@aws-sdk/client-s3";
 import { getEnv } from "@/shared/config/env";
+import { describeTarget } from "./target";
 
 // CORS rule of the private bucket for the direct uploads and downloads of clinical files (ADR-031).
 // Run once per environment, with that environment's variables (APP_URL, S3_*), after creating the
 // bucket; in production the bucket is on Cloudflare R2, which accepts this S3 call:
-//   npm run setup:storage-cors
+//   npm run setup:storage-cors:prod -- --dry-run    (reads .env.prod; see .env.prod.example)
+//   npm run setup:storage-cors:prod
 // Optional: --origin https://app.exemplo.com.br (defaults to APP_URL), --dry-run to only print it.
 // Local development does not need it: docker-compose starts SeaweedFS with -s3.allowedOrigins.
 const USAGE = "Uso: npm run setup:storage-cors -- [--origin https://app.exemplo.com.br] [--dry-run]";
@@ -29,6 +31,7 @@ async function main(): Promise<number> {
   const env = getEnv();
   const origin = new URL(values.origin ?? env.APP_URL).origin;
   const rules = corsRules(origin);
+  console.log(describeTarget(env, ["storage", "app"]));
   console.log(JSON.stringify({ bucket: env.S3_BUCKET, CORSRules: rules }, null, 2));
   if (values["dry-run"]) return 0;
   if (!/^https?:\/\//.test(origin)) {
