@@ -7,6 +7,8 @@ export const QUEUES = {
   clinicalAttachmentProcess: "clinical-attachment-process",
   clinicalNotesAutoFinalize: "clinical-notes-auto-finalize",
   clinicalUploadsCleanup: "clinical-uploads-cleanup",
+  documentsFileProcess: "documents-file-process",
+  documentsUploadsCleanup: "documents-uploads-cleanup",
 } as const;
 
 export type EmailJobData = { outboxId: string; type: string; payload: Record<string, unknown> };

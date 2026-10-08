@@ -139,7 +139,17 @@
     },
     "newNameFor": "Nuevo nombre para {name}",
     "editNamed": "Editar {name}",
-    "dateRange": "{start} al {end}"
+    "dateRange": "{start} al {end}",
+    "richText": {
+      "toolbar": "Formato",
+      "bold": "Negrita",
+      "italic": "Cursiva",
+      "heading": "Título",
+      "subheading": "Subtítulo",
+      "bulletList": "Lista",
+      "orderedList": "Lista numerada",
+      "characterCount": "{count} de {max} caracteres"
+    }
   },
   "validation": {
     "localeInvalid": "Elija un idioma de la lista.",
@@ -185,7 +195,8 @@
       "patientLists": "Listas de pacientes",
       "cancellationReasons": "Motivos de cancelación",
       "privacyTerms": "Términos de privacidad",
-      "users": "Usuarios"
+      "users": "Usuarios",
+      "documents": "Documentos"
     },
     "roles": {
       "ADMINISTRATOR": "Administrador",
@@ -351,6 +362,13 @@
       "button": "Restablecer contraseña",
       "link": "Restablézcala en: {url}",
       "validity": "Este enlace es válido por 60 minutos y solo puede usarse una vez."
+    },
+    "storageQuota": {
+      "subject": "El almacenamiento de documentos llegó al {percent}%",
+      "title": "El almacenamiento de documentos está casi lleno",
+      "greeting": "Hola, {name}.",
+      "body": "El almacenamiento de documentos de la clínica llegó al {percent}% de {quota} GB.",
+      "advice": "Cuando se alcance el límite, se bloquearán los nuevos envíos de documentos."
     }
   }
 }

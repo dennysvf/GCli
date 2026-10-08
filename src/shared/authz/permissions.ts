@@ -35,6 +35,12 @@ export const PERMISSIONS = {
   // F07 clinical records: professionals, plus administrators/managers linked to a professional
   "clinical:read": ["PROFESSIONAL"],
   "clinical:write": ["PROFESSIONAL"],
+  // F08 patient documents. Clinical documents and templates also need the F07 records policy;
+  // archiving, restoring and correcting any document are for managers.
+  "document:read": ["ADMINISTRATOR", "MANAGER", "FRONT_DESK", "PROFESSIONAL"],
+  "document:upload": ["ADMINISTRATOR", "MANAGER", "FRONT_DESK", "PROFESSIONAL"],
+  "document:generate": ["ADMINISTRATOR", "MANAGER", "FRONT_DESK", "PROFESSIONAL"],
+  "document:archive": ["ADMINISTRATOR", "MANAGER"],
   // F09, F10, F11 billing, packages, cash
   "billing:operate": ["ADMINISTRATOR", "MANAGER", "FRONT_DESK"],
   "billing:approve": ["ADMINISTRATOR", "MANAGER"],

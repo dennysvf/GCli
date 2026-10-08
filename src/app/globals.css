@@ -314,6 +314,67 @@
   }
 }
 
+/* The preview of an issued document (design system 5.13): a white sheet with A4 proportions, the
+   title in the serif face and the body in the reading column. A value that is missing is marked by
+   an underline and the name of the missing item, so it never relies on color alone. */
+@utility document-sheet {
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  padding: 2rem 2.25rem;
+  min-height: 24rem;
+  & h2,
+  & h3,
+  & p,
+  & ul,
+  & ol {
+    max-width: 72ch;
+  }
+  & p {
+    margin: 0 0 0.75rem;
+    line-height: 1.6;
+    /* Free fields may have several lines. */
+    white-space: pre-line;
+  }
+  & h2 {
+    font-family: var(--typeface-heading);
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 1rem 0 0.5rem;
+  }
+  & h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 1rem 0 0.5rem;
+  }
+  & ul {
+    list-style: disc;
+    padding-left: 1.5rem;
+  }
+  & ol {
+    list-style: decimal;
+    padding-left: 1.5rem;
+  }
+  & strong {
+    font-weight: 600;
+  }
+  & mark[data-missing] {
+    background: var(--warning-bg);
+    color: var(--warning);
+    border-radius: 2px;
+    padding: 0 0.25rem;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+/* A template variable inside the template editor (design system 5.13). */
+@utility template-token {
+  font-family: var(--typeface-code);
+  background: var(--paper-1);
+}
+
 /* The double rule: page header and totals only (design system 4.2). */
 @utility double-rule {
   border-bottom: 4px double var(--rule);

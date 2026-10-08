@@ -1,6 +1,6 @@
 import { db } from "@/shared/db/client";
 import type { EmailSender } from "@/shared/email/email-sender";
-import { invitationEmail, passwordResetEmail } from "@/shared/email/templates";
+import { invitationEmail, passwordResetEmail, storageQuotaAlertEmail } from "@/shared/email/templates";
 import { isLocale, DEFAULT_LOCALE } from "@/shared/i18n/locales";
 import type { EmailJobData } from "@/shared/jobs/queues";
 
@@ -27,6 +27,16 @@ function render(data: EmailJobData) {
       );
     case "email.password-reset":
       return passwordResetEmail({ to: p.to ?? "", name: p.name ?? "", url: p.url ?? "" }, context);
+    case "email.storage-quota-alert":
+      return storageQuotaAlertEmail(
+        {
+          to: p.to ?? "",
+          name: p.name ?? "",
+          percent: Number(p.percent ?? 0),
+          quotaGb: Number(p.quotaGb ?? 0),
+        },
+        context,
+      );
     default:
       throw new Error(`Unknown email type ${data.type}`);
   }

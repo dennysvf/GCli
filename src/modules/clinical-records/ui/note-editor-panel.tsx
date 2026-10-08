@@ -5,13 +5,13 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import type { ActionResult } from "@/shared/kernel/action-result";
 import { Button } from "@/shared/ui/components/button";
+import { RichTextEditor } from "@/shared/ui/rich-text/rich-text-editor";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import type { NoteDetails } from "../application/queries";
 import { AUTOSAVE_INTERVAL_MS, AUTOSAVE_RETRY_MS, NOTE_MAX_CHARACTERS } from "../domain/limits";
 import { AutosaveController, type AutosaveStatus, type SaveOutcome } from "./autosave-controller";
 import { clearBackup, parseBackup, readBackupRaw, writeBackup } from "./local-backup";
 import type { RecordActions } from "./record-actions";
-import { RichTextEditor } from "./rich-text-editor";
 import { SaveStatus, type NoteStatusLine } from "./save-status";
 
 const FINALIZE = "finalize";

@@ -1,10 +1,10 @@
 # Build log — how GCli was built
 
-This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F07 and F16). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
+This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F08 and F16). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
 
 The work was done as a pair: a product owner and an AI coding assistant. The product owner answered questions, made the business decisions and approved each stage; the assistant ran the interviews, wrote documents and code, ran the tests and recorded what it found along the way.
 
-> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations.
+> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations → F08.
 
 Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 
@@ -28,9 +28,10 @@ Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 14. [F16 — Internationalization and Country Profiles](#14-f16--internationalization-and-country-profiles)
 15. [Seventh feature: F07 — Clinical Encounter Records](#15-seventh-feature-f07--clinical-encounter-records)
 16. [Environments: development and production](#16-environments-development-and-production)
-17. [Problems found and how they were solved](#17-problems-found-and-how-they-were-solved)
-18. [Reproducing the environment from scratch](#18-reproducing-the-environment-from-scratch)
-19. [Lessons learned](#19-lessons-learned)
+17. [Eighth feature: F08 — Patient Documents](#17-eighth-feature-f08--patient-documents)
+18. [Problems found and how they were solved](#18-problems-found-and-how-they-were-solved)
+19. [Reproducing the environment from scratch](#19-reproducing-the-environment-from-scratch)
+20. [Lessons learned](#20-lessons-learned)
 
 ---
 
@@ -666,7 +667,64 @@ The name is not `.env.production` on purpose: Next.js loads that file in every `
 
 ---
 
-## 17. Problems found and how they were solved
+## 17. Eighth feature: F08 — Patient Documents
+
+F08 stores the patient's files (exams, ID copies, signed terms) and issues documents from templates (medical certificate, attendance declaration, prescription). Like F07 it handles health data, so the spec started from what the database must guarantee and from what the front desk may or may not see.
+
+### 17.1 Decisions made in the interview
+
+| Decision | Result |
+|---|---|
+| Scope | Core and Full together: upload, categories, quota, archiving, templates and PDF |
+| 50 GB quota | Counts only F08 files (uploaded and generated) and blocks only uploads; generated PDFs are counted but never blocked |
+| Clinical categories | Exame and Laudo externo are clinical by default; the front desk can upload to them but cannot see the file afterwards |
+| Clinical flag | Can be turned on but never off, and a database trigger guarantees it |
+| Corrections | Managers and administrators restore archived documents; the uploader, or a manager, corrects title and category; an issued document does not change |
+| 80% alert | A notice in the upload dialog, the usage in the settings and an email to the administrators each time usage crosses 80% |
+| Who signs | In a clinical template, only the user's own professional; in a plain template, any active professional |
+
+The decisions became **ADR-033** (code shared by F07 and F08, a quota counter under lock and `frame-src` for the preview) and a new design system section (5.13). The spec and plan are in [F08-patient-documents/](F08-patient-documents/).
+
+### 17.2 What the database guarantees
+
+- **A quota without races:** one row per organization holds the byte total and is updated under a lock in the same transaction as the document; two uploads that finish together cannot both pass the limit.
+- **An irreversible clinical flag:** a trigger refuses the change from true to false.
+- **No deletion:** documents, categories and templates have no `DELETE`; archiving and deactivating hide without erasing.
+- **Defaults created once:** partial unique indexes and `ON CONFLICT DO NOTHING` make two simultaneous first uses create a single set of categories and templates.
+
+### 17.3 Implementation in 5 stages
+
+| Stage | What went in |
+|---|---|
+| 1 — Documentation and foundations | PRD, ADR-033 and design system; type detection by bytes (with DOCX), HEIC conversion, the sanitizer and the Tiptap editor moved to `src/shared`; an HTML to PDF converter; permissions, queue and the quota email |
+| 2 — Database and module | Migration `0010_patient_documents`, a pure domain (limits, quota, template variables), ports, policies and catalogs in three languages |
+| 3 — Upload and corrections | Categories, quota, direct upload with confirmation, HEIC in the worker, listing with the clinical rule, audited opening, archive and restore, the Documentos tab |
+| 4 — Templates and PDF | Templates with variables and free fields, resolvers, preview, generation without a partial document, the "Emitir documento" dialog and the settings page |
+| 5 — Finishing | Demo data, E2E journeys, the design system review and this log |
+
+The work went to PR #24, and the four CI jobs (quality, integration, E2E and Docker image) passed on the implementation commit.
+
+### 17.4 Problems found in F08
+
+| Problem | Cause | Solution |
+|---|---|---|
+| Files started uploading as soon as they were dropped | The PRD asks to choose each file's category before sending | The queue got a "pending" state: sending starts at "Enviar" |
+| The PDF would fail with bold and italic text in a template | The PDF font only had italics as a variable woff2, which the engine cannot read | A static italic font (OFL) next to the others |
+| A prescription did not fit in a free field | The 200-character limit was too small for a prescription | Free fields of up to 1,000 characters and several lines |
+| Tests needed to swap the renderer and the storage | The lint rule forbids importing another module's internal files, tests included | `createDocuments(adjust)` in the public API swaps one adapter without exposing the module |
+| The PDF render test could not run as a unit test | `tsx` does not resolve the `@react-pdf` exports through a static import | The HTML parser was split out (unit test) and rendering stayed in the integration test |
+| The 80% alert did not show in the test | The test arithmetic left the usage under the limit after the upload | Test fixed; the crossing rule has its own test |
+| Browser uploads failed in every E2E journey, F07's included | Running `setup:storage-cors` locally stored a rule for `localhost:3001` only on the bucket, which replaces the origins the SeaweedFS server allows (3000, 3001 and 3101) | The script accepts several origins separated by commas and the local bucket got all three; the rule is per bucket, so each environment must list all of its origins |
+
+### 17.5 What F08 left in place
+
+- **Document records** (type, category, title, date, author, file and clinical flag) read by the timeline and the LGPD export (F14).
+- **Shared code** for direct upload, image conversion, sanitizing and rich text editing, also used by the clinical record.
+- **A PDF base** with rich text and a signature, reusable by receipts (F09) and reports (F13).
+
+---
+
+## 18. Problems found and how they were solved
 
 This may be the most useful section for anyone reproducing the project. All of these problems showed up because **each stage was actually executed**, not just written.
 
@@ -689,7 +747,7 @@ This may be the most useful section for anyone reproducing the project. All of t
 
 ---
 
-## 18. Reproducing the environment from scratch
+## 19. Reproducing the environment from scratch
 
 ### Prerequisites
 
@@ -764,7 +822,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 19. Lessons learned
+## 20. Lessons learned
 
 1. **Interview before document.** One question at a time, always with a recommendation, settles more than a long document written in the dark.
 2. **End-to-end IDs** (F01 → story → criterion → test → commit) make the project traceable at no extra cost.
@@ -783,3 +841,5 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 15. **When a test fails, check whether the product is right first.** Two E2E failures were the agenda correctly refusing a booking outside the professional's hours and during her vacation; the fix was in the test's assumptions, not in the code.
 16. **A merge does not wait for the last push.** The F07 PR was merged while a fix commit was still being pushed, and the commit ended up outside `main`. Before merging, check that the green CI belongs to the branch's last commit.
 17. **Every operational script must say where it will write.** Running the CORS script "for production" would have written to the local environment, with no error at all. Printing the target first and offering `--dry-run` prevents that mistake.
+18. **Share what two features use before copying it.** Direct upload, HEIC conversion, the sanitizer and the editor were born in the clinical record; F08 moved them to `src/shared` in its first stage, and the clinical record kept passing the same tests. Copying would have let the two versions drift.
+19. **A rule about sensitive data becomes a database rule.** The clinical flag that never turns off and the race-free quota live in a trigger and a row lock, not only in code: an application bug cannot break them.

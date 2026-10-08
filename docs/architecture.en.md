@@ -89,6 +89,9 @@ graph TD
   billing -. events .-> cash
   patients --> documents
   professionals --> documents
+  units --> documents
+  identity --> documents
+  clinical-records --> documents
 ```
 
 - A solid arrow means "calls the public API of". A dotted arrow means "reacts to domain events published by".
@@ -473,6 +476,11 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 - *Decision:* Notes and addenda are stored as HTML sanitized on the server against a strict allowlist (`p`, `br`, `strong`, `em`, `h2`, `h3`, `ul`, `ol`, `li`, no attributes), plus a derived plain text used for limits, previews and exports. A note stores `locks_at = created_at + 24 h`; a `BEFORE UPDATE` trigger refuses content changes after that instant. Editing a finalized note uses an edit draft that only the author sees; publishing it stores the replaced content as a version. A job finalizes drafts that expire.
 - *Why:* The PRD says a locked note is locked permanently, which the database should guarantee even if the application has a bug. One version per real edit, not per autosave, keeps the history meaningful.
 - *Trade-off:* Sanitizing happens on every write and read, and the trigger compares against the transaction start time, so a save that begins milliseconds before the lock may commit.
+
+**ADR-033 — Patient documents: shared file helpers, quota counter and preview frames (complements ADR-009, ADR-023, ADR-024 and ADR-031)**
+- *Decision:* The `documents` module reuses the direct-upload flow of ADR-031. The code both features need moves to `src/shared`: file type detection by magic bytes (now with DOCX, recognised by the entries of its ZIP central directory and refused when it carries macros), HEIC conversion, the HTML sanitizer of ADR-032 and the Tiptap editor. The 50 GB quota counts only F08 files and lives in one row per organization that is updated under a row lock in the same transaction as the document, so two uploads that finish together cannot both pass the limit. A document's clinical flag is protected by a trigger that refuses turning it off. Template bodies reuse the sanitized HTML subset with plain-text tokens (`{{paciente.nome}}`, `{{campo:dias}}`) resolved by a registry of resolvers, and a small converter turns that subset into PDF elements for the shared base of ADR-024. The CSP gains the storage origin in `frame-src`, so the preview modal can show a PDF from a presigned URL.
+- *Why:* F07 and F08 need the same upload, conversion and editing pieces; copies would drift. A counter row is cheaper and safer than summing sizes on every request. The flag rule protects health data from an administrator's click, whatever the application does.
+- *Trade-off:* `frame-src` allows the storage origin to be framed by the application, which is limited to short-lived signed URLs. Generated documents are counted but never blocked by the quota. DOCX is download-only, with no preview.
 
 ## 13. Evolution to SaaS
 

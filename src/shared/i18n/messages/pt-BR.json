@@ -139,7 +139,17 @@
     },
     "newNameFor": "Novo nome para {name}",
     "editNamed": "Editar {name}",
-    "dateRange": "{start} a {end}"
+    "dateRange": "{start} a {end}",
+    "richText": {
+      "toolbar": "Formatação",
+      "bold": "Negrito",
+      "italic": "Itálico",
+      "heading": "Título",
+      "subheading": "Subtítulo",
+      "bulletList": "Lista",
+      "orderedList": "Lista numerada",
+      "characterCount": "{count} de {max} caracteres"
+    }
   },
   "validation": {
     "localeInvalid": "Escolha um idioma da lista.",
@@ -185,7 +195,8 @@
       "patientLists": "Listas de pacientes",
       "cancellationReasons": "Motivos de cancelamento",
       "privacyTerms": "Termos de privacidade",
-      "users": "Usuários"
+      "users": "Usuários",
+      "documents": "Documentos"
     },
     "roles": {
       "ADMINISTRATOR": "Administrador",
@@ -351,6 +362,13 @@
       "button": "Redefinir senha",
       "link": "Redefina em: {url}",
       "validity": "Este link é válido por 60 minutos e só pode ser usado uma vez."
+    },
+    "storageQuota": {
+      "subject": "O armazenamento de documentos chegou a {percent}%",
+      "title": "Armazenamento de documentos quase esgotado",
+      "greeting": "Olá, {name}.",
+      "body": "O armazenamento de documentos da clínica chegou a {percent}% de {quota} GB.",
+      "advice": "Quando o limite for atingido, os novos envios de documentos serão bloqueados."
     }
   }
 }

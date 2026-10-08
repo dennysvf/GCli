@@ -37,6 +37,8 @@ function contentSecurityPolicy(nonce: string): string {
     `img-src 'self' blob: data:${storage}`,
     "font-src 'self'",
     `connect-src 'self'${storage}${process.env.NEXT_PUBLIC_SENTRY_DSN ? " https://*.sentry.io https://*.ingest.sentry.io" : ""}`,
+    // The preview modal of F08 frames a PDF through a redirect to a signed storage URL (ADR-033).
+    `frame-src 'self'${storage}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

@@ -89,6 +89,9 @@ graph TD
   billing -. eventos .-> cash
   patients --> documents
   professionals --> documents
+  units --> documents
+  identity --> documents
+  clinical-records --> documents
 ```
 
 - Uma seta sólida significa "chama a API pública de". Uma seta pontilhada significa "reage a eventos de domínio publicados por".
@@ -473,6 +476,11 @@ Cada ADR vale até ser substituído por um novo ADR. Para mudar uma decisão, ad
 - *Decisão:* Notas e adendos são armazenados como HTML sanitizado no servidor contra uma lista estrita de tags (`p`, `br`, `strong`, `em`, `h2`, `h3`, `ul`, `ol`, `li`, sem atributos), mais um texto simples derivado usado para limites, prévias e exportações. A nota guarda `locks_at = created_at + 24 h`; um trigger `BEFORE UPDATE` recusa mudanças de conteúdo depois desse instante. A edição de uma nota finalizada usa um rascunho de edição visível só ao autor; publicá-lo guarda o conteúdo substituído como versão. Um job finaliza os rascunhos que expiram.
 - *Por quê:* O PRD diz que a nota travada fica travada para sempre, o que o banco deve garantir mesmo que a aplicação tenha um bug. Uma versão por edição real, e não por salvamento automático, mantém o histórico útil.
 - *Trade-off:* A sanitização acontece em toda gravação e leitura, e o trigger compara com o início da transação, então um salvamento que começa milissegundos antes do travamento pode ser confirmado.
+
+**ADR-033 — Documentos do paciente: ajudantes de arquivo compartilhados, contador de cota e quadros de pré-visualização (complementa ADR-009, ADR-023, ADR-024 e ADR-031)**
+- *Decisão:* O módulo `documents` reaproveita o fluxo de envio direto do ADR-031. O código que as duas funcionalidades usam vai para `src/shared`: detecção do tipo do arquivo pelos primeiros bytes (agora com DOCX, reconhecido pelas entradas do diretório central do ZIP e recusado quando traz macros), conversão de HEIC, o sanitizador de HTML do ADR-032 e o editor Tiptap. A cota de 50 GB conta apenas os arquivos da F08 e fica numa linha por organização, atualizada sob trava de linha na mesma transação do documento, de modo que dois envios que terminam juntos não passam ambos do limite. O indicador clínico de um documento é protegido por um gatilho que recusa desligá-lo. Os corpos dos modelos reaproveitam o subconjunto de HTML sanitizado com marcadores em texto (`{{paciente.nome}}`, `{{campo:dias}}`) resolvidos por um registro de resolvedores, e um conversor pequeno transforma esse subconjunto em elementos de PDF para a base compartilhada do ADR-024. A CSP ganha a origem do armazenamento em `frame-src`, para o modal de pré-visualização mostrar um PDF a partir de uma URL pré-assinada.
+- *Por quê:* F07 e F08 precisam das mesmas peças de envio, conversão e edição; cópias se afastariam uma da outra. Uma linha contadora é mais barata e segura do que somar tamanhos a cada requisição. A regra do indicador protege dados de saúde de um clique de administrador, seja qual for o comportamento da aplicação.
+- *Contrapartida:* `frame-src` permite que a origem do armazenamento seja exibida em quadro pela aplicação, limitado a URLs assinadas de vida curta. PDFs gerados são contados, mas nunca bloqueados pela cota. DOCX só tem download, sem pré-visualização.
 
 ## 13. Evolução para SaaS
 

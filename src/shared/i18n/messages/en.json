@@ -139,7 +139,17 @@
     },
     "newNameFor": "New name for {name}",
     "editNamed": "Edit {name}",
-    "dateRange": "{start} to {end}"
+    "dateRange": "{start} to {end}",
+    "richText": {
+      "toolbar": "Formatting",
+      "bold": "Bold",
+      "italic": "Italic",
+      "heading": "Heading",
+      "subheading": "Subheading",
+      "bulletList": "List",
+      "orderedList": "Numbered list",
+      "characterCount": "{count} of {max} characters"
+    }
   },
   "validation": {
     "localeInvalid": "Choose a language from the list.",
@@ -185,7 +195,8 @@
       "patientLists": "Patient lists",
       "cancellationReasons": "Cancellation reasons",
       "privacyTerms": "Privacy terms",
-      "users": "Users"
+      "users": "Users",
+      "documents": "Documents"
     },
     "roles": {
       "ADMINISTRATOR": "Administrator",
@@ -351,6 +362,13 @@
       "button": "Reset password",
       "link": "Reset it at: {url}",
       "validity": "This link is valid for 60 minutes and can only be used once."
+    },
+    "storageQuota": {
+      "subject": "Document storage has reached {percent}%",
+      "title": "Document storage is almost full",
+      "greeting": "Hello, {name}.",
+      "body": "The clinic's document storage has reached {percent}% of {quota} GB.",
+      "advice": "When the limit is reached, new document uploads will be blocked."
     }
   }
 }

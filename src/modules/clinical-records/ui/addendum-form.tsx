@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/shared/ui/components/button";
+import { RichTextEditor } from "@/shared/ui/rich-text/rich-text-editor";
 import { handleActionResult } from "@/shared/ui/forms/handle-action-result";
 import { ADDENDUM_MAX_CHARACTERS } from "../domain/limits";
 import type { RecordActions } from "./record-actions";
-import { RichTextEditor } from "./rich-text-editor";
 
 // "Adicionar adendo" (PRD F07): a small editor under a locked note. An addendum has its own author
 // and timestamp and cannot be changed afterwards.

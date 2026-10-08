@@ -4,6 +4,7 @@ import {
   Building2,
   CalendarDays,
   Contact,
+  FileText,
   ListChecks,
   ShieldCheck,
   UsersRound,
@@ -39,6 +40,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   contact: Contact,
   patients: UsersRound,
   list: ListChecks,
+  "file-text": FileText,
   shield: ShieldCheck,
 };
 

@@ -1,7 +1,7 @@
 import { authorize } from "@/shared/authz/guard";
-import type { RequestContext } from "@/shared/context/types";
+import type { AnyContext, RequestContext } from "@/shared/context/types";
 import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
-import type { Locale } from "@/shared/i18n/locales";
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@/shared/i18n/locales";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import type { Role } from "@/shared/kernel/roles";
 import { parseInput } from "@/shared/kernel/validation";
@@ -271,4 +271,30 @@ export async function getUserNames(ctx: RequestContext, userIds: string[]): Prom
     ok(await uow.tx.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })),
   );
   return new Map(result.ok ? result.value.map((user) => [user.id, user.name]) : []);
+}
+
+export type AdministratorContact = { name: string; email: string; locale: Locale };
+
+// Active administrators and the language of their emails (PRD F16): the user's own, else the
+// organization's. Provided to F08 for the storage quota alert.
+export async function listAdministratorContacts(ctx: AnyContext): Promise<AdministratorContact[]> {
+  const result = await withTransaction(ctx, async (uow) => {
+    const [organization, admins] = await Promise.all([
+      uow.tx.organization.findFirst({ select: { defaultLocale: true } }),
+      uow.tx.user.findMany({
+        where: { role: "ADMINISTRATOR", status: "ACTIVE" },
+        orderBy: { name: "asc" },
+        select: { name: true, email: true, locale: true },
+      }),
+    ]);
+    const fallback = isLocale(organization?.defaultLocale) ? organization.defaultLocale : DEFAULT_LOCALE;
+    return ok(
+      admins.map((admin) => ({
+        name: admin.name,
+        email: admin.email,
+        locale: isLocale(admin.locale) ? admin.locale : fallback,
+      })),
+    );
+  });
+  return result.ok ? result.value : [];
 }
