@@ -1,10 +1,10 @@
 # Diário de bordo — como o GCli foi construído
 
-Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F08 e F16). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
+Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F09 e F16). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
 
 O trabalho foi feito em dupla: uma pessoa responsável pelo produto e um assistente de programação com IA. A pessoa respondeu perguntas, tomou as decisões de negócio e aprovou cada etapa; o assistente conduziu entrevistas, escreveu documentos e código, rodou os testes e registrou o que encontrou pelo caminho.
 
-> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação → F08.
+> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação → F08 → F09.
 
 English version: [build-log.en.md](build-log.en.md).
 
@@ -29,9 +29,10 @@ English version: [build-log.en.md](build-log.en.md).
 15. [Sétima funcionalidade: F07 — Registro do Atendimento Clínico](#15-sétima-funcionalidade-f07--registro-do-atendimento-clínico)
 16. [Ambientes: desenvolvimento e produção](#16-ambientes-desenvolvimento-e-produção)
 17. [Oitava funcionalidade: F08 — Documentos do Paciente](#17-oitava-funcionalidade-f08--documentos-do-paciente)
-18. [Problemas encontrados e como foram resolvidos](#18-problemas-encontrados-e-como-foram-resolvidos)
-19. [Como reproduzir o ambiente do zero](#19-como-reproduzir-o-ambiente-do-zero)
-20. [Lições aprendidas](#20-lições-aprendidas)
+18. [Nona funcionalidade: F09 — Cobrança e Pagamentos](#18-nona-funcionalidade-f09--cobrança-e-pagamentos)
+19. [Problemas encontrados e como foram resolvidos](#19-problemas-encontrados-e-como-foram-resolvidos)
+20. [Como reproduzir o ambiente do zero](#20-como-reproduzir-o-ambiente-do-zero)
+21. [Lições aprendidas](#21-lições-aprendidas)
 
 ---
 
@@ -724,7 +725,64 @@ O trabalho foi para o PR #24, e os quatro jobs do CI (qualidade, integração, E
 
 ---
 
-## 18. Problemas encontrados e como foram resolvidos
+## 18. Nona funcionalidade: F09 — Cobrança e Pagamentos
+
+A F09 transforma a chegada do paciente em dinheiro a receber: cria a cobrança, aceita descontos, recebe pagamentos (inteiros ou parciais), estorna, cancela e emite o recibo. É a primeira funcionalidade que **escreve dinheiro**, então a especificação começou pelo que o banco precisa recusar mesmo que a aplicação erre. A F10 (pacotes), a F11 (caixa), a F12 e a F13 (painel e relatórios) e a F14 (linha do tempo) leem estas tabelas.
+
+### 18.1 Decisões tomadas na entrevista
+
+| Decisão | Resultado |
+|---|---|
+| Aprovação de desconto acima de 20% | O gestor digita um **PIN pessoal de 6 dígitos**, definido por ele no menu do usuário (pede a senha atual); 5 erros bloqueiam o PIN por 15 minutos. Ou a recepção envia para a lista de aprovações |
+| Cálculo do desconto | Sobre o valor bruto, percentual arredondado para baixo; só muda enquanto não houver pagamento; rejeitar remove o desconto e reabre a cobrança |
+| Formas de pagamento | Códigos fixos do perfil de país; a clínica só liga e desliga por país, e ao menos uma fica ativa |
+| Desfazer a chegada | Recusado se já houver pagamento; sem pagamento, a cobrança é apagada (fica na auditoria) |
+| Recibo | Um PDF por cobrança, gerado na hora no idioma da organização, sem guardar |
+| Moeda | O pagamento só entra em unidade com a moeda da cobrança |
+| Itens | Um item por cobrança (serviço ou descrição livre) |
+| Estorno | Total ou parcial, na unidade selecionada, com a forma do pagamento original |
+
+As decisões viraram o **ADR-034** (recusa por handler de evento, PIN e regras de dinheiro no banco) e a seção 5.14 do design system. A especificação e o plano estão em [F09-billing-and-payments/](F09-billing-and-payments/).
+
+### 18.2 O que o banco garante
+
+- **Sem pagamento a maior:** uma restrição `CHECK` mantém o valor pago entre zero e o líquido; dois recebimentos simultâneos passam por uma trava de linha da cobrança.
+- **Uma cobrança viva por agendamento:** índice único parcial; cobrança cancelada não conta.
+- **Moeda coerente:** o pagamento aponta para a cobrança por uma chave estrangeira composta que inclui a moeda.
+- **Envio duplicado:** a chave de idempotência é chave primária; repetir o envio devolve o que foi gravado.
+- **Sem apagar dinheiro:** pagamentos, envios e decisões de desconto não têm `DELETE`; uma cobrança com pagamento não pode ser apagada.
+
+### 18.3 Implementação em 5 etapas
+
+| Etapa | O que entrou |
+|---|---|
+| 1 — Documentação e base | PRD, ADR-034 e design system; `EventRejection` (um handler pode recusar a operação que o publicou); PIN de aprovação no módulo de identidade; porta que impede mudar o país de uma unidade com cobranças |
+| 2 — Banco e domínio | Migrations `0011_approval_pin` e `0012_billing`; agregado `Charge` com desconto, status derivado, pagamentos, estorno e cancelamento; repositórios, leituras e catálogos nos três idiomas |
+| 3 — Cobranças e pagamentos | Cobrança automática na chegada e remoção ao desfazer, cobrança avulsa e de pacote, descontos e aprovações, pagamentos idempotentes, estornos, cancelamento, consultas, formas de pagamento e recibo em PDF |
+| 4 — Telas | Seção "Cobrança" no painel da agenda, modal "Receber", aba Financeiro do paciente, Financeiro > Cobranças, detalhe, Aprovações e a página de configurações |
+| 5 — Acabamento | Dados de demonstração, jornadas E2E, revisão do design system e este diário |
+
+### 18.4 Problemas encontrados na F09
+
+| Problema | Causa | Solução |
+|---|---|---|
+| O desfazer da chegada precisava ser recusado pela cobrança | O módulo de agenda não conhece cobranças, e uma porta que "pergunta antes" abriria uma corrida com o recebimento | `EventRejection`: o handler lança um erro de domínio, a transação desfaz tudo e o chamador recebe o erro como resultado (ADR-034) |
+| A contagem de PINs errados sumia quando a operação falhava | Uma transação que retorna falha é desfeita, inclusive o contador | A verificação do PIN roda em transação própria, antes da operação de cobrança |
+| Dois recebimentos simultâneos de 150 sobre 200 | Sem trava, os dois leem o saldo de 200 | Trava de linha (`FOR UPDATE`) na cobrança; o segundo recebe "maior que o saldo"; a restrição do banco é a segunda barreira |
+| A mensagem de saldo mostrava centavos | Os erros carregam valores em unidades menores, sem idioma | A camada de aplicação formata os valores no idioma e no formato do país da unidade antes do limite com a interface |
+| O PIN não podia viver no cadastro de senha | O menu do usuário é compartilhado e não pode importar o módulo de identidade | O menu recebe `extraItems` e o layout da aplicação compõe o item do PIN |
+| O painel da agenda não podia importar a cobrança | Cobrança depende da agenda (eventos), e o inverso criaria um ciclo | A agenda aceita um componente de seção; a página da agenda o compõe |
+
+### 18.5 O que a F09 deixou pronto
+
+- **Registros de cobrança e pagamento** (paciente, origem, serviço, profissional, unidade, valores, status, forma, data e usuário) para a F11, F12, F13 e F14.
+- **Portas para a F10 e a F11:** `ChargeExemptionPolicy` (pacote cobre o atendimento) e `CashRegisterGate` (caixa fechado), ambas com padrão inerte, mais a criação de cobrança de pacote.
+- **Eventos** `ChargeCreated`, `PaymentRegistered` e `PaymentRefunded`, publicados dentro da transação, para o caixa.
+- **Recibo em PDF** sobre a base compartilhada.
+
+---
+
+## 19. Problemas encontrados e como foram resolvidos
 
 Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos esses problemas apareceram porque **cada etapa foi executada de verdade**, e não só escrita.
 
@@ -747,7 +805,7 @@ Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos es
 
 ---
 
-## 19. Como reproduzir o ambiente do zero
+## 20. Como reproduzir o ambiente do zero
 
 ### Pré-requisitos
 
@@ -822,7 +880,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 20. Lições aprendidas
+## 21. Lições aprendidas
 
 1. **Entrevista antes de documento.** Uma pergunta por vez, sempre com uma recomendação, resolve mais do que um documento longo escrito no escuro.
 2. **IDs de ponta a ponta** (F01 → história → critério → teste → commit) tornam o projeto rastreável sem esforço extra.

@@ -1,10 +1,10 @@
 # Build log — how GCli was built
 
-This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F08 and F16). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
+This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F09 and F16). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
 
 The work was done as a pair: a product owner and an AI coding assistant. The product owner answered questions, made the business decisions and approved each stage; the assistant ran the interviews, wrote documents and code, ran the tests and recorded what it found along the way.
 
-> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations → F08.
+> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations → F08 → F09.
 
 Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 
@@ -29,9 +29,10 @@ Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 15. [Seventh feature: F07 — Clinical Encounter Records](#15-seventh-feature-f07--clinical-encounter-records)
 16. [Environments: development and production](#16-environments-development-and-production)
 17. [Eighth feature: F08 — Patient Documents](#17-eighth-feature-f08--patient-documents)
-18. [Problems found and how they were solved](#18-problems-found-and-how-they-were-solved)
-19. [Reproducing the environment from scratch](#19-reproducing-the-environment-from-scratch)
-20. [Lessons learned](#20-lessons-learned)
+18. [Ninth feature: F09 — Billing and Payments](#18-ninth-feature-f09--billing-and-payments)
+19. [Problems found and how they were solved](#19-problems-found-and-how-they-were-solved)
+20. [Reproducing the environment from scratch](#20-reproducing-the-environment-from-scratch)
+21. [Lessons learned](#21-lessons-learned)
 
 ---
 
@@ -724,7 +725,64 @@ The work went to PR #24, and the four CI jobs (quality, integration, E2E and Doc
 
 ---
 
-## 18. Problems found and how they were solved
+## 18. Ninth feature: F09 — Billing and Payments
+
+F09 turns the patient's arrival into money to receive: it creates the charge, accepts discounts, receives payments (whole or partial), refunds, voids and issues the receipt. It is the first feature that **writes money**, so the specification started from what the database must refuse even if the application is wrong. F10 (packages), F11 (cash register), F12 and F13 (dashboard and reports) and F14 (timeline) read these tables.
+
+### 18.1 Decisions made in the interview
+
+| Decision | Result |
+|---|---|
+| Approval of discounts above 20% | The manager types a **personal 6-digit PIN**, set in the user menu (asks for the current password); 5 wrong PINs lock it for 15 minutes. Or the front desk sends it to the approvals list |
+| Discount math | On the gross amount, percentages rounded down; it changes only while there are no payments; rejecting removes the discount and reopens the charge |
+| Payment methods | Fixed codes from the country profile; the clinic only turns them on and off per country, and at least one stays active |
+| Undoing a check-in | Refused if there is a payment; without payments the charge is deleted (it stays in the audit) |
+| Receipt | One PDF per charge, generated on demand in the organization's language, not stored |
+| Currency | A payment only enters a unit with the charge's currency |
+| Items | One item per charge (a service or a free description) |
+| Refund | Total or partial, in the selected unit, with the method of the original payment |
+
+The decisions became **ADR-034** (handler rejection, PIN and money rules in the database) and section 5.14 of the design system. The specification and plan are in [F09-billing-and-payments/](F09-billing-and-payments/).
+
+### 18.2 What the database guarantees
+
+- **No overpayment:** a `CHECK` constraint keeps the paid amount between zero and the net amount; two simultaneous receipts go through a row lock on the charge.
+- **One live charge per appointment:** a partial unique index; a cancelled charge does not count.
+- **Coherent currency:** a payment points to its charge through a composite foreign key that includes the currency.
+- **Duplicate submission:** the idempotency key is a primary key; repeating the submission returns what was recorded.
+- **Money is never deleted:** payments, submissions and discount decisions have no `DELETE`; a charge with a payment cannot be deleted.
+
+### 18.3 Implementation in 5 stages
+
+| Stage | What went in |
+|---|---|
+| 1 — Documentation and foundations | PRD, ADR-034 and design system; `EventRejection` (a handler can refuse the operation that published it); the approval PIN in the identity module; a port that stops a unit with charges from changing country |
+| 2 — Database and domain | Migrations `0011_approval_pin` and `0012_billing`; the `Charge` aggregate with discount, derived status, payments, refund and void; repositories, read models and catalogs in three languages |
+| 3 — Charges and payments | Automatic charge on check-in and its removal on undo, manual and package charges, discounts and approvals, idempotent payments, refunds, voids, queries, payment methods and the PDF receipt |
+| 4 — Screens | The "Cobrança" section of the agenda panel, the "Receber" modal, the patient's Financeiro tab, Financeiro > Cobranças, the detail, Aprovações and the settings page |
+| 5 — Finishing | Demo data, E2E journeys, design system review and this log |
+
+### 18.4 Problems found in F09
+
+| Problem | Cause | Solution |
+|---|---|---|
+| Undoing the check-in had to be refused by billing | The agenda module does not know charges, and a port that "asks first" would open a race with receiving | `EventRejection`: the handler throws a domain error, the transaction rolls back and the caller gets the error as a result (ADR-034) |
+| The count of wrong PINs vanished when the operation failed | A transaction that returns a failure is rolled back, counter included | The PIN check runs in its own transaction, before the billing operation |
+| Two simultaneous receipts of 150 on 200 | Without a lock, both read a balance of 200 | A row lock (`FOR UPDATE`) on the charge; the second gets "greater than the balance"; the database constraint is the second barrier |
+| The balance message showed cents | Errors carry amounts in minor units, without a language | The application layer formats the amounts in the language and format of the unit's country before the boundary with the interface |
+| The PIN could not live in the password form | The user menu is shared and cannot import the identity module | The menu takes `extraItems` and the app layout composes the PIN item |
+| The agenda panel could not import billing | Billing depends on the agenda (events), and the reverse would create a cycle | The agenda accepts a section component; the agenda page composes it |
+
+### 18.5 What F09 left ready
+
+- **Charge and payment records** (patient, origin, service, professional, unit, amounts, status, method, date and user) for F11, F12, F13 and F14.
+- **Ports for F10 and F11:** `ChargeExemptionPolicy` (a package covers the appointment) and `CashRegisterGate` (closed register), both with an inert default, plus package charge creation.
+- **Events** `ChargeCreated`, `PaymentRegistered` and `PaymentRefunded`, published inside the transaction, for the cash register.
+- **PDF receipt** on the shared base.
+
+---
+
+## 19. Problems found and how they were solved
 
 This may be the most useful section for anyone reproducing the project. All of these problems showed up because **each stage was actually executed**, not just written.
 
@@ -747,7 +805,7 @@ This may be the most useful section for anyone reproducing the project. All of t
 
 ---
 
-## 19. Reproducing the environment from scratch
+## 20. Reproducing the environment from scratch
 
 ### Prerequisites
 
@@ -822,7 +880,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 20. Lessons learned
+## 21. Lessons learned
 
 1. **Interview before document.** One question at a time, always with a recommendation, settles more than a long document written in the dark.
 2. **End-to-end IDs** (F01 → story → criterion → test → commit) make the project traceable at no extra cost.

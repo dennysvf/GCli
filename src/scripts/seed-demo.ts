@@ -1,6 +1,7 @@
 import { hash } from "@node-rs/argon2";
 import { parseArgs } from "node:util";
 import { registerModules } from "@/composition";
+import { billing } from "@/modules/billing";
 import { documents } from "@/modules/documents";
 import { patients } from "@/modules/patients";
 import { professionals } from "@/modules/professionals";
@@ -20,6 +21,8 @@ import { dateInTimeZone } from "@/shared/kernel/time-zones";
 // follows the same rules, audit and history as the application. Local databases only:
 //   npm run seed:demo
 const PASSWORD = "Demo2026senha";
+// Approval PIN of the demo manager (PRD F09).
+const MANAGER_PIN = "402719";
 const TZ = "America/Sao_Paulo";
 
 // Deterministic pseudo-random numbers, so two runs on empty databases give the same agenda.
@@ -630,6 +633,100 @@ async function main(): Promise<number> {
     }
   }
 
+  // Billing (PRD F09): the check-ins above created the charges. Here some receive payments in
+  // several ways, one carries a discount, one waits for the manager and one payment is refunded. A
+  // demo manager (with an approval PIN) lets the discount approval be tried.
+  const managerId = await createUser(
+    admin.organizationId,
+    "Marcos Gestor",
+    "marcos@clinicademo.com.br",
+    "MANAGER",
+  );
+  await db().user.update({
+    where: { id: managerId },
+    data: { approvalPinHash: await hash(MANAGER_PIN), approvalPinSetAt: new Date() },
+  });
+  const open = must(
+    await billing.listCharges(ctx, { from: addDays(today(), -14), to: addDays(today(), 14) }),
+    "listCharges",
+  ).items.filter((item) => item.status === "OPEN" && item.origin === "APPOINTMENT");
+  let paymentCount = 0;
+  const receiveFor = async (
+    chargeId: string,
+    payments: { method: string; amountMinor: number; installments?: number }[],
+    extra: Record<string, unknown> = {},
+  ) => {
+    const result = await billing.receivePayment(ctx, {
+      chargeId,
+      submissionKey: newId(),
+      unitId: main.id,
+      payments,
+      ...extra,
+    });
+    if (result.ok) paymentCount += payments.length;
+    return result;
+  };
+  const [chargeA, chargeB, chargeC, chargeD, chargeE] = open;
+  if (chargeA) await receiveFor(chargeA.id, [{ method: "PIX", amountMinor: chargeA.netMinor }]);
+  if (chargeB) {
+    const half = Math.floor(chargeB.netMinor / 2);
+    await receiveFor(chargeB.id, [
+      { method: "CASH", amountMinor: half },
+      { method: "CREDIT_CARD", amountMinor: chargeB.netMinor - half, installments: 2 },
+    ]);
+  }
+  if (chargeC) {
+    await receiveFor(chargeC.id, [{ method: "DEBIT_CARD", amountMinor: Math.floor(chargeC.netMinor / 3) }]);
+  }
+  if (chargeD) {
+    const discounted = await billing.setDiscount(ctx, {
+      chargeId: chargeD.id,
+      version: chargeD.version,
+      discount: { kind: "PERCENT", value: 1000 },
+    });
+    if (discounted.ok) {
+      await receiveFor(chargeD.id, [{ method: "TRANSFER", amountMinor: discounted.value.charge.netMinor }]);
+    }
+  }
+  if (chargeE) {
+    // A discount above 20% waits in the approvals list until a manager decides.
+    const front = await db().user.findFirstOrThrow({ where: { role: "FRONT_DESK" } });
+    const deskCtx: RequestContext = {
+      ...ctx,
+      user: { id: front.id, name: front.name, email: front.email, role: "FRONT_DESK" },
+    };
+    must(
+      await billing.setDiscount(deskCtx, {
+        chargeId: chargeE.id,
+        version: chargeE.version,
+        discount: { kind: "PERCENT", value: 3000 },
+        reason: "Paciente indicado por parceiro",
+        submitForApproval: true,
+      }),
+      "setDiscount",
+    );
+  }
+  if (chargeA) {
+    const detail = must(await billing.getCharge(ctx, { chargeId: chargeA.id }), "getCharge");
+    const payment = detail.charge.payments.find((item) => item.kind === "PAYMENT");
+    if (payment && chargeA.netMinor > 4) {
+      await billing.refundPayment(ctx, {
+        chargeId: chargeA.id,
+        paymentId: payment.id,
+        amountMinor: Math.floor(chargeA.netMinor / 4),
+        reason: "Ajuste combinado com o paciente",
+        unitId: main.id,
+      });
+    }
+  }
+  const manual = await billing.createManualCharge(ctx, {
+    patientId: patientIds[0],
+    unitId: main.id,
+    description: "Venda de protetor solar",
+    grossMinor: 8990,
+  });
+  if (manual.ok) await receiveFor(manual.value.id, [{ method: "PIX", amountMinor: 8990 }]);
+
   console.log("Dados de demonstração criados:");
   console.log(
     `- 5 serviços, 4 profissionais, ${patientIds.length} pacientes, ${booked} agendamentos avulsos`,
@@ -638,8 +735,9 @@ async function main(): Promise<number> {
     `- série de fisioterapia: ${series.ok ? `${series.value.appointmentIds.length} sessões` : series.error.code}`,
   );
   console.log(`- ${documentCount} documentos de pacientes (enviados, clínicos e uma declaração emitida)`);
+  console.log(`- cobranças com ${paymentCount} pagamentos, um desconto aguardando aprovação e um estorno`);
   console.log(
-    `- usuários (senha ${PASSWORD}): rita@clinicademo.com.br (Recepção), beatriz@clinicademo.com.br (Profissional)`,
+    `- usuários (senha ${PASSWORD}): rita@clinicademo.com.br (Recepção), beatriz@clinicademo.com.br (Profissional), marcos@clinicademo.com.br (Gestor, PIN de aprovação ${MANAGER_PIN})`,
   );
   return 0;
 }
