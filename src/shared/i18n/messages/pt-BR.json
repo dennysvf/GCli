@@ -182,7 +182,8 @@
     "underConstruction": "Esta tela ainda está em construção e será entregue na funcionalidade {feature}.",
     "groups": {
       "operation": "Operação",
-      "settings": "Configurações"
+      "settings": "Configurações",
+      "financial": "Financeiro"
     },
     "navigation": {
       "schedule": "Agenda",
@@ -196,7 +197,10 @@
       "cancellationReasons": "Motivos de cancelamento",
       "privacyTerms": "Termos de privacidade",
       "users": "Usuários",
-      "documents": "Documentos"
+      "documents": "Documentos",
+      "charges": "Cobranças",
+      "approvals": "Aprovações",
+      "billingSettings": "Financeiro"
     },
     "roles": {
       "ADMINISTRATOR": "Administrador",

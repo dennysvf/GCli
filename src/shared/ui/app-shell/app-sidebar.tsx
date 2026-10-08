@@ -7,6 +7,7 @@ import {
   FileText,
   ListChecks,
   ShieldCheck,
+  Wallet,
   UsersRound,
   LayoutDashboard,
   MapPin,
@@ -42,6 +43,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   list: ListChecks,
   "file-text": FileText,
   shield: ShieldCheck,
+  wallet: Wallet,
 };
 
 // Receives only the groups and items the signed-in role may see (filtered on the server).

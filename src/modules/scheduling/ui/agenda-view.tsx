@@ -27,7 +27,12 @@ import type { AgendaItem, AppointmentList as AppointmentListData } from "../appl
 import type { AppointmentStatus } from "../domain/status";
 import { AgendaToolbar, type AgendaBy, type AgendaViewKind, type ToolbarState } from "./agenda-toolbar";
 import { AppointmentsTable } from "./appointments-table";
-import { AppointmentPanel, type AppointmentActions, type Permissions } from "./appointment-panel";
+import {
+  AppointmentPanel,
+  type AppointmentActions,
+  type PanelSection,
+  type Permissions,
+} from "./appointment-panel";
 import { AvailabilityDialog } from "./availability-dialog";
 import {
   BookingPanel,
@@ -59,6 +64,8 @@ export type AgendaViewProps = {
   openAppointment: { id: string; action?: "reschedule" } | null;
   patientForm: PatientFormData;
   actions: BookingActions & AppointmentActions;
+  // The "Cobrança" section of the side panel (F09), composed by the page.
+  chargeSection?: PanelSection | undefined;
 };
 
 type Drop = { item: AgendaItem; column: GridColumn; minute: number; findings: FindingDto[] };
@@ -402,6 +409,7 @@ export function AgendaView(props: AgendaViewProps) {
           reasons={props.reasons}
           permissions={permissions}
           actions={actions}
+          chargeSection={props.chargeSection}
           onChanged={() => {
             void agenda.refresh();
             if (state.view === "list") router.refresh();

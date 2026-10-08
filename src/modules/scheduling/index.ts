@@ -119,6 +119,7 @@ export type { ClinicalNoteLookup, ClinicalNoteState } from "./application/ports"
 export type { AppointmentForList, AppointmentForRecord } from "./infrastructure/records-reads";
 export { schedulingCatalog } from "./messages/catalog";
 export { AgendaView, type AgendaActions, type AgendaViewProps } from "./ui/agenda-view";
+export type { PanelSection } from "./ui/appointment-panel";
 export type { AgendaBy, AgendaViewKind, ToolbarState } from "./ui/agenda-toolbar";
 export type { ServiceOption, PatientFormData } from "./ui/booking-panel";
 export { AppointmentsTable } from "./ui/appointments-table";

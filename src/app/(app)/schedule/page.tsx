@@ -18,6 +18,7 @@ import { addDays, isValidDate } from "@/shared/kernel/calendar-date";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
 import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import { savePatientAction } from "../patients/actions";
+import { ChargeSlot } from "./charge-slot";
 import {
   bookAppointmentAction,
   bookingOptionsAction,
@@ -165,6 +166,7 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
         tags: tags?.ok ? tags.value : [],
         save: savePatientAction,
       }}
+      chargeSection={can(ctx, "billing:operate") ? ChargeSlot : undefined}
       actions={{
         book: bookAppointmentAction,
         previewSeries: previewSeriesAction,

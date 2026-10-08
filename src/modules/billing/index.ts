@@ -23,6 +23,7 @@ import {
   getAppointmentCharge,
   getCharge,
   getChargeStatus,
+  getNewChargeOptions,
   getReceiveOptions,
   listCharges,
   listPatientCharges,
@@ -87,6 +88,7 @@ export function createBilling(adjust?: (base: BillingDeps) => BillingDeps) {
     listCharges: (ctx: RequestContext, input?: unknown) => listCharges(deps, ctx, input),
     listPatientCharges: (ctx: RequestContext, patientId: string) => listPatientCharges(deps, ctx, patientId),
     getReceiveOptions: (ctx: RequestContext, input: unknown) => getReceiveOptions(deps, ctx, input),
+    getNewChargeOptions: (ctx: RequestContext) => getNewChargeOptions(deps, ctx),
     renderReceipt: (ctx: RequestContext, input: unknown) => renderReceipt(deps, ctx, input),
     // Settings
     listPaymentMethodSettings: (ctx: RequestContext) => listPaymentMethodSettings(deps, ctx),
@@ -116,11 +118,28 @@ export function registerBillingPorts(): void {
 }
 
 export { billingCatalog } from "./messages/catalog";
+export {
+  ApprovalsTable,
+  BillingTab,
+  ChargeDetailView,
+  ChargeSection,
+  ChargesList,
+  PaymentMethodsPanel,
+  ReceiveDialog,
+} from "./client";
+export type { BillingActions, ReceiveInput } from "./client";
+
 export { BILLING_EVENTS, type ChargeEventPayload, type PaymentEventPayload } from "./domain/events";
 export type { DiscountOutcome, PendingApproval } from "./application/discounts";
 export type { PaymentMethodSetting } from "./application/payment-methods";
 export type { ReceiveResult } from "./application/payments";
-export type { ChargeDetail, ChargeList, PatientCharges, ReceiveOptions } from "./application/queries";
+export type {
+  ChargeDetail,
+  ChargeList,
+  NewChargeOptions,
+  PatientCharges,
+  ReceiveOptions,
+} from "./application/queries";
 export type { ReceiptFile } from "./application/receipt";
 export type { BillingDeps, CashRegisterGate, ChargeExemptionPolicy } from "./application/ports";
 export type { ChargeView, DiscountRequestView, PaymentView } from "./application/views";

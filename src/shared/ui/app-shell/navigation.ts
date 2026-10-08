@@ -16,6 +16,7 @@ export type NavIcon =
   | "patients"
   | "list"
   | "file-text"
+  | "wallet"
   | "shield";
 
 export const NAVIGATION: NavGroup[] = [
@@ -30,6 +31,13 @@ export const NAVIGATION: NavGroup[] = [
       },
       { href: "/patients", labelKey: "patients", icon: "patients", anyOf: ["patient:read"] },
       { href: "/dashboard", labelKey: "dashboard", icon: "dashboard", anyOf: ["dashboard:read"] },
+    ],
+  },
+  {
+    labelKey: "financial",
+    items: [
+      { href: "/financial/charges", labelKey: "charges", icon: "wallet", anyOf: ["billing:operate"] },
+      { href: "/financial/approvals", labelKey: "approvals", icon: "list", anyOf: ["billing:approve"] },
     ],
   },
   {
@@ -58,6 +66,7 @@ export const NAVIGATION: NavGroup[] = [
         anyOf: ["setup:manage"],
       },
       { href: "/settings/documents", labelKey: "documents", icon: "file-text", anyOf: ["setup:manage"] },
+      { href: "/settings/billing", labelKey: "billingSettings", icon: "wallet", anyOf: ["setup:manage"] },
       {
         href: "/settings/privacy-terms",
         labelKey: "privacyTerms",

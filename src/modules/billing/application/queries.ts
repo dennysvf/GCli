@@ -255,3 +255,31 @@ export async function getChargeStatus(
   const s = loaded.value;
   return ok({ status: s.status, paidMinor: s.paidMinor, netMinor: s.netMinor, currency: s.currency });
 }
+
+export type NewChargeOptions = {
+  units: { id: string; name: string; currency: string }[];
+  selectedUnitId: string | null;
+  services: { id: string; name: string; prices: { currency: string; amountMinor: number }[] }[];
+  professionals: { id: string; name: string }[];
+};
+
+// What the "Nova cobrança" dialog offers: active units, services with their prices, professionals.
+export async function getNewChargeOptions(
+  deps: BillingDeps,
+  ctx: RequestContext,
+): Promise<Result<NewChargeOptions>> {
+  const allowed = await authorize(ctx, "billing:operate");
+  if (!allowed.ok) return allowed;
+  const [units, selectedUnitId, services, professionals] = await Promise.all([
+    deps.directory.activeUnits(ctx),
+    deps.directory.selectedUnitId(ctx),
+    deps.directory.activeServices(ctx),
+    deps.directory.activeProfessionals(ctx),
+  ]);
+  return ok({
+    units: units.map((unit) => ({ id: unit.id, name: unit.name, currency: unit.currency })),
+    selectedUnitId,
+    services: services.map((service) => ({ id: service.id, name: service.name, prices: service.prices })),
+    professionals,
+  });
+}
