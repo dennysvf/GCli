@@ -532,6 +532,13 @@ The differentiator is configurability without complexity: the same product serve
 - Refund (estorno) of a payment: Manager/Administrator, mandatory reason; creates a negative movement dated today (the original payment is kept).
 - Receipt: PDF with organization data, patient, services, amounts, payment methods, and date; generated in ≤ 3 seconds. Not a fiscal document.
 - Each payment is attributed to the unit where it was received (current unit selector), which may differ from the appointment's unit.
+- Clarifications (F09 specification):
+  - Inline approval uses a personal 6-digit approval PIN that each Manager/Administrator sets in the user menu (confirming the current password). Five wrong PINs lock that PIN for 15 minutes. The alternative is "Enviar para aprovação", which puts the charge in the pending-approvals list.
+  - The discount is computed on the gross amount (a percentage is rounded down to the cent). It can be changed only while the charge has no payments. A rejection needs a reason, removes the discount and returns the charge to "Em aberto".
+  - Payment methods keep the stable codes of the country profile; the Administrator or Manager can enable or disable them per country, and at least one stays enabled.
+  - A payment must be recorded in a unit whose currency is the charge's currency. A refund can be partial or total, is recorded in the selected unit and keeps the method of the original payment.
+  - Undoing a check-in is refused while the charge has payments ("Esta cobrança já tem pagamento. Estorne os pagamentos antes de desfazer a chegada."). A charge with no payments is deleted.
+  - A charge has one item (a service or a free description). The receipt is one PDF per charge, generated on demand.
 
 **Experience:**
 - In the agenda side panel, after check-in, a "Cobrança" section shows the amount and a "Receber" button.

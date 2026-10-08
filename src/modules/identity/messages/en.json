@@ -17,7 +17,10 @@
     "ORG_LOGO_INVALID": "Upload a PNG, JPG or SVG logo of up to 2 MB.",
     "SETUP_ALREADY_DONE": "An organization already exists in this environment.",
     "NOT_FOUND": "Record not found.",
-    "CONFLICT_STALE_VERSION": "This data was changed by someone else. Reload the page and try again."
+    "CONFLICT_STALE_VERSION": "This data was changed by someone else. Reload the page and try again.",
+    "APPROVAL_PIN_INVALID": "Wrong PIN.",
+    "APPROVAL_PIN_LOCKED": "PIN locked for 15 minutes after 5 wrong attempts.",
+    "APPROVAL_PIN_WEAK": "Choose a 6-digit PIN that is not a sequence or repeated digits."
   },
   "auth": {
     "email": "Email",
@@ -82,7 +85,10 @@
     "legalNameTooLong": "The legal name is too long.",
     "tradeNameTooLong": "The trade name is too long.",
     "timeZoneRequired": "Select a time zone of the country.",
-    "slotInvalid": "Select 5, 10, 15 or 30 minutes."
+    "slotInvalid": "Select 5, 10, 15 or 30 minutes.",
+    "pinFormat": "The PIN must have exactly 6 digits.",
+    "pinMismatch": "The PINs do not match.",
+    "pinWeak": "Choose a 6-digit PIN that is not a sequence or repeated digits."
   },
   "ui": {
     "organizationSettings": "Organization settings",
@@ -127,6 +133,17 @@
     "logoUpdated": "Logo updated",
     "settingsSaved": "Settings saved",
     "organization": "Organization",
-    "inviteSent": "Invitation sent"
+    "inviteSent": "Invitation sent",
+    "approvalPin": {
+      "menu": "Approval PIN",
+      "title": "Approval PIN",
+      "description": "With this 6-digit PIN you approve discounts above 20% right at the desk. It is only yours and it is not your password.",
+      "currentPassword": "Current password",
+      "pin": "New PIN",
+      "confirmation": "Confirm PIN",
+      "save": "Save PIN",
+      "cancel": "Cancel",
+      "saved": "Approval PIN saved"
+    }
   }
 }

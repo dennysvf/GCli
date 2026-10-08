@@ -3,6 +3,7 @@
 import { getEnv } from "@/shared/config/env";
 import type { RequestContext } from "@/shared/context/types";
 import { definePort } from "@/shared/ports/registry";
+import { listApprovers, setApprovalPin, verifyApprovalPin } from "./application/approval-pin";
 import {
   acceptInvitation,
   getInvitation,
@@ -73,6 +74,11 @@ export const identity = {
   deactivateUser: (ctx: RequestContext, input: unknown) => deactivateUser(deps(), ctx, input),
   reactivateUser: (ctx: RequestContext, input: unknown) => reactivateUser(deps(), ctx, input),
   setUserLocale: (ctx: RequestContext, input: unknown) => setUserLocale(deps(), ctx, input),
+  // Approval PIN (PRD F09)
+  setApprovalPin: (ctx: RequestContext, input: unknown) => setApprovalPin(deps(), ctx, input),
+  listApprovers: (ctx: RequestContext) => listApprovers(ctx),
+  verifyApprovalPin: (ctx: RequestContext, approverUserId: string, pin: string) =>
+    verifyApprovalPin(deps(), ctx, approverUserId, pin),
   // Organization
   organizationName: (ctx: RequestContext) => deps().directory.findOrganizationName(ctx.organizationId),
   updateOrganization: (ctx: RequestContext, input: unknown) => updateOrganization(deps(), ctx, input),
@@ -93,6 +99,7 @@ export { getOrganizationProfile, getUserNames, listAdministratorContacts, listLi
 export { IDENTITY_EVENTS } from "./events";
 export type { OrganizationProfile } from "./application/organization";
 export type { AdministratorContact, LinkableUser, UserList, UserListItem } from "./application/users";
+export type { ApproverItem } from "./application/approval-pin";
 export type { InvitationPreview } from "./application/invitations";
 
 export { homeFor } from "./application/sign-in";
@@ -104,3 +111,4 @@ export { SESSION_COOKIE_NAMES } from "@/shared/security/session-cookie";
 export { ForgotPasswordForm, NewPasswordForm, SignInForm } from "./ui/auth-forms";
 export { InviteUserDialog, UsersTable } from "./ui/users";
 export { LogoUploader, OrganizationForm } from "./ui/organization";
+export { ApprovalPinMenuItem } from "./ui/approval-pin-dialog";

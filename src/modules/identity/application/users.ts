@@ -1,4 +1,5 @@
 import { authorize } from "@/shared/authz/guard";
+import { roleCan } from "@/shared/authz/permissions";
 import type { AnyContext, RequestContext } from "@/shared/context/types";
 import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/shared/i18n/locales";
@@ -34,6 +35,13 @@ export type UserListItem =
 export type UserList = { items: UserListItem[]; page: number; pageSize: number; total: number };
 
 const PAGE_SIZE = 50;
+
+const CLEAR_APPROVAL_PIN = {
+  approvalPinHash: null,
+  approvalPinSetAt: null,
+  approvalPinFailedCount: 0,
+  approvalPinLockedUntil: null,
+} as const;
 
 function normalize(value: string): string {
   return value
@@ -158,7 +166,15 @@ export async function changeUserRole(
     if (user.role === "ADMINISTRATOR" && user.status === "ACTIVE" && admins.length <= 1) {
       return fail(IdentityErrors.lastAdmin());
     }
-    await uow.tx.user.update({ where: { id: user.id }, data: { role, version: { increment: 1 } } });
+    await uow.tx.user.update({
+      where: { id: user.id },
+      data: {
+        role,
+        // PRD F09: only roles that approve keep an approval PIN.
+        ...(roleCan(role, "billing:approve") ? {} : CLEAR_APPROVAL_PIN),
+        version: { increment: 1 },
+      },
+    });
     await uow.audit.record({
       action: "UPDATE",
       entityType: "user",
@@ -191,7 +207,12 @@ export async function deactivateUser(
 
     await uow.tx.user.update({
       where: { id: user.id },
-      data: { status: "INACTIVE", deactivatedAt: deps.clock(), version: { increment: 1 } },
+      data: {
+        status: "INACTIVE",
+        deactivatedAt: deps.clock(),
+        ...CLEAR_APPROVAL_PIN,
+        version: { increment: 1 },
+      },
     });
     // PRD F01: a deactivated user loses access immediately.
     await uow.tx.session.deleteMany({ where: { userId: user.id } });

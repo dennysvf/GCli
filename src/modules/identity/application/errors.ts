@@ -16,5 +16,9 @@ export const IdentityErrors = {
   // The type is the tax ID abbreviation of the country ("CNPJ", "NIF", "RUT"...), the same in every language.
   invalidTaxId: (type: string) =>
     domainError("TAX_ID_INVALID", 400, { taxId: "errors.TAX_ID_INVALID" }, { type }),
+  // PRD F09: personal PIN for inline discount approval.
+  pinInvalid: () => domainError("APPROVAL_PIN_INVALID", 403),
+  pinLocked: () => domainError("APPROVAL_PIN_LOCKED", 429),
+  pinWeak: () => domainError("APPROVAL_PIN_WEAK", 400, { pin: "identity.validation.pinWeak" }),
   logoInvalid: () => domainError("ORG_LOGO_INVALID", 400),
 } as const;

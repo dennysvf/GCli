@@ -47,6 +47,10 @@ export interface AuthGateway {
   requestPasswordReset(email: string): Promise<void>;
   resetPassword(token: string, newPassword: string): Promise<boolean>;
   hashPassword(password: string): Promise<string>;
+  // Whether `password` is the user's current password; false when the user has none (PRD F09).
+  verifyPassword(userId: string, password: string): Promise<boolean>;
+  // Whether a secret (a password or an approval PIN) matches an argon2 hash.
+  verifyHash(storedHash: string, secret: string): Promise<boolean>;
   // Verifies against a fixed hash so unknown or inactive accounts take as long as real ones.
   equalizeTiming(password: string): Promise<void>;
 }

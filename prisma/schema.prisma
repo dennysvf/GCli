@@ -55,22 +55,27 @@ model Organization {
 
 // Better Auth `user` model plus GCli identity fields.
 model User {
-  id               String    @id @db.Uuid
-  organizationId   String    @map("organization_id") @db.Uuid
-  name             String    @db.VarChar(150)
-  email            String    @unique(map: "uq_app_user_email") @db.VarChar(254)
-  emailVerified    Boolean   @default(false) @map("email_verified")
-  image            String?   @db.VarChar(255)
-  role             String    @db.VarChar(20)
-  status           String    @default("ACTIVE") @db.VarChar(20)
-  locale           String?   @db.VarChar(5)
-  failedLoginCount Int       @default(0) @map("failed_login_count") @db.SmallInt
-  lockedUntil      DateTime? @map("locked_until") @db.Timestamptz(6)
-  lastLoginAt      DateTime? @map("last_login_at") @db.Timestamptz(6)
-  deactivatedAt    DateTime? @map("deactivated_at") @db.Timestamptz(6)
-  version          Int       @default(1)
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                     String    @id @db.Uuid
+  organizationId         String    @map("organization_id") @db.Uuid
+  name                   String    @db.VarChar(150)
+  email                  String    @unique(map: "uq_app_user_email") @db.VarChar(254)
+  emailVerified          Boolean   @default(false) @map("email_verified")
+  image                  String?   @db.VarChar(255)
+  role                   String    @db.VarChar(20)
+  status                 String    @default("ACTIVE") @db.VarChar(20)
+  locale                 String?   @db.VarChar(5)
+  failedLoginCount       Int       @default(0) @map("failed_login_count") @db.SmallInt
+  lockedUntil            DateTime? @map("locked_until") @db.Timestamptz(6)
+  lastLoginAt            DateTime? @map("last_login_at") @db.Timestamptz(6)
+  deactivatedAt          DateTime? @map("deactivated_at") @db.Timestamptz(6)
+  // PRD F09: personal PIN for inline discount approval (Manager and Administrator), argon2 hash.
+  approvalPinHash        String?   @map("approval_pin_hash") @db.VarChar(255)
+  approvalPinSetAt       DateTime? @map("approval_pin_set_at") @db.Timestamptz(6)
+  approvalPinFailedCount Int       @default(0) @map("approval_pin_failed_count") @db.SmallInt
+  approvalPinLockedUntil DateTime? @map("approval_pin_locked_until") @db.Timestamptz(6)
+  version                Int       @default(1)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization  Organization   @relation(fields: [organizationId], references: [id], map: "fk_app_user_org")
   sessions      Session[]

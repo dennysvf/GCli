@@ -159,6 +159,17 @@ export const betterAuthGateway: AuthGateway = {
 
   hashPassword,
 
+  async verifyPassword(userId: string, password: string) {
+    const account = await db().account.findFirst({
+      where: { userId, providerId: "credential" },
+      select: { password: true },
+    });
+    if (!account?.password) return false;
+    return verify(account.password, password);
+  },
+
+  verifyHash: (storedHash: string, secret: string) => verify(storedHash, secret),
+
   async equalizeTiming(password: string) {
     dummyHash ??= hashPassword("timing-equalization-password-1");
     await verify(await dummyHash, password);

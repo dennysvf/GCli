@@ -32,8 +32,15 @@ export interface ServicePricing {
   servicesWithoutPrice(organizationId: string, currency: string): Promise<{ id: string; name: string }[]>;
 }
 
+// Whether a unit has charges or payments, provided by billing (F09). With any, the unit's country
+// (and currency) cannot change (PRD F16). Until billing registers it the answer is "no".
+export interface UnitFinancialRecords {
+  hasAnyInUnit(organizationId: string, unitId: string): Promise<boolean>;
+}
+
 export type UnitsDeps = {
   appointments: () => ScheduledAppointments;
+  financialRecords: () => UnitFinancialRecords;
   pricing: () => ServicePricing;
   clock: () => Date;
 };

@@ -17,7 +17,10 @@
     "ORG_LOGO_INVALID": "Envie um logotipo PNG, JPG ou SVG de até 2 MB.",
     "SETUP_ALREADY_DONE": "Já existe uma organização cadastrada neste ambiente.",
     "NOT_FOUND": "Registro não encontrado.",
-    "CONFLICT_STALE_VERSION": "Estes dados foram alterados por outra pessoa. Recarregue a página e tente novamente."
+    "CONFLICT_STALE_VERSION": "Estes dados foram alterados por outra pessoa. Recarregue a página e tente novamente.",
+    "APPROVAL_PIN_INVALID": "PIN incorreto.",
+    "APPROVAL_PIN_LOCKED": "PIN bloqueado por 15 minutos após 5 tentativas incorretas.",
+    "APPROVAL_PIN_WEAK": "Escolha um PIN de 6 dígitos que não seja uma sequência nem números repetidos."
   },
   "auth": {
     "email": "E-mail",
@@ -82,7 +85,10 @@
     "legalNameTooLong": "Razão social muito longa.",
     "tradeNameTooLong": "Nome fantasia muito longo.",
     "timeZoneRequired": "Selecione um fuso horário do país.",
-    "slotInvalid": "Selecione 5, 10, 15 ou 30 minutos."
+    "slotInvalid": "Selecione 5, 10, 15 ou 30 minutos.",
+    "pinFormat": "O PIN deve ter exatamente 6 dígitos.",
+    "pinMismatch": "Os PINs não conferem.",
+    "pinWeak": "Escolha um PIN de 6 dígitos que não seja uma sequência nem números repetidos."
   },
   "ui": {
     "organizationSettings": "Configurações da organização",
@@ -127,6 +133,17 @@
     "logoUpdated": "Logotipo atualizado",
     "settingsSaved": "Configurações salvas",
     "organization": "Organização",
-    "inviteSent": "Convite enviado"
+    "inviteSent": "Convite enviado",
+    "approvalPin": {
+      "menu": "PIN de aprovação",
+      "title": "PIN de aprovação",
+      "description": "Com este PIN de 6 dígitos você aprova descontos acima de 20% direto no balcão. Ele é só seu e não é a sua senha.",
+      "currentPassword": "Senha atual",
+      "pin": "Novo PIN",
+      "confirmation": "Confirmar PIN",
+      "save": "Salvar PIN",
+      "cancel": "Cancelar",
+      "saved": "PIN de aprovação salvo"
+    }
   }
 }

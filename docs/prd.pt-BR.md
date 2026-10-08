@@ -532,6 +532,13 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 - Estorno de um pagamento: Gestor/Administrador, motivo obrigatório; cria uma movimentação negativa com data de hoje (o pagamento original é mantido).
 - Recibo: PDF com dados da organização, paciente, serviços, valores, formas de pagamento e data; gerado em ≤ 3 segundos. Não é um documento fiscal.
 - Cada pagamento é atribuído à unidade onde foi recebido (seletor de unidade atual), que pode ser diferente da unidade do agendamento.
+- Esclarecimentos (especificação do F09):
+  - A aprovação em linha usa um PIN de aprovação pessoal de 6 dígitos, que cada Gestor/Administrador define no menu do usuário (confirmando a senha atual). Cinco PINs errados bloqueiam o PIN por 15 minutos. A alternativa é "Enviar para aprovação", que coloca a cobrança na lista de aprovações pendentes.
+  - O desconto é calculado sobre o valor bruto (o percentual é arredondado para baixo, em centavos). Só pode ser alterado enquanto a cobrança não tem pagamentos. A rejeição exige motivo, remove o desconto e devolve a cobrança a "Em aberto".
+  - As formas de pagamento mantêm os códigos estáveis do perfil de país; o Administrador ou Gestor pode ativá-las ou desativá-las por país, e ao menos uma permanece ativa.
+  - O pagamento deve ser registrado em uma unidade cuja moeda seja a da cobrança. O estorno pode ser parcial ou total, é registrado na unidade selecionada e mantém a forma do pagamento original.
+  - Desfazer a chegada é recusado enquanto a cobrança tem pagamentos ("Esta cobrança já tem pagamento. Estorne os pagamentos antes de desfazer a chegada."). Uma cobrança sem pagamentos é apagada.
+  - Uma cobrança tem um item (um serviço ou uma descrição livre). O recibo é um PDF por cobrança, gerado sob demanda.
 
 **Experiência:**
 - No painel lateral da agenda, após o check-in, uma seção "Cobrança" mostra o valor e um botão "Receber".

@@ -1,6 +1,6 @@
 import { NextIntlClientProvider } from "next-intl";
 import { getTranslations } from "next-intl/server";
-import { identity } from "@/modules/identity";
+import { ApprovalPinMenuItem, identity } from "@/modules/identity";
 import { GlobalPatientSearch } from "@/modules/patients";
 import { units, UnitSelector } from "@/modules/units";
 import { requireRequestContext } from "@/modules/identity/next";
@@ -11,7 +11,7 @@ import { AppSidebar } from "@/shared/ui/app-shell/app-sidebar";
 import { NAVIGATION } from "@/shared/ui/app-shell/navigation";
 import { QueryProvider } from "@/shared/ui/query/query-provider";
 import { UserMenu } from "@/shared/ui/app-shell/user-menu";
-import { setUserLocaleAction, signOutAction } from "./actions";
+import { setApprovalPinAction, setUserLocaleAction, signOutAction } from "./actions";
 import { selectUnitAction } from "./settings/units/actions";
 
 // Authenticated shell (spec F01 section 2): every page under (app) requires a valid session.
@@ -64,6 +64,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
                 locale={ctx.locale}
                 signOutAction={signOutAction}
                 setLocaleAction={setUserLocaleAction}
+                extraItems={
+                  can(ctx, "billing:approve") ? <ApprovalPinMenuItem action={setApprovalPinAction} /> : null
+                }
               />
             }
           />

@@ -23,3 +23,14 @@ export async function setUserLocaleAction(locale: Locale): Promise<ActionResult<
     toActionResult(await identity.setUserLocale(ctx, { locale }), ctx.locale, "identity"),
   );
 }
+
+// PRD F09: the Manager or Administrator sets the personal approval PIN from the user menu.
+export async function setApprovalPinAction(input: {
+  currentPassword: string;
+  pin: string;
+  confirmation: string;
+}): Promise<ActionResult<{ setAt: string }>> {
+  return withRequestContext(async (ctx) =>
+    toActionResult(await identity.setApprovalPin(ctx, input), ctx.locale, "identity"),
+  );
+}
