@@ -702,6 +702,8 @@ The decisions became **ADR-033** (code shared by F07 and F08, a quota counter un
 | 4 — Templates and PDF | Templates with variables and free fields, resolvers, preview, generation without a partial document, the "Emitir documento" dialog and the settings page |
 | 5 — Finishing | Demo data, E2E journeys, the design system review and this log |
 
+The work went to PR #24, and the four CI jobs (quality, integration, E2E and Docker image) passed on the implementation commit.
+
 ### 17.4 Problems found in F08
 
 | Problem | Cause | Solution |

@@ -702,6 +702,8 @@ As decisões viraram o **ADR-033** (código compartilhado entre F07 e F08, conta
 | 4 — Modelos e PDF | Modelos com variáveis e campos livres, resolvedores, prévia, geração sem documento parcial, diálogo "Emitir documento" e a página de configurações |
 | 5 — Acabamento | Dados de demonstração, jornadas E2E, revisão do design system e este diário |
 
+O trabalho foi para o PR #24, e os quatro jobs do CI (qualidade, integração, E2E e imagem Docker) passaram no commit da implementação.
+
 ### 17.4 Problemas encontrados na F08
 
 | Problema | Causa | Solução |
