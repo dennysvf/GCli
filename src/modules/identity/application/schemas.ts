@@ -3,6 +3,7 @@ import { SUPPORTED_LOCALES } from "@/shared/i18n/locales";
 import { ROLES } from "@/shared/kernel/roles";
 import { COUNTRY_CODES } from "@/shared/kernel/countries/codes";
 import { isTimeZoneOf } from "@/shared/kernel/countries";
+import { isPinFormat } from "../domain/approval-pin";
 import {
   checkPassword,
   PASSWORD_MAX_LENGTH,
@@ -120,3 +121,19 @@ export const updateOrganizationSchema = z
   });
 
 export type UpdateOrganizationInput = z.input<typeof updateOrganizationSchema>;
+
+export const setApprovalPinSchema = z
+  .object({
+    currentPassword: z
+      .string({ error: "identity.validation.passwordRequired" })
+      .min(1, "identity.validation.passwordRequired")
+      .max(PASSWORD_MAX_LENGTH, "identity.validation.passwordTooLong"),
+    pin: z
+      .string({ error: "identity.validation.pinFormat" })
+      .refine(isPinFormat, "identity.validation.pinFormat"),
+    confirmation: z.string(),
+  })
+  .refine((data) => data.pin === data.confirmation, {
+    path: ["confirmation"],
+    message: "identity.validation.pinMismatch",
+  });

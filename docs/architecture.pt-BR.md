@@ -92,6 +92,11 @@ graph TD
   units --> documents
   identity --> documents
   clinical-records --> documents
+  identity --> billing
+  units --> billing
+  catalog --> billing
+  patients --> billing
+  professionals --> billing
 ```
 
 - Uma seta sólida significa "chama a API pública de". Uma seta pontilhada significa "reage a eventos de domínio publicados por".
@@ -481,6 +486,11 @@ Cada ADR vale até ser substituído por um novo ADR. Para mudar uma decisão, ad
 - *Decisão:* O módulo `documents` reaproveita o fluxo de envio direto do ADR-031. O código que as duas funcionalidades usam vai para `src/shared`: detecção do tipo do arquivo pelos primeiros bytes (agora com DOCX, reconhecido pelas entradas do diretório central do ZIP e recusado quando traz macros), conversão de HEIC, o sanitizador de HTML do ADR-032 e o editor Tiptap. A cota de 50 GB conta apenas os arquivos da F08 e fica numa linha por organização, atualizada sob trava de linha na mesma transação do documento, de modo que dois envios que terminam juntos não passam ambos do limite. O indicador clínico de um documento é protegido por um gatilho que recusa desligá-lo. Os corpos dos modelos reaproveitam o subconjunto de HTML sanitizado com marcadores em texto (`{{paciente.nome}}`, `{{campo:dias}}`) resolvidos por um registro de resolvedores, e um conversor pequeno transforma esse subconjunto em elementos de PDF para a base compartilhada do ADR-024. A CSP ganha a origem do armazenamento em `frame-src`, para o modal de pré-visualização mostrar um PDF a partir de uma URL pré-assinada.
 - *Por quê:* F07 e F08 precisam das mesmas peças de envio, conversão e edição; cópias se afastariam uma da outra. Uma linha contadora é mais barata e segura do que somar tamanhos a cada requisição. A regra do indicador protege dados de saúde de um clique de administrador, seja qual for o comportamento da aplicação.
 - *Contrapartida:* `frame-src` permite que a origem do armazenamento seja exibida em quadro pela aplicação, limitado a URLs assinadas de vida curta. PDFs gerados são contados, mas nunca bloqueados pela cota. DOCX só tem download, sem pré-visualização.
+
+**ADR-034 — Cobrança: recusa por handler, PIN de aprovação e regras de dinheiro garantidas pelo banco (complementa ADR-007, ADR-022 e ADR-029)**
+- *Decisão:* Handlers síncronos de eventos podem recusar a operação que publicou o evento lançando `EventRejection`, que carrega um `DomainError`; `withTransaction` desfaz tudo e o devolve como um `Result` de falha. A cobrança usa isso para que uma cobrança paga bloqueie desfazer a chegada, sob o mesmo bloqueio de linha que os pagamentos usam. A aprovação em linha de descontos grandes usa um PIN pessoal de 6 dígitos guardado como hash argon2 no usuário, com bloqueio após 5 falhas; a verificação roda em transação própria para que as tentativas erradas sejam contadas mesmo quando a alteração da cobrança falha. As regras de dinheiro também são garantidas pelo banco: um CHECK mantém o valor pago dentro do líquido, um índice único parcial permite uma cobrança viva por agendamento, uma chave estrangeira composta liga o pagamento à moeda da cobrança, a chave de idempotência é chave primária e pagamentos nunca são apagados. A cobrança declara as portas `ChargeExemptionPolicy` (F10) e `CashRegisterGate` (F11) com padrões inertes, e o módulo de unidades ganha a porta `UnitFinancialRecords` para que uma unidade com cobranças não mude de país.
+- *Por quê:* Um erro na cobrança vira divergência financeira, então as invariantes devem valer qualquer que seja a aplicação. Um handler que recusa evita uma porta do agendamento que pergunta à cobrança antes de desfazer, e mantém o agendamento sem conhecer cobranças. Um PIN é rápido na recepção e nunca é a senha de login.
+- *Contrapartida:* Um handler que lança `EventRejection` interrompe a operação inteira, então só deve ser usado para recusas de negócio esperadas. PINs são mais fracos que senhas, o que o bloqueio, a regra de PIN fraco e a auditoria compensam.
 
 ## 13. Evolução para SaaS
 

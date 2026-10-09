@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition, type ComponentType } from "react";
 import { toast } from "sonner";
 import type { ActionResult } from "@/shared/kernel/action-result";
 import { useLocale } from "next-intl";
@@ -39,6 +39,10 @@ export type AppointmentActions = {
   editSeries: (input: unknown) => Promise<ActionResult<{ newSeriesId: string }>>;
   options: (input: { unitId: string; serviceId: string }) => Promise<ActionResult<BookingOptions>>;
 };
+
+// A section other modules add to the panel for an appointment the patient arrived for (the
+// "Cobrança" of F09). The app layer composes it, so scheduling never imports billing.
+export type PanelSection = ComponentType<{ appointmentId: string; status: AppointmentStatus }>;
 
 export type Permissions = {
   canManage: boolean;
@@ -79,6 +83,7 @@ export function AppointmentPanel({
   reasons,
   permissions,
   actions,
+  chargeSection: ChargeSection,
   onChanged,
   onClose,
 }: {
@@ -91,6 +96,7 @@ export function AppointmentPanel({
   reasons: CancellationReasonItem[];
   permissions: Permissions;
   actions: AppointmentActions;
+  chargeSection?: PanelSection | undefined;
   onChanged: () => void;
   onClose: () => void;
 }) {
@@ -289,6 +295,9 @@ export function AppointmentPanel({
                         {t("scheduling.ui.cancelAppointment")}
                       </Button>
                     </div>
+                  ) : null}
+                  {ChargeSection && RECORD_STATUSES.includes(details.status) ? (
+                    <ChargeSection appointmentId={details.id} status={details.status} />
                   ) : null}
                   {details.clinicalNote &&
                   permissions.linkedProfessionalId === details.professional.id &&

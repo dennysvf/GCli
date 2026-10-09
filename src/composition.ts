@@ -1,3 +1,4 @@
+import { billingCatalog, registerBillingPorts, subscribeBillingEvents } from "@/modules/billing";
 import { clinicalRecordsCatalog, registerClinicalRecordsPorts } from "@/modules/clinical-records";
 import { documentsCatalog } from "@/modules/documents";
 import { identityCatalog } from "@/modules/identity";
@@ -26,6 +27,7 @@ export function registerModules(): void {
   registerCatalog("scheduling", schedulingCatalog);
   registerCatalog("clinicalRecords", clinicalRecordsCatalog);
   registerCatalog("documents", documentsCatalog);
+  registerCatalog("billing", billingCatalog);
   subscribeServicesEvents(eventBus);
   registerServicesPorts();
   // F04: linked professionals for identity (F01) and professional counts for services (F03).
@@ -34,4 +36,7 @@ export function registerModules(): void {
   registerSchedulingPorts();
   // F07: the note state that scheduling shows in the appointment panel.
   registerClinicalRecordsPorts();
+  // F09: charges react to the check-in, and a unit with charges cannot change country.
+  subscribeBillingEvents(eventBus);
+  registerBillingPorts();
 }

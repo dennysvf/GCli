@@ -3,12 +3,18 @@ import type { RequestContext } from "@/shared/context/types";
 import { definePort } from "@/shared/ports/registry";
 import { getBusinessHours, replaceBusinessHours } from "./application/business-hours";
 import { createClosure, deleteClosure, listClosures } from "./application/closures";
-import type { ScheduledAppointments, ServicePricing, UnitsDeps } from "./application/ports";
+import type {
+  ScheduledAppointments,
+  ServicePricing,
+  UnitFinancialRecords,
+  UnitsDeps,
+} from "./application/ports";
 import { getUnitContact, getUnitSchedule } from "./application/provided";
 import { createRoom, getRooms, listRooms, setRoomActive, updateRoom } from "./application/rooms";
 import { getSelectedUnit, selectUnit } from "./application/selection";
 import { createUnit, getUnit, listUnits, setUnitActive, updateUnit } from "./application/units";
 import { noAppointments } from "./infrastructure/no-appointments";
+import { noFinancialRecords } from "./infrastructure/no-financial-records";
 import { noPricing } from "./infrastructure/no-pricing";
 
 const scheduledAppointments = definePort<ScheduledAppointments>(
@@ -18,8 +24,15 @@ const scheduledAppointments = definePort<ScheduledAppointments>(
 
 const servicePricing = definePort<ServicePricing>("units.ServicePricing", noPricing);
 
+// F09 registers the real check (charges and payments in the unit) through the composition root.
+const unitFinancialRecords = definePort<UnitFinancialRecords>(
+  "units.UnitFinancialRecords",
+  noFinancialRecords,
+);
+
 const deps: UnitsDeps = {
   appointments: () => scheduledAppointments.get(),
+  financialRecords: () => unitFinancialRecords.get(),
   pricing: () => servicePricing.get(),
   clock: () => new Date(),
 };
@@ -56,13 +69,17 @@ export const units = {
   registerScheduledAppointments: (implementation: ScheduledAppointments | null) => {
     scheduledAppointments.register(implementation);
   },
+  // Extension point for billing (F09); pass null to restore the default (no financial records).
+  registerUnitFinancialRecords: (implementation: UnitFinancialRecords | null) => {
+    unitFinancialRecords.register(implementation);
+  },
   // Extension point for services (F03): active services without a price in a currency.
   registerServicePricing: (implementation: ServicePricing | null) => {
     servicePricing.register(implementation);
   },
 };
 
-export type { ScheduledAppointments, ServicePricing } from "./application/ports";
+export type { ScheduledAppointments, ServicePricing, UnitFinancialRecords } from "./application/ports";
 export type { UnitDetails, UnitSummary } from "./application/units";
 export type { RoomItem, RoomWithUnit } from "./application/rooms";
 export type { ClosureItem } from "./application/closures";

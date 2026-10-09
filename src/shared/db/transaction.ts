@@ -1,8 +1,8 @@
 import { createAuditWriter, type AuditWriter } from "@/shared/audit/audit-writer";
 import type { AnyContext } from "@/shared/context/types";
-import { EventBus, type DomainEvent } from "@/shared/events/event-bus";
+import { EventBus, EventRejection, type DomainEvent } from "@/shared/events/event-bus";
 import { createOutbox, type Outbox } from "@/shared/events/outbox";
-import type { Result } from "@/shared/kernel/result";
+import { fail, type Result } from "@/shared/kernel/result";
 import { forTenant, type TenantTx } from "./tenant";
 
 // Unit of work handed to use cases: a tenant-scoped transaction client plus the audit writer,
@@ -50,6 +50,7 @@ export async function withTransaction<T>(
     });
   } catch (error) {
     if (error instanceof RollbackSignal) return error.result as Result<T>;
+    if (error instanceof EventRejection) return fail(error.error);
     throw error;
   }
 }

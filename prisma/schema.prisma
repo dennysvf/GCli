@@ -27,56 +27,74 @@ model Organization {
   updatedAt              DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   updatedById            String?  @map("updated_by_id") @db.Uuid
 
-  users                User[]
-  invitations          Invitation[]
-  units                Unit[]
-  serviceCategories    ServiceCategory[]
-  services             Service[]
-  professionals        Professional[]
-  patients             Patient[]
-  appointments         Appointment[]
-  appointmentSeries    AppointmentSeries[]
-  cancellationReasons  CancellationReason[]
-  clinicalNotes        ClinicalNote[]
-  clinicalNoteVersions ClinicalNoteVersion[]
-  clinicalAddenda      ClinicalNoteAddendum[]
-  clinicalAttachments  ClinicalAttachment[]
-  clinicalUploads      ClinicalAttachmentUpload[]
-  clinicalAlerts       ClinicalAlert[]
-  clinicalAlertChanges ClinicalAlertChange[]
-  documentCategories   DocumentCategory[]
-  patientDocuments     PatientDocument[]
-  documentUploads      PatientDocumentUpload[]
-  documentTemplates    DocumentTemplate[]
-  documentStorageUsage DocumentStorageUsage?
+  users                  User[]
+  invitations            Invitation[]
+  units                  Unit[]
+  serviceCategories      ServiceCategory[]
+  services               Service[]
+  professionals          Professional[]
+  patients               Patient[]
+  appointments           Appointment[]
+  appointmentSeries      AppointmentSeries[]
+  cancellationReasons    CancellationReason[]
+  clinicalNotes          ClinicalNote[]
+  clinicalNoteVersions   ClinicalNoteVersion[]
+  clinicalAddenda        ClinicalNoteAddendum[]
+  clinicalAttachments    ClinicalAttachment[]
+  clinicalUploads        ClinicalAttachmentUpload[]
+  clinicalAlerts         ClinicalAlert[]
+  clinicalAlertChanges   ClinicalAlertChange[]
+  documentCategories     DocumentCategory[]
+  patientDocuments       PatientDocument[]
+  documentUploads        PatientDocumentUpload[]
+  documentTemplates      DocumentTemplate[]
+  documentStorageUsage   DocumentStorageUsage?
+  charges                Charge[]
+  payments               Payment[]
+  paymentSubmissions     PaymentSubmission[]
+  discountRequests       ChargeDiscountRequest[]
+  chargeSequences        ChargeNumberSequence[]
+  disabledPaymentMethods DisabledPaymentMethod[]
 
   @@map("organization")
 }
 
 // Better Auth `user` model plus GCli identity fields.
 model User {
-  id               String    @id @db.Uuid
-  organizationId   String    @map("organization_id") @db.Uuid
-  name             String    @db.VarChar(150)
-  email            String    @unique(map: "uq_app_user_email") @db.VarChar(254)
-  emailVerified    Boolean   @default(false) @map("email_verified")
-  image            String?   @db.VarChar(255)
-  role             String    @db.VarChar(20)
-  status           String    @default("ACTIVE") @db.VarChar(20)
-  locale           String?   @db.VarChar(5)
-  failedLoginCount Int       @default(0) @map("failed_login_count") @db.SmallInt
-  lockedUntil      DateTime? @map("locked_until") @db.Timestamptz(6)
-  lastLoginAt      DateTime? @map("last_login_at") @db.Timestamptz(6)
-  deactivatedAt    DateTime? @map("deactivated_at") @db.Timestamptz(6)
-  version          Int       @default(1)
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                     String    @id @db.Uuid
+  organizationId         String    @map("organization_id") @db.Uuid
+  name                   String    @db.VarChar(150)
+  email                  String    @unique(map: "uq_app_user_email") @db.VarChar(254)
+  emailVerified          Boolean   @default(false) @map("email_verified")
+  image                  String?   @db.VarChar(255)
+  role                   String    @db.VarChar(20)
+  status                 String    @default("ACTIVE") @db.VarChar(20)
+  locale                 String?   @db.VarChar(5)
+  failedLoginCount       Int       @default(0) @map("failed_login_count") @db.SmallInt
+  lockedUntil            DateTime? @map("locked_until") @db.Timestamptz(6)
+  lastLoginAt            DateTime? @map("last_login_at") @db.Timestamptz(6)
+  deactivatedAt          DateTime? @map("deactivated_at") @db.Timestamptz(6)
+  // PRD F09: personal PIN for inline discount approval (Manager and Administrator), argon2 hash.
+  approvalPinHash        String?   @map("approval_pin_hash") @db.VarChar(255)
+  approvalPinSetAt       DateTime? @map("approval_pin_set_at") @db.Timestamptz(6)
+  approvalPinFailedCount Int       @default(0) @map("approval_pin_failed_count") @db.SmallInt
+  approvalPinLockedUntil DateTime? @map("approval_pin_locked_until") @db.Timestamptz(6)
+  version                Int       @default(1)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization  Organization   @relation(fields: [organizationId], references: [id], map: "fk_app_user_org")
-  sessions      Session[]
-  accounts      Account[]
-  unitSelection UnitSelection?
-  professional  Professional?
+  organization            Organization            @relation(fields: [organizationId], references: [id], map: "fk_app_user_org")
+  sessions                Session[]
+  accounts                Account[]
+  unitSelection           UnitSelection?
+  professional            Professional?
+  chargesCreated          Charge[]                @relation("ChargeCreatedBy")
+  chargesCancelled        Charge[]                @relation("ChargeCancelledBy")
+  payments                Payment[]
+  paymentSubmissions      PaymentSubmission[]
+  discountRequestsMade    ChargeDiscountRequest[] @relation("RequestedBy")
+  discountRequestsDecided ChargeDiscountRequest[] @relation("DecidedBy")
+  disabledPaymentMethods  DisabledPaymentMethod[]
 
   @@index([organizationId, status, role], map: "ix_app_user_org_status_role")
   @@map("app_user")
@@ -241,6 +259,8 @@ model Unit {
   selections       UnitSelection[]
   workingIntervals ProfessionalWorkingInterval[]
   appointments     Appointment[]
+  charges          Charge[]
+  payments         Payment[]
 
   @@index([organizationId, active], map: "ix_unit_org_active")
   @@map("unit")
@@ -354,6 +374,7 @@ model Service {
   priceChanges  ServicePriceChange[]
   professionals ProfessionalService[]
   appointments  Appointment[]
+  charges       Charge[]
 
   @@index([organizationId, active], map: "ix_service_org_active")
   @@index([categoryId], map: "ix_service_category")
@@ -440,6 +461,7 @@ model Professional {
   timeOffs      ProfessionalTimeOff[]
   appointments  Appointment[]
   clinicalNotes ClinicalNote[]
+  charges       Charge[]
 
   @@index([organizationId, active], map: "ix_professional_org_active")
   @@map("professional")
@@ -594,6 +616,7 @@ model Patient {
   clinicalNotes  ClinicalNote[]
   clinicalAlerts ClinicalAlert[]
   documents      PatientDocument[]
+  charges        Charge[]
 
   @@index([organizationId, normalizedName, birthDate], map: "ix_patient_org_identity")
   @@index([organizationId, active, normalizedName], map: "ix_patient_org_active_name")
@@ -744,6 +767,7 @@ model Appointment {
   statusChanges      AppointmentStatusChange[]
   reschedules        AppointmentReschedule[]
   clinicalNotes      ClinicalNote[]
+  charges            Charge[]
 
   @@index([organizationId, unitId, startsAt], map: "ix_appointment_org_unit_start")
   @@index([organizationId, professionalId, startsAt], map: "ix_appointment_org_professional_start")
@@ -1108,4 +1132,155 @@ model DocumentStorageUsage {
   organization Organization @relation(fields: [organizationId], references: [id], map: "fk_document_storage_usage_org")
 
   @@map("document_storage_usage")
+}
+
+// F09 billing. Spec: docs/F09-billing-and-payments/spec.md (section 6). Money is bigint minor units
+// plus a currency (ADR-029); the foreign keys to patient, appointment, service, professional, unit
+// and user, the partial unique indexes and the CHECKs are written by hand in the migration.
+model Charge {
+  id             String    @id @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  number         String    @db.VarChar(12)
+  patientId      String    @map("patient_id") @db.Uuid
+  origin         String    @db.VarChar(12)
+  appointmentId  String?   @map("appointment_id") @db.Uuid
+  packageId      String?   @map("package_id") @db.Uuid
+  serviceId      String?   @map("service_id") @db.Uuid
+  description    String?   @db.VarChar(200)
+  professionalId String?   @map("professional_id") @db.Uuid
+  unitId         String    @map("unit_id") @db.Uuid
+  currency       String    @db.Char(3)
+  grossMinor     BigInt    @map("gross_minor")
+  discountKind   String?   @map("discount_kind") @db.VarChar(8)
+  discountValue  Int?      @map("discount_value")
+  discountMinor  BigInt    @default(0) @map("discount_minor")
+  discountReason String?   @map("discount_reason") @db.VarChar(500)
+  netMinor       BigInt    @map("net_minor")
+  paidMinor      BigInt    @default(0) @map("paid_minor")
+  status         String    @db.VarChar(20)
+  cancelledAt    DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById  String?   @map("cancelled_by_id") @db.Uuid
+  cancelReason   String?   @map("cancel_reason") @db.VarChar(500)
+  createdById    String    @map("created_by_id") @db.Uuid
+  version        Int       @default(1)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization            @relation(fields: [organizationId], references: [id], map: "fk_charge_org")
+  payments     Payment[]
+  submissions  PaymentSubmission[]
+  requests     ChargeDiscountRequest[]
+  patient      Patient                 @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_patient")
+  appointment  Appointment?            @relation(fields: [appointmentId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_appointment")
+  service      Service?                @relation(fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_service")
+  professional Professional?           @relation(fields: [professionalId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_professional")
+  unit         Unit                    @relation(fields: [unitId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_unit")
+  createdBy    User                    @relation("ChargeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_created_by")
+  cancelledBy  User?                   @relation("ChargeCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_cancelled_by")
+
+  @@unique([organizationId, id, currency], map: "uq_charge_currency")
+  @@unique([organizationId, number], map: "uq_charge_number")
+  @@index([organizationId, createdAt(sort: Desc), id(sort: Desc)], map: "ix_charge_list")
+  @@index([organizationId, unitId, status, createdAt], map: "ix_charge_unit_status")
+  @@index([organizationId, patientId, createdAt(sort: Desc)], map: "ix_charge_patient")
+  @@map("charge")
+}
+
+model Payment {
+  id                String   @id @db.Uuid
+  organizationId    String   @map("organization_id") @db.Uuid
+  chargeId          String   @map("charge_id") @db.Uuid
+  kind              String   @db.VarChar(8)
+  refundedPaymentId String?  @map("refunded_payment_id") @db.Uuid
+  submissionId      String?  @map("submission_id") @db.Uuid
+  method            String   @db.VarChar(20)
+  installments      Int?     @db.SmallInt
+  amountMinor       BigInt   @map("amount_minor")
+  refundedMinor     BigInt   @default(0) @map("refunded_minor")
+  currency          String   @db.Char(3)
+  unitId            String   @map("unit_id") @db.Uuid
+  receivedAt        DateTime @map("received_at") @db.Timestamptz(6)
+  recordedAt        DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  userId            String   @map("user_id") @db.Uuid
+  reason            String?  @db.VarChar(500)
+
+  organization    Organization       @relation(fields: [organizationId], references: [id], map: "fk_payment_org")
+  charge          Charge             @relation(fields: [organizationId, chargeId, currency], references: [organizationId, id, currency], onDelete: Restrict, map: "fk_payment_charge_currency")
+  refundedPayment Payment?           @relation("PaymentRefunds", fields: [refundedPaymentId], references: [id], onDelete: Restrict, map: "fk_payment_refunded")
+  refunds         Payment[]          @relation("PaymentRefunds")
+  unit            Unit               @relation(fields: [unitId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_payment_unit")
+  user            User               @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_payment_user")
+  submission      PaymentSubmission? @relation(fields: [organizationId, submissionId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction, map: "fk_payment_submission")
+
+  @@index([organizationId, chargeId, receivedAt], map: "ix_payment_charge")
+  @@index([organizationId, unitId, receivedAt], map: "ix_payment_unit_received")
+  @@index([organizationId, method, chargeId], map: "ix_payment_method")
+  @@map("payment")
+}
+
+model PaymentSubmission {
+  organizationId String   @map("organization_id") @db.Uuid
+  id             String   @db.Uuid
+  chargeId       String   @map("charge_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_payment_submission_org")
+  charge       Charge       @relation(fields: [chargeId], references: [id], onDelete: Cascade, map: "fk_payment_submission_charge")
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_payment_submission_user")
+  payments     Payment[]
+
+  @@id([organizationId, id])
+  @@index([organizationId, chargeId], map: "ix_payment_submission_charge")
+  @@map("payment_submission")
+}
+
+model ChargeDiscountRequest {
+  id              String    @id @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  chargeId        String    @map("charge_id") @db.Uuid
+  kind            String    @db.VarChar(8)
+  value           Int
+  discountMinor   BigInt    @map("discount_minor")
+  reason          String?   @db.VarChar(500)
+  status          String    @db.VarChar(10)
+  method          String?   @db.VarChar(8)
+  requestedById   String    @map("requested_by_id") @db.Uuid
+  requestedAt     DateTime  @default(now()) @map("requested_at") @db.Timestamptz(6)
+  decidedById     String?   @map("decided_by_id") @db.Uuid
+  decidedAt       DateTime? @map("decided_at") @db.Timestamptz(6)
+  rejectionReason String?   @map("rejection_reason") @db.VarChar(500)
+
+  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_discount_request_org")
+  charge       Charge       @relation(fields: [chargeId], references: [id], onDelete: Cascade, map: "fk_discount_request_charge")
+  requestedBy  User         @relation("RequestedBy", fields: [requestedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_discount_request_requested_by")
+  decidedBy    User?        @relation("DecidedBy", fields: [decidedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_discount_request_decided_by")
+
+  @@index([organizationId, chargeId, requestedAt], map: "ix_discount_request_charge")
+  @@map("charge_discount_request")
+}
+
+model ChargeNumberSequence {
+  organizationId String @map("organization_id") @db.Uuid
+  year           Int    @db.SmallInt
+  lastValue      Int    @map("last_value")
+
+  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_charge_number_sequence_org")
+
+  @@id([organizationId, year])
+  @@map("charge_number_sequence")
+}
+
+model DisabledPaymentMethod {
+  organizationId String   @map("organization_id") @db.Uuid
+  country        String   @db.Char(2)
+  method         String   @db.VarChar(20)
+  disabledById   String   @map("disabled_by_id") @db.Uuid
+  disabledAt     DateTime @default(now()) @map("disabled_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_disabled_payment_method_org")
+  disabledBy   User         @relation(fields: [disabledById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_disabled_payment_method_user")
+
+  @@id([organizationId, country, method])
+  @@map("disabled_payment_method")
 }

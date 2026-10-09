@@ -260,7 +260,8 @@ export async function updateUnit(
       // The country, and with it the currency, is fixed once the unit has appointments (PRD F16).
       if (
         before.country !== fields.country &&
-        (await deps.appointments().hasAnyInUnit(ctx.organizationId, unitId))
+        ((await deps.appointments().hasAnyInUnit(ctx.organizationId, unitId)) ||
+          (await deps.financialRecords().hasAnyInUnit(ctx.organizationId, unitId)))
       ) {
         return fail(UnitsErrors.countryLocked());
       }

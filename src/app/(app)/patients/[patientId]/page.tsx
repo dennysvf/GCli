@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { forbidden, notFound } from "next/navigation";
+import { BillingTab, billing } from "@/modules/billing";
 import { ClinicalNotesTable, clinicalRecords } from "@/modules/clinical-records";
 import { DocumentsTab, documents } from "@/modules/documents";
 import { getOrganizationProfile } from "@/modules/identity";
@@ -30,6 +31,7 @@ import {
   restoreDocumentAction,
   updateDocumentAction,
 } from "./documents/actions";
+import { billingActions } from "../../financial/billing-actions";
 import {
   openConsentFileAction,
   recordConsentAction,
@@ -85,6 +87,9 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
       ])
     : [null, null, null];
 
+  // PRD F09: the Financeiro tab for those who operate billing (Professionals have none).
+  const charges = can(ctx, "billing:operate") ? await billing.listPatientCharges(ctx, patientId) : null;
+
   return (
     <div className="grid gap-6">
       <PageHeader
@@ -122,6 +127,7 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
           {appointments ? <TabsTrigger value="appointments">{t("common.appointments")}</TabsTrigger> : null}
           {notes ? <TabsTrigger value="records">{t("clinicalRecords.ui.tab")}</TabsTrigger> : null}
           {documentsPage?.ok ? <TabsTrigger value="documents">{t("documents.ui.tab")}</TabsTrigger> : null}
+          {charges?.ok ? <TabsTrigger value="billing">{t("billing.ui.tab")}</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="data" className="grid gap-8 pt-4">
           <PatientForm
@@ -200,6 +206,16 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
                 generate: generateDocumentAction,
               }}
               issue={issueOptions?.ok ? issueOptions.value : null}
+            />
+          </TabsContent>
+        ) : null}
+        {charges?.ok ? (
+          <TabsContent value="billing" className="grid gap-4 pt-4">
+            <BillingTab
+              patient={{ id: patientId, displayName: details.displayName }}
+              initial={charges.value}
+              timeZone={timeZone}
+              actions={billingActions}
             />
           </TabsContent>
         ) : null}

@@ -17,7 +17,10 @@
     "ORG_LOGO_INVALID": "Suba un logotipo PNG, JPG o SVG de hasta 2 MB.",
     "SETUP_ALREADY_DONE": "Ya existe una organización registrada en este entorno.",
     "NOT_FOUND": "Registro no encontrado.",
-    "CONFLICT_STALE_VERSION": "Estos datos fueron modificados por otra persona. Recargue la página e inténtelo de nuevo."
+    "CONFLICT_STALE_VERSION": "Estos datos fueron modificados por otra persona. Recargue la página e inténtelo de nuevo.",
+    "APPROVAL_PIN_INVALID": "PIN incorrecto.",
+    "APPROVAL_PIN_LOCKED": "PIN bloqueado durante 15 minutos tras 5 intentos incorrectos.",
+    "APPROVAL_PIN_WEAK": "Elija un PIN de 6 dígitos que no sea una secuencia ni dígitos repetidos."
   },
   "auth": {
     "email": "Correo electrónico",
@@ -82,7 +85,10 @@
     "legalNameTooLong": "La razón social es demasiado larga.",
     "tradeNameTooLong": "El nombre comercial es demasiado largo.",
     "timeZoneRequired": "Seleccione una zona horaria del país.",
-    "slotInvalid": "Seleccione 5, 10, 15 o 30 minutos."
+    "slotInvalid": "Seleccione 5, 10, 15 o 30 minutos.",
+    "pinFormat": "El PIN debe tener exactamente 6 dígitos.",
+    "pinMismatch": "Los PIN no coinciden.",
+    "pinWeak": "Elija un PIN de 6 dígitos que no sea una secuencia ni dígitos repetidos."
   },
   "ui": {
     "organizationSettings": "Configuración de la organización",
@@ -127,6 +133,17 @@
     "logoUpdated": "Logotipo actualizado",
     "settingsSaved": "Configuración guardada",
     "organization": "Organización",
-    "inviteSent": "Invitación enviada"
+    "inviteSent": "Invitación enviada",
+    "approvalPin": {
+      "menu": "PIN de aprobación",
+      "title": "PIN de aprobación",
+      "description": "Con este PIN de 6 dígitos aprueba descuentos superiores al 20% directamente en el mostrador. Es solo suyo y no es su contraseña.",
+      "currentPassword": "Contraseña actual",
+      "pin": "Nuevo PIN",
+      "confirmation": "Confirmar PIN",
+      "save": "Guardar PIN",
+      "cancel": "Cancelar",
+      "saved": "PIN de aprobación guardado"
+    }
   }
 }

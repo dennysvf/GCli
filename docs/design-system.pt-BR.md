@@ -417,6 +417,17 @@ Os documentos (F08) ficam numa aba da página do paciente e numa página de conf
 - **Página de configurações:** três blocos separados por títulos de seção: uso do armazenamento ("{usado} de 50 GB usados ({percentual}%)", com uma barra e os tons de atenção e perigo a 80% e 100%), a tabela de categorias (Nome, Clínico como caixa de seleção, Ativo) e a tabela de modelos (Nome, Tipo, Clínico, Ativo) com "Novo modelo".
 - **Editor de modelo:** o editor de texto rico compartilhado com dois botões extras na barra, "Inserir variável" (um menu agrupado por paciente, profissional, unidade, clínica e data) e "Campo livre" (pede o nome do campo). As variáveis no texto aparecem como marcadores em `mono`, sobre fundo `paper-1`.
 
+### 5.14 Cobrança
+
+A cobrança (F09) fica no painel lateral da agenda, numa aba da página do paciente, nas páginas Financeiro e numa página de configurações. Estas regras cobrem o que as outras seções não mostram.
+- **Carimbos de status:** o status da cobrança é sempre escrito ("Aguardando aprovação de desconto", "Em aberto", "Parcialmente pago", "Pago", "Cancelado") num carimbo com o tom semântico (atenção, neutro, informação, sucesso, apagado). Um pagamento estornado acrescenta "Estornado" ou "Estornado parcialmente". Nunca só pela cor.
+- **Seção "Cobrança" na agenda:** abaixo dos dados do agendamento após a chegada, uma linha com o carimbo de status, o valor líquido e o saldo, depois "Receber" (primário só enquanto a cobrança pode receber) e "Recibo" (ghost).
+- **Modal de recebimento:** o resumo da cobrança no topo (item, bruto, campo de desconto com alternância percentual/valor, líquido), depois uma linha por forma de pagamento (seletor de forma, valor, parcelas para cartão de crédito), "Adicionar forma de pagamento" como botão ghost, e o saldo restante como uma linha ao vivo que passa ao tom de perigo, com texto, quando as linhas excedem o saldo. "Confirmar recebimento" é o único botão primário. Um desconto acima de 20% mostra um alerta de atenção com duas escolhas: um seletor de gestor com campo de PIN ("Aprovar agora com PIN") e "Enviar para aprovação". Gestores também veem o campo de data do pagamento.
+- **Tabelas:** as listas de cobranças usam linhas finas, valores alinhados à direita em `mono` com o símbolo da moeda e uma linha de totais por moeda (Bruto, Desconto, Líquido, Recebido, Saldo).
+- **Aba do paciente:** as cobranças em aberto vêm primeiro num bloco `paper-1` com o total devido por moeda, seguidas da tabela de histórico.
+- **Diálogos com motivo:** estorno, cancelamento e rejeição pedem um motivo obrigatório numa área de texto, dizem a consequência em uma frase e usam o botão de perigo.
+- **PIN de aprovação:** um campo de seis dígitos com `inputMode="numeric"`, mascarado, nunca exibido em avisos ou registros.
+
 ## 6. Detalhes visuais
 
 ### 6.1 Bordas e raios

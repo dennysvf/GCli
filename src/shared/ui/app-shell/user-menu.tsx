@@ -4,7 +4,7 @@ import { clearDeviceData } from "./device-data";
 import { LogOut } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useTransition, type ReactNode } from "react";
 import { LOCALE_NAMES, SUPPORTED_LOCALES, isLocale, type Locale } from "@/shared/i18n/locales";
 import type { ActionResult } from "@/shared/kernel/action-result";
 import { Avatar, AvatarFallback } from "@/shared/ui/components/avatar";
@@ -33,6 +33,7 @@ export function UserMenu({
   locale,
   signOutAction,
   setLocaleAction,
+  extraItems,
 }: {
   name: string;
   email: string;
@@ -40,6 +41,8 @@ export function UserMenu({
   locale: Locale;
   signOutAction: () => Promise<void>;
   setLocaleAction: (locale: Locale) => Promise<ActionResult<{ locale: Locale }>>;
+  // Entries other modules add above "Sair" (the approval PIN of F09).
+  extraItems?: ReactNode;
 }) {
   const t = useTranslations("shell");
   const router = useRouter();
@@ -81,6 +84,12 @@ export function UserMenu({
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
+        {extraItems ? (
+          <>
+            <DropdownMenuSeparator />
+            {extraItems}
+          </>
+        ) : null}
         <DropdownMenuSeparator />
         <form action={signOutAction} onSubmit={clearDeviceData}>
           <DropdownMenuItem asChild>

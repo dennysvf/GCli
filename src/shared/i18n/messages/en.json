@@ -182,7 +182,8 @@
     "underConstruction": "This screen is still under construction and will be delivered in feature {feature}.",
     "groups": {
       "operation": "Operations",
-      "settings": "Settings"
+      "settings": "Settings",
+      "financial": "Financial"
     },
     "navigation": {
       "schedule": "Schedule",
@@ -196,7 +197,10 @@
       "cancellationReasons": "Cancellation reasons",
       "privacyTerms": "Privacy terms",
       "users": "Users",
-      "documents": "Documents"
+      "documents": "Documents",
+      "charges": "Charges",
+      "approvals": "Approvals",
+      "billingSettings": "Financial"
     },
     "roles": {
       "ADMINISTRATOR": "Administrator",

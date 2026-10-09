@@ -92,6 +92,11 @@ graph TD
   units --> documents
   identity --> documents
   clinical-records --> documents
+  identity --> billing
+  units --> billing
+  catalog --> billing
+  patients --> billing
+  professionals --> billing
 ```
 
 - A solid arrow means "calls the public API of". A dotted arrow means "reacts to domain events published by".
@@ -481,6 +486,11 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 - *Decision:* The `documents` module reuses the direct-upload flow of ADR-031. The code both features need moves to `src/shared`: file type detection by magic bytes (now with DOCX, recognised by the entries of its ZIP central directory and refused when it carries macros), HEIC conversion, the HTML sanitizer of ADR-032 and the Tiptap editor. The 50 GB quota counts only F08 files and lives in one row per organization that is updated under a row lock in the same transaction as the document, so two uploads that finish together cannot both pass the limit. A document's clinical flag is protected by a trigger that refuses turning it off. Template bodies reuse the sanitized HTML subset with plain-text tokens (`{{paciente.nome}}`, `{{campo:dias}}`) resolved by a registry of resolvers, and a small converter turns that subset into PDF elements for the shared base of ADR-024. The CSP gains the storage origin in `frame-src`, so the preview modal can show a PDF from a presigned URL.
 - *Why:* F07 and F08 need the same upload, conversion and editing pieces; copies would drift. A counter row is cheaper and safer than summing sizes on every request. The flag rule protects health data from an administrator's click, whatever the application does.
 - *Trade-off:* `frame-src` allows the storage origin to be framed by the application, which is limited to short-lived signed URLs. Generated documents are counted but never blocked by the quota. DOCX is download-only, with no preview.
+
+**ADR-034 — Billing: handler rejection, approval PIN and database-enforced money rules (complements ADR-007, ADR-022 and ADR-029)**
+- *Decision:* Synchronous event handlers may reject the operation that published the event by throwing `EventRejection`, which carries a `DomainError`; `withTransaction` rolls back and returns it as a failed `Result`. Billing uses it so that a paid charge blocks undoing the check-in under the same row lock that payments take. The inline approval of large discounts uses a personal 6-digit PIN stored as an argon2 hash on the user, with a lockout after 5 failures; the verification runs in its own transaction so failed attempts are counted even when the billing change fails. The money rules are also enforced by the database: a CHECK keeps the paid amount within the net amount, a partial unique index allows one live charge per appointment, a composite foreign key ties a payment to the currency of its charge, the idempotency key is a primary key, and payments are never deleted. Billing declares the `ChargeExemptionPolicy` (F10) and `CashRegisterGate` (F11) ports with inert defaults, and the units module gets a `UnitFinancialRecords` port so a unit with charges cannot change its country.
+- *Why:* A bug in billing becomes a financial discrepancy, so the invariants must hold whatever the application does. A rejecting handler avoids a scheduling port that asks billing before undoing, and keeps scheduling unaware of charges. A PIN is fast at the front desk and is never the login password.
+- *Trade-off:* A handler that throws `EventRejection` stops the whole operation, so handlers must use it only for expected business refusals. PINs are weaker than passwords, which the lockout, the weak-PIN rule and the audit compensate for.
 
 ## 13. Evolution to SaaS
 

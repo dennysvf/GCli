@@ -419,6 +419,17 @@ Documents (F08) live in a tab of the patient page and in one settings page. Thes
 - **Settings page:** three blocks separated by section titles: storage usage ("{used} de 50 GB usados ({percent}%)" with a bar and the warning and danger tones at 80% and 100%), the categories table (Nome, Clínico as a checkbox, Ativo) and the templates table (Nome, Tipo, Clínico, Ativo) with "Novo modelo".
 - **Template editor:** the shared rich text editor with two extra toolbar buttons, "Inserir variável" (a menu grouped by patient, professional, unit, clinic and date) and "Campo livre" (asks for a field name). Variables in the text are shown as tokens in `mono`, on a `paper-1` background.
 
+### 5.14 Billing
+
+Billing (F09) lives in the agenda side panel, a tab of the patient page, the Financeiro pages and one settings page. These rules cover what the other sections do not show.
+- **Status stamps:** a charge status is always written ("Aguardando aprovação de desconto", "Em aberto", "Parcialmente pago", "Pago", "Cancelado") as a stamp with the semantic tone (warning, neutral, info, success, muted). A refunded payment adds "Estornado" or "Estornado parcialmente". Never color alone.
+- **Agenda section "Cobrança":** under the appointment data after check-in, one line with the status stamp, the net amount and the balance, then "Receber" (primary only while the charge can receive) and "Recibo" (ghost).
+- **Receive modal:** the charge summary on top (item, gross, discount field with a percent/amount toggle, net), then one row per payment line (method select, amount, installments for credit card), "Adicionar forma de pagamento" as a ghost button, and the remaining balance as a live line that turns to the danger tone, with text, when the lines exceed the balance. "Confirmar recebimento" is the only primary button. A discount above 20% shows a warning alert with two choices: a manager select with a PIN field ("Aprovar agora com PIN") and "Enviar para aprovação". Managers also see the payment date field.
+- **Tables:** charge lists use fine rules, amounts right-aligned in `mono` with the currency symbol, and a totals footer row per currency (Bruto, Desconto, Líquido, Recebido, Saldo).
+- **Patient tab:** open charges come first inside a `paper-1` block with the total due per currency, followed by the history table.
+- **Dialogs with a reason:** refund, void and rejection ask for a required reason in a text area, state the consequence in one sentence and use the danger button.
+- **Approval PIN:** a six-digit field with `inputMode="numeric"`, masked, never shown in toasts or logs.
+
 ## 6. Visual details
 
 ### 6.1 Borders and radii
