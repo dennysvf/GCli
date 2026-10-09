@@ -222,7 +222,10 @@
     "serviceOption": "{name} · {minutes} min · {price}",
     "dragOver": "Sobre {column}.",
     "openRecord": "Abrir prontuário",
-    "recordReminder": "Você ainda não finalizou o registro deste atendimento."
+    "recordReminder": "Você ainda não finalizou o registro deste atendimento.",
+    "package": "Pacote",
+    "packageSession": "Sessão {session}/{total}",
+    "packageFlagged": "Pacote expirado"
   },
   "findings": {
     "SCHEDULING_PROFESSIONAL_CONFLICT": "{professional} já possui atendimento das {start} às {end}. Deseja registrar como encaixe?",

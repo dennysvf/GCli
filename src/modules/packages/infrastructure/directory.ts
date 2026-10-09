@@ -1,4 +1,4 @@
-import { getUserNames } from "@/modules/identity";
+import { getUserNames, identity } from "@/modules/identity";
 import { patients } from "@/modules/patients";
 import { scheduling } from "@/modules/scheduling";
 import { services } from "@/modules/services";
@@ -92,4 +92,9 @@ export const packagesDirectory: PackagesDirectory = {
   },
 
   userNames: (ctx, userIds) => getUserNames(ctx, userIds),
+
+  async approvers(ctx) {
+    const listed = await identity.listApprovers(ctx);
+    return listed.ok ? listed.value : [];
+  },
 };

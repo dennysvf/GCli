@@ -222,7 +222,10 @@
     "serviceOption": "{name} · {minutes} min · {price}",
     "dragOver": "Sobre {column}.",
     "openRecord": "Abrir historia clínica",
-    "recordReminder": "Aún no finalizó el registro de esta cita."
+    "recordReminder": "Aún no finalizó el registro de esta cita.",
+    "package": "Paquete",
+    "packageSession": "Sesión {session}/{total}",
+    "packageFlagged": "Paquete expirado"
   },
   "findings": {
     "SCHEDULING_PROFESSIONAL_CONFLICT": "{professional} ya tiene una cita de {start} a {end}. ¿Desea registrarla como sobrecupo?",

@@ -152,6 +152,17 @@ export function AppointmentBlock({
         <span className="flex flex-wrap items-center gap-1">
           <Stamp variant={STATUS_STAMPS[item.status]}>{fmt.statusText(item.status)}</Stamp>
           {item.isOverbooking ? <Stamp variant="warning">{t("scheduling.ui.overbookingTag")}</Stamp> : null}
+          {item.package ? (
+            // PRD F10: the session of the package, or the front desk flag after an expiry or a cancellation.
+            <Stamp variant={item.package.flagged ? "warning" : "neutral"}>
+              {item.package.flagged
+                ? t("scheduling.ui.packageFlagged")
+                : t("scheduling.ui.packageSession", {
+                    session: item.package.session,
+                    total: item.package.total,
+                  })}
+            </Stamp>
+          ) : null}
           {late !== null ? (
             <span className="text-terracotta-text text-xs">{t("scheduling.ui.late", { minutes: late })}</span>
           ) : null}

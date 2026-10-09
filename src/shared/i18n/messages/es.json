@@ -200,7 +200,8 @@
       "documents": "Documentos",
       "charges": "Cobros",
       "approvals": "Aprobaciones",
-      "billingSettings": "Finanzas"
+      "billingSettings": "Finanzas",
+      "packages": "Paquetes"
     },
     "roles": {
       "ADMINISTRATOR": "Administrador",

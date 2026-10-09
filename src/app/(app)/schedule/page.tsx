@@ -19,6 +19,7 @@ import { dateInTimeZone } from "@/shared/kernel/time-zones";
 import { PageHeader } from "@/shared/ui/app-shell/page-header";
 import { savePatientAction } from "../patients/actions";
 import { ChargeSlot } from "./charge-slot";
+import { PackageSlot } from "./package-slot";
 import {
   bookAppointmentAction,
   bookingOptionsAction,
@@ -167,6 +168,7 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
         save: savePatientAction,
       }}
       chargeSection={can(ctx, "billing:operate") ? ChargeSlot : undefined}
+      packageSlot={can(ctx, "billing:operate") ? PackageSlot : undefined}
       actions={{
         book: bookAppointmentAction,
         previewSeries: previewSeriesAction,

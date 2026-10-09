@@ -1,4 +1,5 @@
 import { authorize } from "@/shared/authz/guard";
+import { can } from "@/shared/authz/permissions";
 import type { RequestContext } from "@/shared/context/types";
 import { withTransaction } from "@/shared/db/transaction";
 import { fail, ok, type Result } from "@/shared/kernel/result";
@@ -8,6 +9,7 @@ import type { PackagesDeps } from "./ports";
 import { coverageSchema, eligibleSchema, patientPackagesSchema } from "./schemas";
 import { packageView, type PackageCard, type PackageLinkView } from "./views";
 import { toPackageProps } from "./rows";
+import { listTemplates, type TemplateItem } from "./templates";
 
 export type EligiblePackage = {
   id: string;
@@ -165,4 +167,33 @@ export async function listPatientPackages(
       card.chargeStatus !== "CANCELLED",
   );
   return ok({ packages: cards, hasOpenBalance });
+}
+
+export type SellOptions = {
+  templates: TemplateItem[];
+  units: { id: string; name: string; currency: string }[];
+  selectedUnitId: string | null;
+  approvers: { id: string; name: string }[];
+  canApprove: boolean;
+};
+
+// What the "Vender pacote" dialog offers: active templates, active units, the selected unit and the
+// managers who can approve a discount by PIN.
+export async function getSellOptions(deps: PackagesDeps, ctx: RequestContext): Promise<Result<SellOptions>> {
+  const allowed = await authorize(ctx, "billing:operate");
+  if (!allowed.ok) return allowed;
+  const [templates, units, selectedUnitId, approvers] = await Promise.all([
+    listTemplates(deps, ctx),
+    deps.directory.activeUnits(ctx),
+    deps.directory.selectedUnitId(ctx),
+    deps.directory.approvers(ctx),
+  ]);
+  if (!templates.ok) return templates;
+  return ok({
+    templates: templates.value,
+    units: units.map((unit) => ({ id: unit.id, name: unit.name, currency: unit.currency })),
+    selectedUnitId,
+    approvers,
+    canApprove: can(ctx, "billing:approve"),
+  });
 }

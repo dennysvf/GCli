@@ -9,7 +9,7 @@ import { newId } from "@/shared/kernel/ids";
 import { subscribePackagesEvents as subscribe } from "./application/appointment-handlers";
 import { cancelPackage, expirePackages, extendPackage } from "./application/lifecycle";
 import type { PackagesDeps } from "./application/ports";
-import { eligiblePackages, listPatientPackages, seriesCoverage } from "./application/queries";
+import { eligiblePackages, getSellOptions, listPatientPackages, seriesCoverage } from "./application/queries";
 import { sellPackage } from "./application/sales";
 import {
   getNoShowDebit,
@@ -51,6 +51,7 @@ export function createPackages(adjust?: (base: PackagesDeps) => PackagesDeps) {
     eligiblePackages: (ctx: RequestContext, input: unknown) => eligiblePackages(deps, ctx, input),
     seriesCoverage: (ctx: RequestContext, input: unknown) => seriesCoverage(deps, ctx, input),
     listPatientPackages: (ctx: RequestContext, input: unknown) => listPatientPackages(deps, ctx, input),
+    getSellOptions: (ctx: RequestContext) => getSellOptions(deps, ctx),
     // Worker
     expirePackages: (input: { organizationId: string; timeZone: string; now?: Date }) =>
       expirePackages(deps, input),
@@ -72,8 +73,10 @@ export function registerPackagesPorts(): void {
 export { packagesCatalog } from "./messages/catalog";
 export { PACKAGES_EVENTS, type PackageEventPayload } from "./domain/events";
 export type { CancelResult } from "./application/lifecycle";
-export type { EligiblePackage, PatientPackages } from "./application/queries";
+export type { EligiblePackage, PatientPackages, SellOptions } from "./application/queries";
 export type { SaleResult } from "./application/sales";
 export type { TemplateItem } from "./application/templates";
 export type { PackageCard, PackageLinkView, PackageView } from "./application/views";
 export type { PackagesDeps } from "./application/ports";
+export { PackageChoice, PackagesSection, TemplatesPanel } from "./client";
+export type { PackagesActions, SaveTemplateInput } from "./client";

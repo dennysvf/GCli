@@ -252,6 +252,19 @@ export function AppointmentPanel({
                         formatLocale(locale, country),
                       )}
                     </dd>
+                    {details.package ? (
+                      <>
+                        <dt className="text-muted-foreground">{t("scheduling.ui.package")}</dt>
+                        <dd>
+                          {details.package.flagged
+                            ? t("scheduling.ui.packageFlagged")
+                            : t("scheduling.ui.packageSession", {
+                                session: details.package.session,
+                                total: details.package.total,
+                              })}
+                        </dd>
+                      </>
+                    ) : null}
                     {details.seriesIndex ? (
                       <>
                         <dt className="text-muted-foreground">{t("scheduling.ui.series")}</dt>

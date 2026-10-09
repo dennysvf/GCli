@@ -85,6 +85,7 @@ export interface PackagesDirectory {
   selectedUnitId(ctx: RequestContext): Promise<string | null>;
   appointments(ctx: RequestContext, appointmentIds: string[]): Promise<Map<string, LinkedAppointmentInfo>>;
   userNames(ctx: RequestContext, userIds: string[]): Promise<Map<string, string>>;
+  approvers(ctx: RequestContext): Promise<{ id: string; name: string }[]>;
 }
 
 export type ChargeRef = {
