@@ -83,11 +83,18 @@ model User {
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization  Organization   @relation(fields: [organizationId], references: [id], map: "fk_app_user_org")
-  sessions      Session[]
-  accounts      Account[]
-  unitSelection UnitSelection?
-  professional  Professional?
+  organization            Organization            @relation(fields: [organizationId], references: [id], map: "fk_app_user_org")
+  sessions                Session[]
+  accounts                Account[]
+  unitSelection           UnitSelection?
+  professional            Professional?
+  chargesCreated          Charge[]                @relation("ChargeCreatedBy")
+  chargesCancelled        Charge[]                @relation("ChargeCancelledBy")
+  payments                Payment[]
+  paymentSubmissions      PaymentSubmission[]
+  discountRequestsMade    ChargeDiscountRequest[] @relation("RequestedBy")
+  discountRequestsDecided ChargeDiscountRequest[] @relation("DecidedBy")
+  disabledPaymentMethods  DisabledPaymentMethod[]
 
   @@index([organizationId, status, role], map: "ix_app_user_org_status_role")
   @@map("app_user")
@@ -252,6 +259,8 @@ model Unit {
   selections       UnitSelection[]
   workingIntervals ProfessionalWorkingInterval[]
   appointments     Appointment[]
+  charges          Charge[]
+  payments         Payment[]
 
   @@index([organizationId, active], map: "ix_unit_org_active")
   @@map("unit")
@@ -365,6 +374,7 @@ model Service {
   priceChanges  ServicePriceChange[]
   professionals ProfessionalService[]
   appointments  Appointment[]
+  charges       Charge[]
 
   @@index([organizationId, active], map: "ix_service_org_active")
   @@index([categoryId], map: "ix_service_category")
@@ -451,6 +461,7 @@ model Professional {
   timeOffs      ProfessionalTimeOff[]
   appointments  Appointment[]
   clinicalNotes ClinicalNote[]
+  charges       Charge[]
 
   @@index([organizationId, active], map: "ix_professional_org_active")
   @@map("professional")
@@ -605,6 +616,7 @@ model Patient {
   clinicalNotes  ClinicalNote[]
   clinicalAlerts ClinicalAlert[]
   documents      PatientDocument[]
+  charges        Charge[]
 
   @@index([organizationId, normalizedName, birthDate], map: "ix_patient_org_identity")
   @@index([organizationId, active, normalizedName], map: "ix_patient_org_active_name")
@@ -755,6 +767,7 @@ model Appointment {
   statusChanges      AppointmentStatusChange[]
   reschedules        AppointmentReschedule[]
   clinicalNotes      ClinicalNote[]
+  charges            Charge[]
 
   @@index([organizationId, unitId, startsAt], map: "ix_appointment_org_unit_start")
   @@index([organizationId, professionalId, startsAt], map: "ix_appointment_org_professional_start")
@@ -1157,8 +1170,16 @@ model Charge {
   payments     Payment[]
   submissions  PaymentSubmission[]
   requests     ChargeDiscountRequest[]
+  patient      Patient                 @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_patient")
+  appointment  Appointment?            @relation(fields: [appointmentId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_appointment")
+  service      Service?                @relation(fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_service")
+  professional Professional?           @relation(fields: [professionalId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_professional")
+  unit         Unit                    @relation(fields: [unitId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_unit")
+  createdBy    User                    @relation("ChargeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_created_by")
+  cancelledBy  User?                   @relation("ChargeCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_cancelled_by")
 
   @@unique([organizationId, id, currency], map: "uq_charge_currency")
+  @@unique([organizationId, number], map: "uq_charge_number")
   @@index([organizationId, createdAt(sort: Desc), id(sort: Desc)], map: "ix_charge_list")
   @@index([organizationId, unitId, status, createdAt], map: "ix_charge_unit_status")
   @@index([organizationId, patientId, createdAt(sort: Desc)], map: "ix_charge_patient")
@@ -1183,10 +1204,13 @@ model Payment {
   userId            String   @map("user_id") @db.Uuid
   reason            String?  @db.VarChar(500)
 
-  organization    Organization @relation(fields: [organizationId], references: [id], map: "fk_payment_org")
-  charge          Charge       @relation(fields: [organizationId, chargeId, currency], references: [organizationId, id, currency], onDelete: Restrict, map: "fk_payment_charge_currency")
-  refundedPayment Payment?     @relation("PaymentRefunds", fields: [refundedPaymentId], references: [id], onDelete: Restrict, map: "fk_payment_refunded")
-  refunds         Payment[]    @relation("PaymentRefunds")
+  organization    Organization       @relation(fields: [organizationId], references: [id], map: "fk_payment_org")
+  charge          Charge             @relation(fields: [organizationId, chargeId, currency], references: [organizationId, id, currency], onDelete: Restrict, map: "fk_payment_charge_currency")
+  refundedPayment Payment?           @relation("PaymentRefunds", fields: [refundedPaymentId], references: [id], onDelete: Restrict, map: "fk_payment_refunded")
+  refunds         Payment[]          @relation("PaymentRefunds")
+  unit            Unit               @relation(fields: [unitId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_payment_unit")
+  user            User               @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_payment_user")
+  submission      PaymentSubmission? @relation(fields: [organizationId, submissionId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction, map: "fk_payment_submission")
 
   @@index([organizationId, chargeId, receivedAt], map: "ix_payment_charge")
   @@index([organizationId, unitId, receivedAt], map: "ix_payment_unit_received")
@@ -1203,6 +1227,8 @@ model PaymentSubmission {
 
   organization Organization @relation(fields: [organizationId], references: [id], map: "fk_payment_submission_org")
   charge       Charge       @relation(fields: [chargeId], references: [id], onDelete: Cascade, map: "fk_payment_submission_charge")
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_payment_submission_user")
+  payments     Payment[]
 
   @@id([organizationId, id])
   @@index([organizationId, chargeId], map: "ix_payment_submission_charge")
@@ -1227,6 +1253,8 @@ model ChargeDiscountRequest {
 
   organization Organization @relation(fields: [organizationId], references: [id], map: "fk_discount_request_org")
   charge       Charge       @relation(fields: [chargeId], references: [id], onDelete: Cascade, map: "fk_discount_request_charge")
+  requestedBy  User         @relation("RequestedBy", fields: [requestedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_discount_request_requested_by")
+  decidedBy    User?        @relation("DecidedBy", fields: [decidedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_discount_request_decided_by")
 
   @@index([organizationId, chargeId, requestedAt], map: "ix_discount_request_charge")
   @@map("charge_discount_request")
@@ -1251,6 +1279,7 @@ model DisabledPaymentMethod {
   disabledAt     DateTime @default(now()) @map("disabled_at") @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organizationId], references: [id], map: "fk_disabled_payment_method_org")
+  disabledBy   User         @relation(fields: [disabledById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_disabled_payment_method_user")
 
   @@id([organizationId, country, method])
   @@map("disabled_payment_method")

@@ -762,6 +762,8 @@ The decisions became **ADR-034** (handler rejection, PIN and money rules in the 
 | 4 — Screens | The "Cobrança" section of the agenda panel, the "Receber" modal, the patient's Financeiro tab, Financeiro > Cobranças, the detail, Aprovações and the settings page |
 | 5 — Finishing | Demo data, E2E journeys, design system review and this log |
 
+The work went to PR #25. The quality, integration and Docker image jobs passed the first time; the migrations/E2E job reported a drift between `schema.prisma` and the database (see 18.4) and passed after the fix.
+
 ### 18.4 Problems found in F09
 
 | Problem | Cause | Solution |
@@ -771,6 +773,7 @@ The decisions became **ADR-034** (handler rejection, PIN and money rules in the 
 | Two simultaneous receipts of 150 on 200 | Without a lock, both read a balance of 200 | A row lock (`FOR UPDATE`) on the charge; the second gets "greater than the balance"; the database constraint is the second barrier |
 | The balance message showed cents | Errors carry amounts in minor units, without a language | The application layer formats the amounts in the language and format of the unit's country before the boundary with the interface |
 | The PIN could not live in the password form | The user menu is shared and cannot import the identity module | The menu takes `extraItems` and the app layout composes the PIN item |
+| CI reported schema drift (`prisma migrate diff`) | The foreign keys and the unique index written by hand in the migration were not declared in `schema.prisma` | Relations and `@@unique` declared in the schema, with `onUpdate: NoAction`; the drift is now checked locally before the PR |
 | The agenda panel could not import billing | Billing depends on the agenda (events), and the reverse would create a cycle | The agenda accepts a section component; the agenda page composes it |
 
 ### 18.5 What F09 left ready

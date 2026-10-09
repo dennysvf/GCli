@@ -762,6 +762,8 @@ As decisões viraram o **ADR-034** (recusa por handler de evento, PIN e regras d
 | 4 — Telas | Seção "Cobrança" no painel da agenda, modal "Receber", aba Financeiro do paciente, Financeiro > Cobranças, detalhe, Aprovações e a página de configurações |
 | 5 — Acabamento | Dados de demonstração, jornadas E2E, revisão do design system e este diário |
 
+O trabalho foi para o PR #25. Os jobs de qualidade, integração e imagem Docker passaram de primeira; o de migrations/E2E acusou desvio entre o `schema.prisma` e o banco (ver 18.4) e passou depois da correção.
+
 ### 18.4 Problemas encontrados na F09
 
 | Problema | Causa | Solução |
@@ -771,6 +773,7 @@ As decisões viraram o **ADR-034** (recusa por handler de evento, PIN e regras d
 | Dois recebimentos simultâneos de 150 sobre 200 | Sem trava, os dois leem o saldo de 200 | Trava de linha (`FOR UPDATE`) na cobrança; o segundo recebe "maior que o saldo"; a restrição do banco é a segunda barreira |
 | A mensagem de saldo mostrava centavos | Os erros carregam valores em unidades menores, sem idioma | A camada de aplicação formata os valores no idioma e no formato do país da unidade antes do limite com a interface |
 | O PIN não podia viver no cadastro de senha | O menu do usuário é compartilhado e não pode importar o módulo de identidade | O menu recebe `extraItems` e o layout da aplicação compõe o item do PIN |
+| O CI acusou desvio do esquema (`prisma migrate diff`) | As chaves estrangeiras e o índice único escritos à mão na migration não estavam declarados no `schema.prisma` | Relações e `@@unique` declarados no esquema, com `onUpdate: NoAction`; o desvio agora é conferido localmente antes do PR |
 | O painel da agenda não podia importar a cobrança | Cobrança depende da agenda (eventos), e o inverso criaria um ciclo | A agenda aceita um componente de seção; a página da agenda o compõe |
 
 ### 18.5 O que a F09 deixou pronto
