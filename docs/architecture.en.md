@@ -88,7 +88,8 @@ graph TD
   billing --> packages
   catalog --> packages
   patients --> packages
-  billing -. events .-> cash
+  billing --> cash
+  units --> cash
   patients --> documents
   professionals --> documents
   units --> documents
@@ -498,6 +499,11 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 - *Decision:* Scheduling carries an optional `packageId` from the booking and edit forms into its events without knowing packages. The packages module reacts inside the scheduling transaction: it links the appointment under the package row lock, or refuses with `EventRejection` (ADR-034) when the package is expired or has no free balance. Billing exposes the creation of a package charge, the discount and the void as functions that take the caller's transaction, so a sale (package, charge and discount) commits or rolls back as one. The balance is enforced by the database (a CHECK keeps debits and forfeits within the total, a partial unique index allows one live link per appointment) and every change of the balance is an append-only movement. Packages implements the `ChargeExemptionPolicy` of billing and the `PackageLinkLookup` of scheduling, both declared with inert defaults.
 - *Why:* A session debited twice or a package sold without its charge is a financial error. Keeping the link in the same transaction as the booking removes the window where an appointment exists without its package, and opaque events avoid a cycle between scheduling and packages.
 - *Trade-off:* The booking transaction now runs packages code, so a slow handler slows booking; the handlers do one locked read and one insert. Billing functions that accept a transaction duplicate the entry points of their standalone versions.
+
+**ADR-036 — Cash register: payments read from billing, closing under a shared lock and an append-only history (complements ADR-019, ADR-022, ADR-029 and ADR-034)**
+- *Decision:* The `cash` module does not copy payments. The day of a register is the calendar date in the unit's time zone, and its automatic lines are read from billing (`listPaymentsForCash`), grouped by method; only the `CASH` method moves the expected physical cash. Closing locks the register row (`FOR UPDATE`) and stores an immutable closing with the totals per method; the `CashRegisterGate` that billing calls inside every payment and refund takes the same row `FOR SHARE`, so a payment cannot enter a day while it is being closed. The gate answers a yes/no question and billing keeps the closed-register message (ADR-034). A day without a register never blocks; only a closed one does. Closings, reopenings and reversals are append-only: movements are reversed with a reason, a reopening keeps both closings, and entries are soft deleted only while pending. Expenses and manual revenues share one table with a payment history and a monthly series that a daily job keeps 12 occurrences ahead. The statement carries a previous balance and one currency (ADR-029).
+- *Why:* A cash count is only trustworthy if the system lines cannot drift from the payment records and a closed day cannot change underneath it. Reading from the single source and serializing closing with payments removes both risks without duplicating money.
+- *Trade-off:* The register screen runs a read across modules on every load, and the shared lock adds a small cost to each payment.
 
 ## 13. Evolution to SaaS
 

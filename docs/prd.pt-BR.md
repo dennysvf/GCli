@@ -616,6 +616,13 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 - Despesas: descrição, categoria (configurável, padrão: Aluguel, Salários, Materiais, Utilidades, Marketing, Impostos, Serviços de terceiros, Outros), unidade (ou "Geral"), valor, vencimento, status (a pagar / pago), data de pagamento, forma de pagamento, anexo (máx. 10 MB). Despesas mensais recorrentes geram as próximas 12 ocorrências.
 - Lançamentos de receita manual (receita não vinda de paciente, ex.: aluguel de sala) com os mesmos campos das despesas.
 - Extrato: por unidade e período (máx. 366 dias), listando pagamentos de pacientes (F09), receitas manuais, e despesas pagas com saldo corrente; totais por categoria.
+- Esclarecimentos (especificação da F11):
+  - Os pagamentos e estornos da F09 são lidos, não copiados: o caixa lista os pagamentos da unidade no dia agrupados por forma de pagamento. Um pagamento recebido antes de o caixa ser aberto é aceito e aparece quando ele abrir; só um caixa fechado bloqueia pagamentos.
+  - O saldo de abertura é sugerido a partir do dinheiro contado no último caixa fechado da unidade. Alterá-lo exige um motivo (mín. 10 caracteres). A Recepção abre só o caixa de hoje; Gestor/Administrador também abre uma data passada. Uma data futura nunca é permitida. Um caixa não fechado de um dia anterior pode ser fechado pela Recepção.
+  - Movimentações manuais nunca são editadas nem apagadas: um erro é corrigido estornando-a com um motivo (mín. 10 caracteres), e a linha estornada continua visível e fora do dinheiro esperado.
+  - As categorias de despesa e de receita são configuráveis por organização (tipos despesa e receita, mais a categoria de sistema "Transferência" para mover dinheiro para dentro e para fora da gaveta: ela conta no dinheiro esperado e fica fora do extrato).
+  - O extrato também lista as movimentações manuais do caixa (exceto transferências) e começa com uma linha "Saldo anterior"; o saldo corrido é de uma só moeda, que deve ser escolhida quando as unidades selecionadas usam mais de uma.
+  - Uma despesa recorrente mensal cria 12 ocorrências de uma vez, e um job diário mantém 12 futuras até um gestor encerrar a série.
 
 **Experiência:**
 - Financeiro > Caixa: unidade e data selecionadas; se não estiver aberto, "Abrir caixa" com saldo inicial. Caixa aberto mostra cartões de resumo por forma, lista de movimentações, "Nova movimentação", e "Fechar caixa".

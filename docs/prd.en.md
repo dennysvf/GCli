@@ -616,6 +616,13 @@ The differentiator is configurability without complexity: the same product serve
 - Expenses: description, category (configurable, default: Aluguel, Salários, Materiais, Utilidades, Marketing, Impostos, Serviços de terceiros, Outros), unit (or "Geral"), amount, due date, status (a pagar / pago), payment date, payment method, attachment (max 10 MB). Recurring monthly expenses generate the next 12 occurrences.
 - Manual revenue entries (non-patient revenue, e.g., room rental) with the same fields as expenses.
 - Statement: per unit and period (max 366 days), listing patient payments (F09), manual revenues, and paid expenses with running balance; totals per category.
+- Clarifications (F11 specification):
+  - The payments and refunds of F09 are read, not copied: the register lists the unit's payments of the day grouped by method. A payment received before the register is opened is accepted and appears when it opens; only a closed register blocks payments.
+  - The opening balance is suggested from the counted cash of the unit's last closed register. Changing it requires a reason (min 10 characters). Front Desk opens only today's register; Manager/Administrator can also open a past date. A future date is never allowed. An unclosed register of an earlier day can be closed by Front Desk.
+  - Manual movements are never edited or deleted: a mistake is corrected by reversing it with a reason (min 10 characters), and the reversed line stays visible and out of the expected cash.
+  - Expense and revenue categories are configurable per organization (kinds expense and revenue, plus the system category "Transferência" for moving cash in and out of the drawer: it counts in the expected cash and stays out of the statement).
+  - The statement also lists the manual cash movements (except transfers) and starts from a "Saldo anterior" line; the running balance is in one currency, which must be chosen when the selected units use more than one.
+  - A monthly recurring expense creates 12 occurrences at once, and a daily job keeps 12 future ones until a manager ends the series.
 
 **Experience:**
 - Financeiro > Caixa: selected unit and date; if not open, "Abrir caixa" with opening balance. Open register shows summary cards per method, list of movements, "Nova movimentação", and "Fechar caixa".

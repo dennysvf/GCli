@@ -44,6 +44,11 @@ export const PERMISSIONS = {
   // F09, F10, F11 billing, packages, cash
   "billing:operate": ["ADMINISTRATOR", "MANAGER", "FRONT_DESK"],
   "billing:approve": ["ADMINISTRATOR", "MANAGER"],
+  // F11 cash register: operate = open today's register, move and close; reopen = reopen and open a
+  // past date; finance:manage = expenses, revenues, statement and categories (PRD F11)
+  "cash:operate": ["ADMINISTRATOR", "MANAGER", "FRONT_DESK"],
+  "cash:reopen": ["ADMINISTRATOR", "MANAGER"],
+  "finance:manage": ["ADMINISTRATOR", "MANAGER"],
   // F12, F13 dashboard and reports
   "dashboard:read": ["ADMINISTRATOR", "MANAGER"],
   "report:read": ["ADMINISTRATOR", "MANAGER"],

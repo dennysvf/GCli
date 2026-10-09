@@ -4,9 +4,8 @@ import { eventBus } from "@/shared/db/transaction";
 import { db } from "@/shared/db/client";
 import { createTranslator } from "@/shared/i18n/translator";
 import { errorMessage } from "@/shared/kernel/action-result";
-import { domainError } from "@/shared/kernel/errors";
 import { newId } from "@/shared/kernel/ids";
-import { fail, ok } from "@/shared/kernel/result";
+
 import { closeHelpers, resetDatabase } from "../helpers";
 import { createUnitWithHours } from "../professionals/support";
 import {
@@ -231,10 +230,7 @@ describe("payments", () => {
   it("F09: a closed cash register blocks payments and refunds through the gate", async () => {
     const charge = await manualCharge(world, 20_000);
     const paid = await mustReceive(world, charge.id, 5000);
-    billing.registerCashRegisterGate({
-      assertOpen: async (_uow, input) =>
-        fail(domainError("BILLING_CASH_REGISTER_CLOSED", 409, undefined, { unit: input.unitName })),
-    });
+    billing.registerCashRegisterGate({ isClosed: async () => true });
     const blocked = await receive(world, charge.id, [{ method: "PIX", amountMinor: 1000 }]);
     expect(!blocked.ok && blocked.error.code).toBe("BILLING_CASH_REGISTER_CLOSED");
     expect(!blocked.ok && errorMessage(pt, "billing", blocked.error.code, blocked.error.params)).toMatch(
@@ -247,7 +243,7 @@ describe("payments", () => {
       unitId: world.unitId,
     });
     expect(!refund.ok && refund.error.code).toBe("BILLING_CASH_REGISTER_CLOSED");
-    billing.registerCashRegisterGate({ assertOpen: async () => ok(undefined) });
+    billing.registerCashRegisterGate({ isClosed: async () => false });
     expect((await receive(world, charge.id, [{ method: "PIX", amountMinor: 1000 }])).ok).toBe(true);
   });
 });

@@ -14,7 +14,7 @@ import { BillingErrors } from "../domain/errors";
 import { MAX_PERIOD_DAYS, PAGE_SIZE } from "../domain/limits";
 import { enabledMethods } from "./payment-methods";
 import { earliestPaymentDate } from "./payments";
-import type { BillingDeps, ChargeTotals } from "./ports";
+import type { BillingDeps, ChargeTotals, PaymentRow, PaymentWindow } from "./ports";
 import { chargeIdSchema, listChargesSchema } from "./schemas";
 import {
   chargeView,
@@ -282,4 +282,19 @@ export async function getNewChargeOptions(
     services: services.map((service) => ({ id: service.id, name: service.name, prices: service.prices })),
     professionals,
   });
+}
+
+// Payments and refunds of a window for the cash register and the statement (F11, ADR-036). Read
+// only: who may see money movements is the cash register's decision, so either of its actions
+// opens the read.
+export async function listPaymentsForCash(
+  deps: BillingDeps,
+  ctx: RequestContext,
+  filter: PaymentWindow,
+): Promise<Result<PaymentRow[]>> {
+  if (!can(ctx, "cash:operate") && !can(ctx, "finance:manage")) {
+    const denied = await authorize(ctx, "cash:operate");
+    if (!denied.ok) return denied;
+  }
+  return withTransaction(ctx, async (uow) => ok(await deps.reads.paymentsInWindow(uow, filter)));
 }

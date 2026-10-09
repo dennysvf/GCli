@@ -93,4 +93,36 @@ export const prismaChargeReads: ChargeReads = {
     ]);
     return charges + payments > 0;
   },
+
+  async paymentsInWindow(uow, filter) {
+    const rows = await uow.tx.payment.findMany({
+      where: {
+        ...(filter.unitIds ? { unitId: { in: filter.unitIds } } : {}),
+        ...(filter.currency ? { currency: filter.currency } : {}),
+        ...(filter.from || filter.to
+          ? {
+              receivedAt: {
+                ...(filter.from ? { gte: filter.from } : {}),
+                ...(filter.to ? { lt: filter.to } : {}),
+              },
+            }
+          : {}),
+      },
+      include: { charge: { select: { number: true, patientId: true } } },
+      orderBy: [{ receivedAt: "asc" }, { id: "asc" }],
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      kind: row.kind as "PAYMENT" | "REFUND",
+      method: row.method,
+      amountMinor: Number(row.amountMinor),
+      currency: row.currency,
+      unitId: row.unitId,
+      receivedAt: row.receivedAt,
+      chargeId: row.chargeId,
+      chargeNumber: row.charge.number,
+      patientId: row.charge.patientId,
+      userId: row.userId,
+    }));
+  },
 };
