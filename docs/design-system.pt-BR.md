@@ -438,6 +438,18 @@ Os pacotes (F10) ficam numa página de configurações, numa seção da aba Fina
 - **Aviso:** "Pacote com saldo financeiro em aberto" é um alerta de atenção no topo da página do paciente.
 - **Diálogos com motivo:** prorrogar e cancelar pedem um motivo obrigatório; cancelar com agendamentos vinculados mostra a frase de confirmação antes do botão de perigo.
 
+### 5.16 Caixa e despesas
+
+O caixa e os lançamentos financeiros (F11) ficam em Financeiro. Estas regras cobrem o que as outras seções não mostram.
+- **Cabeçalho do caixa:** a unidade, o seletor de data e o status escrito em um selo ("Aberto", "Fechado", "Não fechado"). Um caixa de dia anterior que não foi fechado mostra um alerta de aviso com a data acima da página.
+- **Resumo por forma de pagamento:** uma linha em formato de tabela por forma com os valores recebido, estornado e líquido; a linha "Dinheiro" também traz o dinheiro esperado. Sem grade de cartões.
+- **Tabela de movimentações:** as linhas de pagamento são somente leitura e levam à cobrança; as linhas manuais têm "Estornar". Uma linha estornada é riscada e leva o selo "Estornada", nunca só a cor.
+- **Botões:** "Fechar caixa" é o único botão primário do caixa; "Nova movimentação" é secundário; "Reabrir caixa" aparece só em caixa fechado e só para gestores.
+- **Diálogo de fechamento:** dinheiro esperado, um campo de valor para o dinheiro contado, a diferença como texto com sinal ("Sobra de R$ 15,00" no tom de sucesso, "Falta de R$ 15,00" no tom destrutivo, "Sem diferença" no tom neutro) e, quando não for zero, o campo de justificativa com seu contador antes de "Confirmar fechamento".
+- **Tabelas de lançamentos:** vencimento, descrição, categoria, unidade ("Geral" quando não há), valor, status e ações. Um lançamento vencido e não pago leva o selo destrutivo "Vencida" e a data na cor de texto destrutiva. Lançamentos recorrentes mostram a nota "Repete todo mês".
+- **Extrato:** uma tabela com a primeira linha "Saldo anterior", colunas de entrada e saída alinhadas à direita com números tabulares, uma coluna de saldo corrido, e os totais por categoria e o resultado do período abaixo.
+- **Comprovantes:** um campo de anexo com os tipos e o tamanho aceitos no texto de apoio e um texto de progresso durante o envio.
+
 ## 6. Detalhes visuais
 
 ### 6.1 Bordas e raios

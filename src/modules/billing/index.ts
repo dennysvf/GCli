@@ -20,7 +20,12 @@ import {
 } from "./application/discounts";
 import { listPaymentMethodSettings, setPaymentMethodEnabled } from "./application/payment-methods";
 import { receivePayment, refundPayment, voidCharge, voidChargeIn } from "./application/payments";
-import type { BillingDeps, CashRegisterGate, ChargeExemptionPolicy } from "./application/ports";
+import type {
+  BillingDeps,
+  CashRegisterGate,
+  ChargeExemptionPolicy,
+  PaymentWindow,
+} from "./application/ports";
 import {
   getAppointmentCharge,
   getCharge,
@@ -28,6 +33,7 @@ import {
   getNewChargeOptions,
   getReceiveOptions,
   listCharges,
+  listPaymentsForCash,
   listPatientCharges,
 } from "./application/queries";
 import { renderReceipt } from "./application/receipt";
@@ -101,6 +107,12 @@ export function createBilling(adjust?: (base: BillingDeps) => BillingDeps) {
     getReceiveOptions: (ctx: RequestContext, input: unknown) => getReceiveOptions(deps, ctx, input),
     getNewChargeOptions: (ctx: RequestContext) => getNewChargeOptions(deps, ctx),
     renderReceipt: (ctx: RequestContext, input: unknown) => renderReceipt(deps, ctx, input),
+    // For the cash register (F11): payments and refunds of a window.
+    listPaymentsForCash: (ctx: RequestContext, filter: PaymentWindow) =>
+      listPaymentsForCash(deps, ctx, filter),
+    // Whether billing has records in the unit; the cash register combines it with its own.
+    hasUnitFinancialRecords: (organizationId: string, unitId: string) =>
+      prismaChargeReads.hasAnyInUnit(organizationId, unitId),
     // Settings
     listPaymentMethodSettings: (ctx: RequestContext) => listPaymentMethodSettings(deps, ctx),
     setPaymentMethodEnabled: (ctx: RequestContext, input: unknown) =>
@@ -152,6 +164,12 @@ export type {
   ReceiveOptions,
 } from "./application/queries";
 export type { ReceiptFile } from "./application/receipt";
-export type { BillingDeps, CashRegisterGate, ChargeExemptionPolicy } from "./application/ports";
+export type {
+  BillingDeps,
+  CashRegisterGate,
+  ChargeExemptionPolicy,
+  PaymentRow,
+  PaymentWindow,
+} from "./application/ports";
 export type { ChargeView, DiscountRequestView, PaymentView } from "./application/views";
 export type { ChargeStatus } from "./domain/status";

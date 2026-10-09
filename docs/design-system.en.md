@@ -440,6 +440,18 @@ Packages (F10) live in a settings page, a section of the patient's Financeiro ta
 - **Notice:** "Pacote com saldo financeiro em aberto" is a warning alert at the top of the patient page.
 - **Dialogs with a reason:** extending and cancelling ask for a required reason; cancelling with linked appointments shows the confirmation sentence before the danger button.
 
+### 5.16 Cash register and expenses
+
+The cash register and the financial entries (F11) live under Financeiro. These rules cover what the other sections do not show.
+- **Register header:** the unit, the date picker and the status written as a stamp ("Aberto", "Fechado", "Não fechado"). A register of an earlier day that was not closed shows a warning alert with the date above the page.
+- **Summary cards per method:** a table-like row per method with received, refunded and net amounts; the "Dinheiro" row also carries the expected cash. No card grid.
+- **Movements table:** payment lines are read-only and link to the charge; manual lines have "Estornar". A reversed line is struck through and carries the stamp "Estornada", never color alone.
+- **Buttons:** "Fechar caixa" is the one primary button of the register; "Nova movimentação" is secondary; "Reabrir caixa" appears only on a closed register and only for managers.
+- **Closing dialog:** expected cash, a money field for the counted cash, the difference as signed text ("Sobra de R$ 15,00" in the success tone, "Falta de R$ 15,00" in the destructive tone, "Sem diferença" in the neutral tone) and, when it is not zero, the justification field with its counter before "Confirmar fechamento".
+- **Entries tables:** due date, description, category, unit ("Geral" when none), amount, status and actions. An overdue unpaid entry carries the destructive stamp "Vencida" and the date in the destructive text color. Recurring entries show a "Repete todo mês" note.
+- **Statement:** a table with a first row "Saldo anterior", inflow and outflow columns right-aligned with tabular numerals, a running balance column, and totals per category and the result of the period below it.
+- **Receipts:** an attachment field with the accepted types and size in its helper text and a progress text while sending.
+
 ## 6. Visual details
 
 ### 6.1 Borders and radii

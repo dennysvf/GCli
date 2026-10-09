@@ -69,7 +69,31 @@ export interface ChargeReads {
   requestHistory(uow: UnitOfWork, chargeId: string): Promise<DiscountRequestRecord[]>;
   // Whether the unit has any charge or payment (blocks changing its country, PRD F16).
   hasAnyInUnit(organizationId: string, unitId: string): Promise<boolean>;
+  // Payments and refunds received in the window, for the cash register and the statement (F11).
+  paymentsInWindow(uow: UnitOfWork, filter: PaymentWindow): Promise<PaymentRow[]>;
 }
+
+export type PaymentWindow = {
+  unitIds: string[] | null;
+  currency: string | null;
+  from: Date | null;
+  to: Date | null;
+};
+
+// A payment or a refund (negative amount) as the cash register reads it (ADR-036).
+export type PaymentRow = {
+  id: string;
+  kind: "PAYMENT" | "REFUND";
+  method: string;
+  amountMinor: number;
+  currency: string;
+  unitId: string;
+  receivedAt: Date;
+  chargeId: string;
+  chargeNumber: string;
+  patientId: string;
+  userId: string;
+};
 
 export type UnitInfo = {
   id: string;
@@ -139,12 +163,10 @@ export interface ChargeExemptionPolicy {
   ): Promise<boolean>;
 }
 
-// The cash register (F11) refuses movements on a closed day. Until it exists everything is open.
+// The cash register (F11) answers whether the unit's day of `at` is closed. Billing turns a yes
+// into its own closed-register error (ADR-036); a day without a register is not closed.
 export interface CashRegisterGate {
-  assertOpen(
-    uow: UnitOfWork,
-    input: { organizationId: string; unitId: string; unitName: string; at: Date },
-  ): Promise<Result<void>>;
+  isClosed(uow: UnitOfWork, input: { organizationId: string; unitId: string; at: Date }): Promise<boolean>;
 }
 
 export type ReceiptLabels = {

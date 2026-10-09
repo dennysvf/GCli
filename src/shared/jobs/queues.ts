@@ -10,6 +10,9 @@ export const QUEUES = {
   documentsFileProcess: "documents-file-process",
   documentsUploadsCleanup: "documents-uploads-cleanup",
   packagesExpire: "packages-expire",
+  cashFlagUnclosed: "cash-flag-unclosed",
+  financeRecurrence: "finance-recurrence",
+  financeUploadsCleanup: "finance-uploads-cleanup",
 } as const;
 
 export type EmailJobData = { outboxId: string; type: string; payload: Record<string, unknown> };

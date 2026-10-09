@@ -162,13 +162,12 @@ export async function receivePayment(
       if (!applied.ok) return applied;
     }
 
-    const gate = await deps.cashRegister().assertOpen(uow, {
+    const closed = await deps.cashRegister().isClosed(uow, {
       organizationId: ctx.organizationId,
       unitId: unit.id,
-      unitName: unit.name,
       at: receivedAt,
     });
-    if (!gate.ok) return gate;
+    if (closed) return fail(BillingErrors.cashRegisterClosed(unit.name));
 
     const registered = charge.registerPayments({
       lines: data.payments.map((line) => ({
@@ -264,13 +263,12 @@ export async function refundPayment(
       if (unit.currency !== charge.snapshot.currency) {
         return fail(BillingErrors.currencyMismatch(unit.currency, charge.snapshot.currency));
       }
-      const gate = await deps.cashRegister().assertOpen(uow, {
+      const closed = await deps.cashRegister().isClosed(uow, {
         organizationId: ctx.organizationId,
         unitId: unit.id,
-        unitName: unit.name,
         at: now,
       });
-      if (!gate.ok) return gate;
+      if (closed) return fail(BillingErrors.cashRegisterClosed(unit.name));
       const before = copyProps(charge);
       const refunded = charge.refund({
         paymentId: data.paymentId,

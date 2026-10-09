@@ -62,6 +62,15 @@ model Organization {
   packageMovements       PackageMovement[]
   packageSettings        PackageSettings?
   packageExpirationRuns  PackageExpirationRun[]
+  financialCategories    FinancialCategory[]
+  cashRegisters          CashRegister[]
+  cashClosings           CashRegisterClosing[]
+  cashReopenings         CashRegisterReopening[]
+  cashMovements          CashMovement[]
+  financialAttachments   FinancialAttachment[]
+  financialEntrySeries   FinancialEntrySeries[]
+  financialEntries       FinancialEntry[]
+  financialEntryPayments FinancialEntryPayment[]
 
   @@map("organization")
 }
@@ -90,21 +99,33 @@ model User {
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization            Organization            @relation(fields: [organizationId], references: [id], map: "fk_app_user_org")
-  sessions                Session[]
-  accounts                Account[]
-  unitSelection           UnitSelection?
-  professional            Professional?
-  chargesCreated          Charge[]                @relation("ChargeCreatedBy")
-  chargesCancelled        Charge[]                @relation("ChargeCancelledBy")
-  payments                Payment[]
-  paymentSubmissions      PaymentSubmission[]
-  discountRequestsMade    ChargeDiscountRequest[] @relation("RequestedBy")
-  discountRequestsDecided ChargeDiscountRequest[] @relation("DecidedBy")
-  disabledPaymentMethods  DisabledPaymentMethod[]
-  packagesSold            PatientPackage[]        @relation("PackageSoldBy")
-  packagesClosed          PatientPackage[]        @relation("PackageClosedBy")
-  packageMovements        PackageMovement[]
+  organization              Organization            @relation(fields: [organizationId], references: [id], map: "fk_app_user_org")
+  sessions                  Session[]
+  accounts                  Account[]
+  unitSelection             UnitSelection?
+  professional              Professional?
+  chargesCreated            Charge[]                @relation("ChargeCreatedBy")
+  chargesCancelled          Charge[]                @relation("ChargeCancelledBy")
+  payments                  Payment[]
+  paymentSubmissions        PaymentSubmission[]
+  discountRequestsMade      ChargeDiscountRequest[] @relation("RequestedBy")
+  discountRequestsDecided   ChargeDiscountRequest[] @relation("DecidedBy")
+  disabledPaymentMethods    DisabledPaymentMethod[]
+  packagesSold              PatientPackage[]        @relation("PackageSoldBy")
+  packagesClosed            PatientPackage[]        @relation("PackageClosedBy")
+  packageMovements          PackageMovement[]
+  cashRegistersOpened       CashRegister[]          @relation("CashOpenedBy")
+  cashClosings              CashRegisterClosing[]   @relation("CashClosedBy")
+  cashReopenings            CashRegisterReopening[] @relation("CashReopenedBy")
+  cashMovementsCreated      CashMovement[]          @relation("CashMovementCreatedBy")
+  cashMovementsReversed     CashMovement[]          @relation("CashMovementReversedBy")
+  financialAttachments      FinancialAttachment[]   @relation("FinancialAttachmentBy")
+  financialSeriesCreated    FinancialEntrySeries[]  @relation("FinancialSeriesCreatedBy")
+  financialSeriesEnded      FinancialEntrySeries[]  @relation("FinancialSeriesEndedBy")
+  financialEntriesCreated   FinancialEntry[]        @relation("FinancialEntryCreatedBy")
+  financialEntriesDeleted   FinancialEntry[]        @relation("FinancialEntryDeletedBy")
+  financialPaymentsRecorded FinancialEntryPayment[] @relation("FinancialPaymentRecordedBy")
+  financialPaymentsReversed FinancialEntryPayment[] @relation("FinancialPaymentReversedBy")
 
   @@index([organizationId, status, role], map: "ix_app_user_org_status_role")
   @@map("app_user")
@@ -272,6 +293,9 @@ model Unit {
   charges          Charge[]
   payments         Payment[]
   patientPackages  PatientPackage[]
+  cashRegisters    CashRegister[]
+  financialEntries FinancialEntry[]
+  financialSeries  FinancialEntrySeries[]
 
   @@index([organizationId, active], map: "ix_unit_org_active")
   @@map("unit")
@@ -1442,4 +1466,225 @@ model PackageExpirationRun {
 
   @@id([organizationId, runOn])
   @@map("package_expiration_run")
+}
+
+model FinancialCategory {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  kind           String   @db.VarChar(8)
+  name           String   @db.VarChar(60)
+  system         Boolean  @default(false)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization           @relation(fields: [organizationId], references: [id], map: "fk_financial_category_org")
+  movements    CashMovement[]
+  entries      FinancialEntry[]
+  series       FinancialEntrySeries[]
+
+  @@map("financial_category")
+}
+
+model CashRegister {
+  id                    String    @id @db.Uuid
+  organizationId        String    @map("organization_id") @db.Uuid
+  unitId                String    @map("unit_id") @db.Uuid
+  businessDate          DateTime  @map("business_date") @db.Date
+  currency              String    @db.Char(3)
+  openingMinor          BigInt    @map("opening_minor")
+  suggestedOpeningMinor BigInt    @map("suggested_opening_minor")
+  openingReason         String?   @map("opening_reason") @db.VarChar(500)
+  status                String    @default("OPEN") @db.VarChar(6)
+  flaggedUnclosed       Boolean   @default(false) @map("flagged_unclosed")
+  flaggedAt             DateTime? @map("flagged_at") @db.Timestamptz(6)
+  openedById            String    @map("opened_by_id") @db.Uuid
+  openedAt              DateTime  @default(now()) @map("opened_at") @db.Timestamptz(6)
+  version               Int       @default(1)
+
+  organization Organization            @relation(fields: [organizationId], references: [id], map: "fk_cash_register_org")
+  unit         Unit                    @relation(fields: [unitId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_cash_register_unit")
+  openedBy     User                    @relation("CashOpenedBy", fields: [openedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_cash_register_opened_by")
+  closings     CashRegisterClosing[]
+  reopenings   CashRegisterReopening[]
+  movements    CashMovement[]
+
+  @@unique([organizationId, unitId, businessDate], map: "uq_cash_register_unit_day")
+  @@index([organizationId, status, businessDate], map: "ix_cash_register_open")
+  @@map("cash_register")
+}
+
+model CashRegisterClosing {
+  id                 String   @id @db.Uuid
+  organizationId     String   @map("organization_id") @db.Uuid
+  registerId         String   @map("register_id") @db.Uuid
+  sequence           Int      @db.SmallInt
+  expectedMinor      BigInt   @map("expected_minor")
+  countedMinor       BigInt   @map("counted_minor")
+  differenceMinor    BigInt   @map("difference_minor")
+  justification      String?  @db.VarChar(500)
+  byMethod           Json     @map("by_method")
+  movementsInMinor   BigInt   @map("movements_in_minor")
+  movementsOutMinor  BigInt   @map("movements_out_minor")
+  wasFlaggedUnclosed Boolean  @map("was_flagged_unclosed")
+  closedById         String   @map("closed_by_id") @db.Uuid
+  closedAt           DateTime @default(now()) @map("closed_at") @db.Timestamptz(6)
+
+  organization Organization           @relation(fields: [organizationId], references: [id], map: "fk_cash_closing_org")
+  register     CashRegister           @relation(fields: [registerId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_cash_closing_register")
+  closedBy     User                   @relation("CashClosedBy", fields: [closedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_cash_closing_user")
+  reopening    CashRegisterReopening?
+
+  @@unique([registerId, sequence], map: "uq_cash_closing_sequence")
+  @@map("cash_register_closing")
+}
+
+model CashRegisterReopening {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  registerId     String   @map("register_id") @db.Uuid
+  closingId      String   @unique(map: "uq_cash_reopening_closing") @map("closing_id") @db.Uuid
+  reason         String   @db.VarChar(500)
+  reopenedById   String   @map("reopened_by_id") @db.Uuid
+  reopenedAt     DateTime @default(now()) @map("reopened_at") @db.Timestamptz(6)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], map: "fk_cash_reopening_org")
+  register     CashRegister        @relation(fields: [registerId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_cash_reopening_register")
+  closing      CashRegisterClosing @relation(fields: [closingId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_cash_reopening_closing")
+  reopenedBy   User                @relation("CashReopenedBy", fields: [reopenedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_cash_reopening_user")
+
+  @@index([organizationId, registerId], map: "ix_cash_reopening_register")
+  @@map("cash_register_reopening")
+}
+
+model CashMovement {
+  id             String    @id @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  registerId     String    @map("register_id") @db.Uuid
+  direction      String    @db.VarChar(3)
+  amountMinor    BigInt    @map("amount_minor")
+  currency       String    @db.Char(3)
+  description    String    @db.VarChar(200)
+  categoryId     String    @map("category_id") @db.Uuid
+  attachmentId   String?   @unique(map: "uq_cash_movement_attachment") @map("attachment_id") @db.Uuid
+  createdById    String    @map("created_by_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  reversedAt     DateTime? @map("reversed_at") @db.Timestamptz(6)
+  reversedById   String?   @map("reversed_by_id") @db.Uuid
+  reversalReason String?   @map("reversal_reason") @db.VarChar(500)
+
+  organization Organization         @relation(fields: [organizationId], references: [id], map: "fk_cash_movement_org")
+  register     CashRegister         @relation(fields: [registerId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_cash_movement_register")
+  category     FinancialCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_cash_movement_category")
+  attachment   FinancialAttachment? @relation(fields: [attachmentId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_cash_movement_attachment")
+  createdBy    User                 @relation("CashMovementCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_cash_movement_created_by")
+  reversedBy   User?                @relation("CashMovementReversedBy", fields: [reversedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_cash_movement_reversed_by")
+
+  @@index([organizationId, registerId, createdAt], map: "ix_cash_movement_register")
+  @@map("cash_movement")
+}
+
+model FinancialAttachment {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  objectKey      String   @unique(map: "uq_financial_attachment_key") @map("object_key") @db.VarChar(300)
+  fileName       String   @map("file_name") @db.VarChar(200)
+  contentType    String   @map("content_type") @db.VarChar(50)
+  sizeBytes      Int      @map("size_bytes")
+  status         String   @default("PENDING") @db.VarChar(8)
+  uploadedById   String   @map("uploaded_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], map: "fk_financial_attachment_org")
+  uploadedBy   User            @relation("FinancialAttachmentBy", fields: [uploadedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_financial_attachment_user")
+  movement     CashMovement?
+  entry        FinancialEntry?
+
+  @@index([status, createdAt], map: "ix_financial_attachment_pending")
+  @@map("financial_attachment")
+}
+
+model FinancialEntrySeries {
+  id             String    @id @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  kind           String    @db.VarChar(7)
+  description    String    @db.VarChar(200)
+  categoryId     String    @map("category_id") @db.Uuid
+  unitId         String?   @map("unit_id") @db.Uuid
+  currency       String    @db.Char(3)
+  amountMinor    BigInt    @map("amount_minor")
+  dayOfMonth     Int       @map("day_of_month") @db.SmallInt
+  active         Boolean   @default(true)
+  endedAt        DateTime? @map("ended_at") @db.Timestamptz(6)
+  endedById      String?   @map("ended_by_id") @db.Uuid
+  createdById    String    @map("created_by_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], map: "fk_financial_series_org")
+  category     FinancialCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_financial_series_category")
+  unit         Unit?             @relation(fields: [unitId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_financial_series_unit")
+  createdBy    User              @relation("FinancialSeriesCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_financial_series_created_by")
+  endedBy      User?             @relation("FinancialSeriesEndedBy", fields: [endedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_financial_series_ended_by")
+  entries      FinancialEntry[]
+
+  @@index([organizationId, active], map: "ix_financial_series_active")
+  @@map("financial_entry_series")
+}
+
+model FinancialEntry {
+  id              String    @id @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  kind            String    @db.VarChar(7)
+  description     String    @db.VarChar(200)
+  categoryId      String    @map("category_id") @db.Uuid
+  unitId          String?   @map("unit_id") @db.Uuid
+  currency        String    @db.Char(3)
+  amountMinor     BigInt    @map("amount_minor")
+  dueDate         DateTime  @map("due_date") @db.Date
+  status          String    @default("PENDING") @db.VarChar(7)
+  seriesId        String?   @map("series_id") @db.Uuid
+  occurrenceIndex Int?      @map("occurrence_index") @db.SmallInt
+  attachmentId    String?   @unique(map: "uq_financial_entry_attachment") @map("attachment_id") @db.Uuid
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(6)
+  deletedById     String?   @map("deleted_by_id") @db.Uuid
+  createdById     String    @map("created_by_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version         Int       @default(1)
+
+  organization Organization            @relation(fields: [organizationId], references: [id], map: "fk_financial_entry_org")
+  category     FinancialCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_financial_entry_category")
+  unit         Unit?                   @relation(fields: [unitId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_financial_entry_unit")
+  series       FinancialEntrySeries?   @relation(fields: [seriesId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_financial_entry_series")
+  attachment   FinancialAttachment?    @relation(fields: [attachmentId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_financial_entry_attachment")
+  createdBy    User                    @relation("FinancialEntryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_financial_entry_created_by")
+  deletedBy    User?                   @relation("FinancialEntryDeletedBy", fields: [deletedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_financial_entry_deleted_by")
+  payments     FinancialEntryPayment[]
+
+  @@unique([seriesId, occurrenceIndex], map: "uq_financial_entry_occurrence")
+  @@index([organizationId, kind, dueDate], map: "ix_financial_entry_due")
+  @@index([organizationId, unitId, status], map: "ix_financial_entry_unit")
+  @@map("financial_entry")
+}
+
+model FinancialEntryPayment {
+  id             String    @id @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  entryId        String    @map("entry_id") @db.Uuid
+  paidOn         DateTime  @map("paid_on") @db.Date
+  method         String    @db.VarChar(20)
+  amountMinor    BigInt    @map("amount_minor")
+  currency       String    @db.Char(3)
+  recordedById   String    @map("recorded_by_id") @db.Uuid
+  recordedAt     DateTime  @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  reversedAt     DateTime? @map("reversed_at") @db.Timestamptz(6)
+  reversedById   String?   @map("reversed_by_id") @db.Uuid
+  reversalReason String?   @map("reversal_reason") @db.VarChar(500)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], map: "fk_financial_payment_org")
+  entry        FinancialEntry @relation(fields: [entryId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_financial_payment_entry")
+  recordedBy   User           @relation("FinancialPaymentRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_financial_payment_recorded_by")
+  reversedBy   User?          @relation("FinancialPaymentReversedBy", fields: [reversedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_financial_payment_reversed_by")
+
+  @@index([organizationId, paidOn], map: "ix_financial_payment_paid_on")
+  @@map("financial_entry_payment")
 }

@@ -1,13 +1,17 @@
 "use client";
 
 import {
+  Banknote,
   Building2,
   CalendarDays,
   Contact,
   FileText,
+  HandCoins,
   ListChecks,
   ShieldCheck,
   Package,
+  Receipt,
+  ScrollText,
   Wallet,
   UsersRound,
   LayoutDashboard,
@@ -46,6 +50,10 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   shield: ShieldCheck,
   wallet: Wallet,
   package: Package,
+  cash: Banknote,
+  receipt: Receipt,
+  revenue: HandCoins,
+  statement: ScrollText,
 };
 
 // Receives only the groups and items the signed-in role may see (filtered on the server).

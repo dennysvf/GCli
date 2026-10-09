@@ -201,7 +201,11 @@
       "charges": "Charges",
       "approvals": "Approvals",
       "billingSettings": "Financial",
-      "packages": "Packages"
+      "packages": "Packages",
+      "cash": "Cash register",
+      "expenses": "Expenses",
+      "revenues": "Revenues",
+      "statement": "Statement"
     },
     "roles": {
       "ADMINISTRATOR": "Administrator",

@@ -14,6 +14,9 @@ const EXPECTED: Record<string, Record<(typeof ROLES)[number], boolean>> = {
   "dashboard:read": { ADMINISTRATOR: true, MANAGER: true, FRONT_DESK: false, PROFESSIONAL: false },
   "billing:approve": { ADMINISTRATOR: true, MANAGER: true, FRONT_DESK: false, PROFESSIONAL: false },
   "billing:operate": { ADMINISTRATOR: true, MANAGER: true, FRONT_DESK: true, PROFESSIONAL: false },
+  "cash:operate": { ADMINISTRATOR: true, MANAGER: true, FRONT_DESK: true, PROFESSIONAL: false },
+  "cash:reopen": { ADMINISTRATOR: true, MANAGER: true, FRONT_DESK: false, PROFESSIONAL: false },
+  "finance:manage": { ADMINISTRATOR: true, MANAGER: true, FRONT_DESK: false, PROFESSIONAL: false },
   "professional:read-all": { ADMINISTRATOR: true, MANAGER: true, FRONT_DESK: true, PROFESSIONAL: false },
   "professional:manage": { ADMINISTRATOR: true, MANAGER: true, FRONT_DESK: false, PROFESSIONAL: false },
   "professional:manage-own-time-off": {

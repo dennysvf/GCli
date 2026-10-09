@@ -31,9 +31,10 @@ Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 17. [Eighth feature: F08 — Patient Documents](#17-eighth-feature-f08--patient-documents)
 18. [Ninth feature: F09 — Billing and Payments](#18-ninth-feature-f09--billing-and-payments)
 19. [Tenth feature: F10 — Session Packages](#19-tenth-feature-f10--session-packages)
-20. [Problems found and how they were solved](#20-problems-found-and-how-they-were-solved)
-21. [Reproducing the environment from scratch](#21-reproducing-the-environment-from-scratch)
-22. [Lessons learned](#22-lessons-learned)
+20. [Eleventh feature: F11 — Cash Register and Expenses](#20-eleventh-feature-f11--cash-register-and-expenses)
+21. [Problems found and how they were solved](#21-problems-found-and-how-they-were-solved)
+22. [Reproducing the environment from scratch](#22-reproducing-the-environment-from-scratch)
+23. [Lessons learned](#23-lessons-learned)
 
 ---
 
@@ -839,7 +840,63 @@ The decisions became **ADR-035** (opaque package links, atomic sale, append-only
 
 ---
 
-## 20. Problems found and how they were solved
+## 20. Eleventh feature: F11 — Cash Register and Expenses
+
+F11 closes the day of money: the unit's cash register (what was received, what went out of the drawer, what was counted), the clinic's expenses and other revenues, and the statement that joins everything. The central question of the specification was **where the truth about payments lives**: in billing, which the cash register only reads.
+
+### 20.1 Decisions made in the interview
+
+| Decision | Result |
+|---|---|
+| Scope | Core and Full together: the register, expenses, manual revenues, monthly recurrence and the statement |
+| Payments in the register | **Read from billing, never copied**; the closing stores a snapshot of the totals per method |
+| A payment before the register opens | Accepted, and it appears when the register opens; only a **closed** register blocks |
+| Opening balance | Suggested from the cash counted at the unit's last closing; changing it needs a reason |
+| Past days | The front desk opens only today; a manager opens a past date; nobody opens the future; the front desk can close a forgotten day |
+| Correcting a movement | Never edited or deleted: it is **reversed** with a reason and stays visible, struck through |
+| Categories | One configurable table of expense, revenue and transfer categories; "Transferência" moves cash in and out of the drawer and stays out of the statement |
+| Statement | Includes manual cash movements, starts from a previous balance and uses one currency at a time |
+| Recurrence | A monthly expense creates 12 occurrences and a daily job keeps 12 ahead until a manager ends the series |
+| Permissions | New actions: `cash:operate` (front desk and managers), `cash:reopen` and `finance:manage` (managers) |
+
+The decisions became **ADR-036** and section 5.16 of the design system. The specification and plan are in [F11-cash-register-and-expenses/](F11-cash-register-and-expenses/).
+
+### 20.2 What the database guarantees
+
+- **One register per unit and day:** a unique index; opening a day that has one returns it.
+- **Closings are immutable:** no `UPDATE` or `DELETE`; a `CHECK` ties the difference to the counted and expected cash and requires a justification of 10 characters when it is not zero.
+- **Nothing is deleted:** registers, movements, entries and payments have no `DELETE`; a movement and a payment reversal are all-or-nothing `CHECK`s; only a pending entry can be soft deleted.
+- **Closing and payments do not cross:** closing locks the register row (`FOR UPDATE`); the gate that billing calls in every payment takes the same row `FOR SHARE`.
+
+### 20.3 Implementation in 5 stages
+
+| Stage | What went in |
+|---|---|
+| 1 — Documentation and integration points | PRD, ADR-036, design system; the gate became a yes/no question with billing keeping its message; the read of payments; the three permissions |
+| 2 — Database and domain | Migration `0014_cash`; the register aggregate, expected cash, entries, recurrence dates and the statement, all pure and unit tested |
+| 3 — Use cases | Opening, movements, closing, reopening, entries, series, categories, statement, receipts and the system jobs |
+| 4 — Screens | Financeiro > Caixa, Despesas, Receitas and Extrato, and the financial categories in Configurações |
+| 5 — Finishing | The worker jobs, demo data, E2E journeys, design system review and this log |
+
+### 20.4 Problems found in F11
+
+| Problem | Cause | Solution |
+|---|---|---|
+| A payment could slip into a day being closed | Two transactions, one reading the day and one writing a payment | The gate takes the register row `FOR SHARE` inside the payment; closing reads the payments only after it holds the row `FOR UPDATE` |
+| The gate returned a cash error to billing | The message belongs to the operation that fails, not to the cash register | `isClosed` answers a boolean and billing builds its own error with the unit name |
+| A recurrence job would recreate an occurrence the user deleted | A deleted occurrence keeps its index but a naive list ignored it | The list of existing indexes includes deleted occurrences |
+| A transfer inflated the statement | Moving cash to the bank is not revenue | Transfers count in the expected cash and are filtered out of the statement |
+| Another module's catalog and a seed name clashed | The seed already had `categories` and `categoryOf` for services | The finance variables got their own names |
+
+### 20.5 What F11 left ready
+
+- **Cash registers, closings and entries** (with unit, category, currency and dates) for F12 and F13.
+- **A port with a real implementation:** `CashRegisterGate`, so a closed day refuses payments and refunds.
+- **Receipt uploads** on the same private bucket path as the documents.
+
+---
+
+## 21. Problems found and how they were solved
 
 This may be the most useful section for anyone reproducing the project. All of these problems showed up because **each stage was actually executed**, not just written.
 
@@ -862,7 +919,7 @@ This may be the most useful section for anyone reproducing the project. All of t
 
 ---
 
-## 21. Reproducing the environment from scratch
+## 22. Reproducing the environment from scratch
 
 ### Prerequisites
 
@@ -937,7 +994,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 22. Lessons learned
+## 23. Lessons learned
 
 1. **Interview before document.** One question at a time, always with a recommendation, settles more than a long document written in the dark.
 2. **End-to-end IDs** (F01 → story → criterion → test → commit) make the project traceable at no extra cost.

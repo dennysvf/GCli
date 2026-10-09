@@ -88,7 +88,8 @@ graph TD
   billing --> packages
   catalog --> packages
   patients --> packages
-  billing -. eventos .-> cash
+  billing --> cash
+  units --> cash
   patients --> documents
   professionals --> documents
   units --> documents
@@ -498,6 +499,11 @@ Cada ADR vale até ser substituído por um novo ADR. Para mudar uma decisão, ad
 - *Decisão:* O agendamento leva um `packageId` opcional dos formulários de agendar e editar para os seus eventos sem conhecer pacotes. O módulo de pacotes reage dentro da transação do agendamento: vincula sob o bloqueio de linha do pacote, ou recusa com `EventRejection` (ADR-034) quando o pacote expirou ou não tem saldo livre. A cobrança expõe a criação da cobrança de pacote, o desconto e o cancelamento como funções que recebem a transação de quem chama, para que a venda (pacote, cobrança e desconto) seja confirmada ou desfeita como um só bloco. O saldo é garantido pelo banco (um CHECK mantém débitos e perdas dentro do total, um índice único parcial permite um vínculo vivo por agendamento) e toda mudança de saldo é um movimento só de inclusão. Pacotes implementa a `ChargeExemptionPolicy` da cobrança e a `PackageLinkLookup` do agendamento, ambas declaradas com padrão inerte.
 - *Por quê:* Uma sessão debitada duas vezes ou um pacote vendido sem a cobrança é um erro financeiro. Manter o vínculo na mesma transação do agendamento elimina a janela em que existe um agendamento sem o seu pacote, e os eventos opacos evitam um ciclo entre agenda e pacotes.
 - *Contrapartida:* A transação de agendar passa a executar código de pacotes, então um handler lento atrasa o agendamento; os handlers fazem uma leitura bloqueada e uma inserção. As funções da cobrança que aceitam transação duplicam os pontos de entrada das versões independentes.
+
+**ADR-036 — Caixa: pagamentos lidos da cobrança, fechamento sob trava compartilhada e histórico só de inclusão (complementa ADR-019, ADR-022, ADR-029 e ADR-034)**
+- *Decisão:* O módulo `cash` não copia pagamentos. O dia de um caixa é a data civil no fuso da unidade, e as linhas automáticas são lidas da cobrança (`listPaymentsForCash`), agrupadas por forma de pagamento; só a forma `CASH` mexe no dinheiro físico esperado. O fechamento trava a linha do caixa (`FOR UPDATE`) e grava um fechamento imutável com os totais por forma; o `CashRegisterGate`, que a cobrança chama dentro de todo pagamento e estorno, pega a mesma linha `FOR SHARE`, então um pagamento não entra em um dia enquanto ele é fechado. O gate responde uma pergunta de sim ou não e a cobrança mantém a mensagem de caixa fechado (ADR-034). Um dia sem caixa nunca bloqueia; só um caixa fechado bloqueia. Fechamentos, reaberturas e estornos são só de inclusão: movimentações são estornadas com motivo, uma reabertura mantém os dois fechamentos, e lançamentos só são excluídos logicamente enquanto pendentes. Despesas e receitas manuais compartilham uma tabela com histórico de pagamentos e uma série mensal que um job diário mantém 12 ocorrências à frente. O extrato carrega um saldo anterior e uma só moeda (ADR-029).
+- *Por quê:* Uma contagem de caixa só é confiável se as linhas do sistema não puderem se afastar dos registros de pagamento e se um dia fechado não puder mudar por baixo dela. Ler da fonte única e serializar o fechamento com os pagamentos elimina os dois riscos sem duplicar dinheiro.
+- *Contrapartida:* A tela do caixa faz uma leitura entre módulos a cada carga, e a trava compartilhada acrescenta um pequeno custo a cada pagamento.
 
 ## 13. Evolução para SaaS
 

@@ -14,6 +14,7 @@ import {
   processClinicalAttachment,
 } from "./jobs/clinical-records";
 import { cleanupDocumentUploads, processDocumentFileJob } from "./jobs/documents";
+import { cleanupFinanceUploadsJob, extendRecurrencesJob, flagUnclosedRegistersJob } from "./jobs/cash";
 import { expirePackagesJob } from "./jobs/packages";
 import { cleanupPatientUploads } from "./jobs/patients-cleanup";
 import { sendOutboxEmail } from "./jobs/email-send";
@@ -80,6 +81,20 @@ async function main() {
     if (expired) logger.info({ expired }, "packages expired");
   });
 
+  // F11: unclosed registers, recurring expenses and abandoned receipts.
+  await boss.work(QUEUES.cashFlagUnclosed, async () => {
+    const flagged = await flagUnclosedRegistersJob();
+    if (flagged) logger.info({ flagged }, "cash registers flagged as unclosed");
+  });
+  await boss.work(QUEUES.financeRecurrence, async () => {
+    const created = await extendRecurrencesJob();
+    if (created) logger.info({ created }, "recurring entries created");
+  });
+  await boss.work(QUEUES.financeUploadsCleanup, async () => {
+    const removed = await cleanupFinanceUploadsJob();
+    if (removed) logger.info({ removed }, "abandoned finance uploads removed");
+  });
+
   // Monthly on day 1 at 03:00, and daily at 03:30 (server time).
   await boss.schedule(QUEUES.auditEnsurePartitions, "0 3 1 * *");
   await boss.schedule(QUEUES.identityCleanup, "30 3 * * *");
@@ -91,6 +106,11 @@ async function main() {
   await boss.schedule(QUEUES.documentsUploadsCleanup, "15 4 * * *");
   // F10: every 15 minutes; each organization is handled once a day, after 00:10 in its time zone.
   await boss.schedule(QUEUES.packagesExpire, "*/15 * * * *");
+  // F11: every 15 minutes each unit is checked after 00:05 of its local day; the series are
+  // extended daily at 03:10 and abandoned receipts removed daily at 04:30 (server time).
+  await boss.schedule(QUEUES.cashFlagUnclosed, "*/15 * * * *");
+  await boss.schedule(QUEUES.financeRecurrence, "10 3 * * *");
+  await boss.schedule(QUEUES.financeUploadsCleanup, "30 4 * * *");
   await boss.send(QUEUES.auditEnsurePartitions, {}, { singletonKey: "startup" });
 
   const stopOutbox = startOutboxLoop(boss);
