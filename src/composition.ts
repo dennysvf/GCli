@@ -1,4 +1,5 @@
 import { billingCatalog, registerBillingPorts, subscribeBillingEvents } from "@/modules/billing";
+import { cashCatalog, registerCashPorts } from "@/modules/cash";
 import { packagesCatalog, registerPackagesPorts, subscribePackagesEvents } from "@/modules/packages";
 import { clinicalRecordsCatalog, registerClinicalRecordsPorts } from "@/modules/clinical-records";
 import { documentsCatalog } from "@/modules/documents";
@@ -30,6 +31,7 @@ export function registerModules(): void {
   registerCatalog("documents", documentsCatalog);
   registerCatalog("billing", billingCatalog);
   registerCatalog("packages", packagesCatalog);
+  registerCatalog("cash", cashCatalog);
   subscribeServicesEvents(eventBus);
   registerServicesPorts();
   // F04: linked professionals for identity (F01) and professional counts for services (F03).
@@ -44,4 +46,6 @@ export function registerModules(): void {
   // F10: packages link appointments, debit sessions and cover the charge of linked appointments.
   subscribePackagesEvents(eventBus);
   registerPackagesPorts();
+  // F11: the cash register closes days for payments, and a unit with cash records cannot change country.
+  registerCashPorts();
 }
