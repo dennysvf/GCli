@@ -30,9 +30,10 @@ English version: [build-log.en.md](build-log.en.md).
 16. [Ambientes: desenvolvimento e produção](#16-ambientes-desenvolvimento-e-produção)
 17. [Oitava funcionalidade: F08 — Documentos do Paciente](#17-oitava-funcionalidade-f08--documentos-do-paciente)
 18. [Nona funcionalidade: F09 — Cobrança e Pagamentos](#18-nona-funcionalidade-f09--cobrança-e-pagamentos)
-19. [Problemas encontrados e como foram resolvidos](#19-problemas-encontrados-e-como-foram-resolvidos)
-20. [Como reproduzir o ambiente do zero](#20-como-reproduzir-o-ambiente-do-zero)
-21. [Lições aprendidas](#21-lições-aprendidas)
+19. [Décima funcionalidade: F10 — Pacotes de Sessões](#19-décima-funcionalidade-f10--pacotes-de-sessões)
+20. [Problemas encontrados e como foram resolvidos](#20-problemas-encontrados-e-como-foram-resolvidos)
+21. [Como reproduzir o ambiente do zero](#21-como-reproduzir-o-ambiente-do-zero)
+22. [Lições aprendidas](#22-lições-aprendidas)
 
 ---
 
@@ -785,7 +786,60 @@ O trabalho foi para o PR #25. Os jobs de qualidade, integração e imagem Docker
 
 ---
 
-## 19. Problemas encontrados e como foram resolvidos
+## 19. Décima funcionalidade: F10 — Pacotes de Sessões
+
+A F10 vende um pacote de sessões (por exemplo, 10 sessões de fisioterapia), vincula agendamentos a ele e debita uma sessão a cada atendimento concluído. Ela atravessa três módulos que não podem se conhecer (agenda, cobrança e o novo `packages`), então a especificação partiu de **quem é dono de cada fato**: a agenda é dona do agendamento, a cobrança é dona do dinheiro, o pacote é dono do saldo.
+
+### 19.1 Decisões tomadas na entrevista
+
+| Decisão | Resultado |
+|---|---|
+| Como a agenda fala com o pacote | Leva no evento um id de pacote **opaco** e um modo (`STRICT` para um agendamento, `UP_TO_BALANCE` para uma série); o tratador de pacotes vincula dentro da transação da agenda ou recusa com `EventRejection` (ADR-034) |
+| Saldo livre | Total − usadas − perdidas − vínculos abertos; vincular além disso é recusado |
+| Quando debita | Na conclusão; desfazer a conclusão devolve a sessão. Falta debita só se a organização ligou essa configuração; caso contrário o vínculo é liberado. Cancelar libera |
+| Venda | A cobrança (origem PACOTE) e o pacote nascem em **uma só transação**. Preço abaixo do modelo vira desconto da F09 (com as mesmas regras de 10% e 20%); preço acima é recusado |
+| Validade | Dias corridos, o dia da venda conta como dia 1; o gestor prorroga até 365 dias no total, só com o pacote ativo |
+| Expiração | Uma tarefa diária, depois de 00:10 no fuso de cada organização, perde as sessões não usadas; cada execução é registrada para poder repetir com segurança |
+| Cancelamento | A cobrança da venda sem pagamento é anulada na mesma transação; cobrança paga continua para o fluxo de estorno da F09 |
+| Permissões | Nenhuma ação nova: `setup:manage` para modelos, `billing:operate` para vender e vincular, `billing:approve` para prorrogar e cancelar; Profissional não tem acesso |
+
+As decisões viraram o **ADR-035** (vínculo opaco, venda atômica, razão só de inclusão) e a seção 5.15 do design system. A especificação e o plano estão em [F10-session-packages/](F10-session-packages/).
+
+### 19.2 O que o banco garante
+
+- **Sem débito duplo:** um índice único parcial permite um vínculo vivo (`LINKED` ou `DEBITED`) por agendamento.
+- **Saldos coerentes:** restrições `CHECK` sobre sessões usadas, perdidas e totais, sobre a validade e o status.
+- **O razão nunca muda:** `package_movement` não tem `UPDATE` nem `DELETE`; pacotes, modelos e vínculos não podem ser apagados.
+- **Dois vínculos simultâneos:** a linha do pacote é travada, então dois agendamentos não levam a última sessão.
+
+### 19.3 Implementação em 5 estágios
+
+| Estágio | O que entrou |
+|---|---|
+| 1 — Documentação e pontos de integração | Esclarecimentos do PRD, ADR-035, design system; a agenda carrega o vínculo e o mostra; funções da cobrança que entram na transação de quem chama (cobrança, desconto, anulação) |
+| 2 — Banco e domínio | Migração `0013_packages`; o agregado `SessionPackage` (vender, vincular, debitar, devolver, expirar, prorrogar, cancelar) com seu razão |
+| 3 — Casos de uso | Modelos, venda atômica, tratadores dos eventos do agendamento, prorrogação, cancelamento, expiração e consultas |
+| 4 — Telas | Configurações > Pacotes, os cartões de pacote do paciente com o diálogo de venda, "Usar pacote" nos formulários de agendar e editar, e a marca "Sessão 4/10" na agenda |
+| 5 — Acabamento | A tarefa de expiração no worker, dados de demonstração, jornadas E2E, revisão do design system e este diário |
+
+### 19.4 Problemas encontrados na F10
+
+| Problema | Causa | Solução |
+|---|---|---|
+| Declarar toda chave estrangeira no `schema.prisma` | O desvio no CI da F09 veio de chaves estrangeiras escritas à mão | Todas as relações da migração foram declaradas com `onUpdate: NoAction` e a checagem de desvio rodou localmente antes do PR |
+| `charge` e `patient_package` apontariam um para o outro | A cobrança conhece o pacote e o pacote conhece a cobrança | O pacote guarda a chave estrangeira para a cobrança; a cobrança guarda só o id, sem chave estrangeira |
+| A agenda não pode importar pacotes | Pacotes já dependem de eventos da agenda | Uma porta `PackageLinkLookup` na agenda com padrão inerte; pacotes registram a real na inicialização |
+| Testes falharam com "proibido" e "cedo demais" | A recepção não inicia nem conclui atendimento, e a falta exige que o atendimento já tenha começado | Os testes agem como o profissional, e um auxiliar leva o agendamento para o passado |
+
+### 19.5 O que a F10 deixou pronto
+
+- **Dados de pacote e razão** (vendido, usado, perdido, expirado, com preço e unidade) para F11, F12 e F13.
+- **Um caminho de recusa** (`EventRejection`) usado pela segunda vez, agora para proteger o saldo.
+- **A marca na agenda** e a porta `PackageLinkLookup`, que outros módulos podem reusar para decorar agendamentos.
+
+---
+
+## 20. Problemas encontrados e como foram resolvidos
 
 Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos esses problemas apareceram porque **cada etapa foi executada de verdade**, e não só escrita.
 
@@ -808,7 +862,7 @@ Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos es
 
 ---
 
-## 20. Como reproduzir o ambiente do zero
+## 21. Como reproduzir o ambiente do zero
 
 ### Pré-requisitos
 
@@ -883,7 +937,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 21. Lições aprendidas
+## 22. Lições aprendidas
 
 1. **Entrevista antes de documento.** Uma pergunta por vez, sempre com uma recomendação, resolve mais do que um documento longo escrito no escuro.
 2. **IDs de ponta a ponta** (F01 → história → critério → teste → commit) tornam o projeto rastreável sem esforço extra.

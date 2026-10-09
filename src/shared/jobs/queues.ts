@@ -9,6 +9,7 @@ export const QUEUES = {
   clinicalUploadsCleanup: "clinical-uploads-cleanup",
   documentsFileProcess: "documents-file-process",
   documentsUploadsCleanup: "documents-uploads-cleanup",
+  packagesExpire: "packages-expire",
 } as const;
 
 export type EmailJobData = { outboxId: string; type: string; payload: Record<string, unknown> };
