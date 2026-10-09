@@ -1,0 +1,40 @@
+{
+  "errors": {
+    "PACKAGE_TEMPLATE_INVALID": "Check the highlighted fields.",
+    "PACKAGE_TEMPLATE_NAME_TAKEN": "A package template with this name already exists.",
+    "PACKAGE_TEMPLATE_NOT_FOUND": "Package template not found or inactive.",
+    "PACKAGE_SERVICE_INVALID": "Choose an active service.",
+    "PACKAGE_NO_PRICE_FOR_CURRENCY": "This template has no price in {currency}. Add the price before selling in this unit.",
+    "PACKAGE_PRICE_ABOVE_TEMPLATE": "The sale price cannot be higher than the template price.",
+    "PACKAGE_SALE_FAILED": "The package sale could not be recorded. No change was saved.",
+    "PACKAGE_NOT_FOUND": "Package not found.",
+    "PACKAGE_BALANCE_EXHAUSTED": "This package has {remaining} sessions left and {linked} future appointments already linked.",
+    "PACKAGE_EXPIRED": "This package expired on {date}.",
+    "PACKAGE_EXPIRES_BEFORE": "This package is valid until {date}. Choose a date within the validity or do not use the package.",
+    "PACKAGE_NOT_ACTIVE": "This package is not active.",
+    "PACKAGE_WRONG_PATIENT_OR_SERVICE": "This package belongs to another patient or another service.",
+    "PACKAGE_HAS_LINKED_APPOINTMENTS": "There are {count} linked appointments. They will be unlinked and will generate a separate charge.",
+    "PACKAGE_EXTENSION_LIMIT": "The validity can be extended by up to 365 days in total. {days} days left.",
+    "PACKAGE_REASON_REQUIRED": "Enter the reason (at least 3 characters).",
+    "PACKAGE_STALE": "Someone else changed this package. Reload to see the latest version."
+  },
+  "validation": {
+    "invalidId": "Invalid identifier.",
+    "invalidDate": "Enter a valid date.",
+    "reasonRequired": "Enter the reason.",
+    "reasonTooLong": "The reason can have at most 500 characters.",
+    "nameRequired": "Enter the template name.",
+    "nameTooLong": "The name can have at most 80 characters.",
+    "sessionsRange": "Enter 2 to 100 sessions.",
+    "validityRange": "Enter a validity of 30 to 730 days.",
+    "priceRange": "Enter a price between 0.01 and 99,999.99.",
+    "priceRequired": "Enter the price in at least one currency.",
+    "priceCurrency": "Use only currencies of the active units.",
+    "pinFormat": "The PIN must have exactly 6 digits."
+  },
+  "status": {
+    "ACTIVE": "Active",
+    "EXPIRED": "Expired",
+    "CANCELLED": "Cancelled"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "errors": {
+    "PACKAGE_TEMPLATE_INVALID": "Verifique os campos destacados.",
+    "PACKAGE_TEMPLATE_NAME_TAKEN": "Já existe um modelo de pacote com este nome.",
+    "PACKAGE_TEMPLATE_NOT_FOUND": "Modelo de pacote não encontrado ou inativo.",
+    "PACKAGE_SERVICE_INVALID": "Escolha um serviço ativo.",
+    "PACKAGE_NO_PRICE_FOR_CURRENCY": "Este modelo não tem preço em {currency}. Cadastre o preço antes de vender nesta unidade.",
+    "PACKAGE_PRICE_ABOVE_TEMPLATE": "O preço da venda não pode ser maior que o preço do modelo.",
+    "PACKAGE_SALE_FAILED": "Não foi possível registrar a venda do pacote. Nenhuma alteração foi salva.",
+    "PACKAGE_NOT_FOUND": "Pacote não encontrado.",
+    "PACKAGE_BALANCE_EXHAUSTED": "Este pacote possui {remaining} sessões restantes e {linked} agendamentos futuros já vinculados.",
+    "PACKAGE_EXPIRED": "Este pacote expirou em {date}.",
+    "PACKAGE_EXPIRES_BEFORE": "Este pacote vale até {date}. Escolha uma data dentro da validade ou não use o pacote.",
+    "PACKAGE_NOT_ACTIVE": "Este pacote não está ativo.",
+    "PACKAGE_WRONG_PATIENT_OR_SERVICE": "Este pacote é de outro paciente ou de outro serviço.",
+    "PACKAGE_HAS_LINKED_APPOINTMENTS": "Existem {count} agendamentos vinculados. Eles serão desvinculados e passarão a gerar cobrança avulsa.",
+    "PACKAGE_EXTENSION_LIMIT": "A validade pode ser prorrogada em até 365 dias no total. Restam {days} dias.",
+    "PACKAGE_REASON_REQUIRED": "Informe o motivo (mínimo de 3 caracteres).",
+    "PACKAGE_STALE": "Este pacote foi alterado por outra pessoa. Recarregue para ver a versão mais recente."
+  },
+  "validation": {
+    "invalidId": "Identificador inválido.",
+    "invalidDate": "Informe uma data válida.",
+    "reasonRequired": "Informe o motivo.",
+    "reasonTooLong": "O motivo pode ter no máximo 500 caracteres.",
+    "nameRequired": "Informe o nome do modelo.",
+    "nameTooLong": "O nome pode ter no máximo 80 caracteres.",
+    "sessionsRange": "Informe de 2 a 100 sessões.",
+    "validityRange": "Informe uma validade de 30 a 730 dias.",
+    "priceRange": "Informe um preço entre 0,01 e 99.999,99.",
+    "priceRequired": "Informe o preço em ao menos uma moeda.",
+    "priceCurrency": "Use apenas moedas das unidades ativas.",
+    "pinFormat": "O PIN deve ter exatamente 6 dígitos."
+  },
+  "status": {
+    "ACTIVE": "Ativo",
+    "EXPIRED": "Expirado",
+    "CANCELLED": "Cancelado"
+  }
+}

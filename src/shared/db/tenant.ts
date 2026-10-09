@@ -60,6 +60,14 @@ const TENANT_MODELS = new Set<string>([
   "ChargeDiscountRequest",
   "ChargeNumberSequence",
   "DisabledPaymentMethod",
+  // F10
+  "PackageTemplate",
+  "PackageTemplatePrice",
+  "PatientPackage",
+  "PackageAppointment",
+  "PackageMovement",
+  "PackageSettings",
+  "PackageExpirationRun",
 ]);
 // The organization row itself is scoped by its id.
 const ORGANIZATION_MODEL = "Organization";
