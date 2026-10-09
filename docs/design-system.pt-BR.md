@@ -428,6 +428,16 @@ A cobrança (F09) fica no painel lateral da agenda, numa aba da página do pacie
 - **Diálogos com motivo:** estorno, cancelamento e rejeição pedem um motivo obrigatório numa área de texto, dizem a consequência em uma frase e usam o botão de perigo.
 - **PIN de aprovação:** um campo de seis dígitos com `inputMode="numeric"`, mascarado, nunca exibido em avisos ou registros.
 
+### 5.15 Pacotes de sessões
+
+Os pacotes (F10) ficam numa página de configurações, numa seção da aba Financeiro do paciente e em duas marcas na agenda. Estas regras cobrem o que as outras seções não mostram.
+- **Cartão do pacote:** um bloco com borda com o nome e o serviço do pacote, o status escrito num carimbo ("Ativo", "Expirado", "Cancelado"), uma barra de progresso com o texto "{usadas} de {total} sessões", a data de validade ("Válido até {data}"), o carimbo de pagamento da cobrança da venda e, abaixo, os agendamentos vinculados numa tabela curta (data, profissional, status). Os pacotes ativos vêm primeiro.
+- **Diálogo de venda:** seletor do modelo, o campo de preço preenchido com o preço do modelo, o preço por sessão como uma linha ao vivo e, quando o preço é menor, os campos de desconto do modal de recebimento (motivo acima de 10%, PIN do gestor ou "Enviar para aprovação" acima de 20%). "Vender pacote" é o botão primário. Depois da venda, o diálogo oferece "Receber agora".
+- **Escolha "Usar pacote":** um grupo de opções nos formulários de agendar e editar, acima das observações, com "Usar pacote ({restantes} de {total} sessões restantes)" e "Não usar pacote". Quando só um pacote serve, ele já vem selecionado. Em uma série, uma linha diz quantas sessões o pacote cobre.
+- **Marca na agenda:** um carimbo em texto "Sessão 4/10" no bloco e no painel lateral, no tom neutro; "Pacote expirado" no tom de atenção quando o agendamento foi desvinculado por expiração ou cancelamento, até a chegada ou o cancelamento.
+- **Aviso:** "Pacote com saldo financeiro em aberto" é um alerta de atenção no topo da página do paciente.
+- **Diálogos com motivo:** prorrogar e cancelar pedem um motivo obrigatório; cancelar com agendamentos vinculados mostra a frase de confirmação antes do botão de perigo.
+
 ## 6. Detalhes visuais
 
 ### 6.1 Bordas e raios

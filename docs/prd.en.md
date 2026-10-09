@@ -572,6 +572,12 @@ The differentiator is configurability without complexity: the same product serve
 - Expiration: at the end of validity, remaining sessions are forfeited and the package status becomes "Expirado"; linked future appointments are unlinked and flagged for the front desk. Manager/Administrator can extend validity (up to +365 days) with reason.
 - Package cancellation: Manager/Administrator, with reason; remaining balance is zeroed; any refund is registered through F09's refund flow.
 - Unpaid packages can be used; the patient's header shows "Pacote com saldo financeiro em aberto".
+- Clarifications (F10 specification):
+  - Linking is atomic with the booking: if the package has expired or has no free balance, the appointment is not created. In a recurring series, occurrences are linked in date order until the free balance ends and the rest are charged at check-in; the series preview says how many the package covers.
+  - Free balance = total − debited sessions − open linked appointments. Cancelling an appointment releases its session. A no-show releases it unless the organization setting debits it. Rescheduling past the expiry date is refused, and changing the appointment's service removes the link.
+  - The sale price can be lower than the template price: the difference is a discount on the sale charge, under the F09 rules (reason above 10%, manager approval above 20%). A higher price is refused. Templates have one price per currency of the organization's units, and the sale uses the selected unit's currency.
+  - Validity counts calendar days from the sale date (the sale day is day 1). Extensions add up to 365 days in total per package, only while the package is active; an expired package is not reactivated.
+  - Cancelling a package also voids the sale charge when it has no payments; with payments, the charge stays for the refund flow of F09.
 
 **Experience:**
 - Settings > Pacotes: list and form of templates.

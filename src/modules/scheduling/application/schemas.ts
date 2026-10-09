@@ -60,6 +60,8 @@ export const bookingSchema = z.object({
   startTime: time,
   durationMinutes: duration.optional(),
   notes: optionalText(NOTES_MAX, "scheduling.validation.notesTooLong"),
+  // PRD F10: a package to use for this appointment; only carried in the event.
+  packageId: id.nullish(),
   ...overrides,
 });
 export type BookingInput = z.infer<typeof bookingSchema>;
@@ -99,6 +101,8 @@ export const updateSchema = z.object({
     .max(NOTES_MAX, "scheduling.validation.notesTooLong")
     .nullish()
     .transform((value) => (value === undefined ? undefined : value || null)),
+  // PRD F10: a string links the appointment to that package, null removes the link.
+  packageId: id.nullish(),
   ...overrides,
 });
 export type UpdateInput = z.infer<typeof updateSchema>;

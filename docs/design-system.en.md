@@ -430,6 +430,16 @@ Billing (F09) lives in the agenda side panel, a tab of the patient page, the Fin
 - **Dialogs with a reason:** refund, void and rejection ask for a required reason in a text area, state the consequence in one sentence and use the danger button.
 - **Approval PIN:** a six-digit field with `inputMode="numeric"`, masked, never shown in toasts or logs.
 
+### 5.15 Session packages
+
+Packages (F10) live in a settings page, a section of the patient's Financeiro tab and two marks in the agenda. These rules cover what the other sections do not show.
+- **Package card:** a bordered block with the package name and service, the status written as a stamp ("Ativo", "Expirado", "Cancelado"), a progress bar with the text "{used} de {total} sessões", the expiry date ("Válido até {date}"), the payment stamp of the sale charge, and under it the linked appointments as a short table (date, professional, status). Active packages come first.
+- **Sale dialog:** template select, the price field pre-filled with the template price, the per-session price as a live line, and, when the price is lower, the discount fields of the receive modal (reason above 10%, manager PIN or "Enviar para aprovação" above 20%). "Vender pacote" is the primary button. After the sale, the dialog offers "Receber agora".
+- **"Usar pacote" choice:** a radio group in the booking and edit forms, above the notes, with "Usar pacote ({remaining} de {total} sessões restantes)" and "Não usar pacote". When exactly one package fits, it comes selected. In a series, a line says how many sessions the package covers.
+- **Agenda mark:** a text stamp "Sessão 4/10" on the block and in the side panel, in the neutral tone; "Pacote expirado" in the warning tone when the appointment was unlinked by an expiry or a cancellation, until it is checked in or cancelled.
+- **Notice:** "Pacote com saldo financeiro em aberto" is a warning alert at the top of the patient page.
+- **Dialogs with a reason:** extending and cancelling ask for a required reason; cancelling with linked appointments shows the confirmation sentence before the danger button.
+
 ## 6. Visual details
 
 ### 6.1 Borders and radii

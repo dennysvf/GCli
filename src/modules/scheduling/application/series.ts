@@ -307,7 +307,13 @@ export async function bookSeries(
         now,
       });
       if (!booked.ok) return booked;
-      const saved = await insertAppointment(deps, ctx, uow, booked.value);
+      const saved = await insertAppointment(
+        deps,
+        ctx,
+        uow,
+        booked.value,
+        data.packageId ? { packageId: data.packageId, mode: "UP_TO_BALANCE" } : undefined,
+      );
       if (!saved.ok) return saved;
       appointmentIds.push(booked.value.id);
     }

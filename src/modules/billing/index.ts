@@ -8,16 +8,18 @@ import type { EventBus } from "@/shared/events/event-bus";
 import { newId } from "@/shared/kernel/ids";
 import { definePort } from "@/shared/ports/registry";
 import { subscribeBillingEvents as subscribe } from "./application/appointment-handlers";
-import { createManualCharge, createPackageCharge } from "./application/charges";
+import { createManualCharge, createPackageCharge, createPackageChargeIn } from "./application/charges";
 import {
   approveDiscount,
   countPendingApprovals,
   listPendingApprovals,
   rejectDiscount,
   setDiscount,
+  setDiscountIn,
+  verifyApproval,
 } from "./application/discounts";
 import { listPaymentMethodSettings, setPaymentMethodEnabled } from "./application/payment-methods";
-import { receivePayment, refundPayment, voidCharge } from "./application/payments";
+import { receivePayment, refundPayment, voidCharge, voidChargeIn } from "./application/payments";
 import type { BillingDeps, CashRegisterGate, ChargeExemptionPolicy } from "./application/ports";
 import {
   getAppointmentCharge,
@@ -71,6 +73,15 @@ export function createBilling(adjust?: (base: BillingDeps) => BillingDeps) {
     // For F10: the charge of a package sale.
     createPackageCharge: (ctx: RequestContext, input: unknown) => createPackageCharge(deps, ctx, input),
     getChargeStatus: (ctx: RequestContext, chargeId: string) => getChargeStatus(deps, ctx, chargeId),
+    // In the caller's transaction (F10: sale and cancellation of a package).
+    createPackageChargeIn: (ctx: RequestContext, uow: UnitOfWork, input: unknown) =>
+      createPackageChargeIn(deps, ctx, uow, input),
+    setDiscountIn: (ctx: RequestContext, uow: UnitOfWork, input: Parameters<typeof setDiscountIn>[3]) =>
+      setDiscountIn(deps, ctx, uow, input),
+    voidChargeIn: (ctx: RequestContext, uow: UnitOfWork, input: { chargeId: string; reason: string }) =>
+      voidChargeIn(deps, ctx, uow, input),
+    verifyApproval: (ctx: RequestContext, approverUserId: string, pin: string) =>
+      verifyApproval(deps, ctx, approverUserId, pin),
     // Discounts and approvals
     setDiscount: (ctx: RequestContext, input: unknown) => setDiscount(deps, ctx, input),
     approveDiscount: (ctx: RequestContext, input: unknown) => approveDiscount(deps, ctx, input),

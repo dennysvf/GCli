@@ -1,8 +1,9 @@
 import { authorize } from "@/shared/authz/guard";
 import { can } from "@/shared/authz/permissions";
 import type { RequestContext } from "@/shared/context/types";
-import { withTransaction } from "@/shared/db/transaction";
-import { ok, type Result } from "@/shared/kernel/result";
+import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
+import { fail, ok, type Result } from "@/shared/kernel/result";
+import { BillingErrors } from "../domain/errors";
 import { parseInput } from "@/shared/kernel/validation";
 import { BILLING_EVENTS } from "../domain/events";
 import type { BillingDeps } from "./ports";
@@ -202,4 +203,69 @@ export async function countPendingApprovals(deps: BillingDeps, ctx: RequestConte
   if (!can(ctx, "billing:approve")) return 0;
   const counted = await withTransaction(ctx, async (uow) => ok(await deps.reads.countPending(uow)));
   return counted.ok ? counted.value : 0;
+}
+
+// For F10: the discount of a package sale, applied in the sale's own transaction. The approver's
+// PIN, when needed, was verified before the transaction (billing.verifyApproval).
+export async function setDiscountIn(
+  deps: BillingDeps,
+  ctx: RequestContext,
+  uow: UnitOfWork,
+  input: {
+    chargeId: string;
+    discount: { kind: "PERCENT" | "AMOUNT"; value: number } | null;
+    reason: string | null;
+    approverUserId?: string | null;
+    submitForApproval?: boolean;
+  },
+): Promise<Result<{ status: string; netMinor: number }>> {
+  const allowed = await authorize(ctx, "billing:operate");
+  if (!allowed.ok) return allowed;
+  const charge = await deps.charges.findById(uow, ctx.organizationId, input.chargeId, { lock: true });
+  if (!charge) return fail(BillingErrors.chargeNotFound());
+  const now = deps.clock();
+  const before = copyProps(charge);
+  const result = charge.setDiscount({
+    discount: input.discount,
+    reason: input.reason,
+    actor: { userId: ctx.user.id, canApprove: can(ctx, "billing:approve") },
+    approverUserId: input.approverUserId ?? null,
+    submitForApproval: input.submitForApproval ?? false,
+    requestId: deps.newId(),
+    now,
+  });
+  if (!result.ok) return result;
+  if ((await deps.charges.save(uow, charge)) === "STALE") return fail(BillingErrors.chargeStale());
+  const request = result.value.request;
+  await uow.audit.record({
+    action: "UPDATE",
+    entityType: "charge",
+    entityId: charge.id,
+    summary: "Desconto aplicado",
+    changes: chargeChanges(before, charge.snapshot),
+    metadata: {
+      number: charge.snapshot.number,
+      ...(request
+        ? { requestId: request.id, requestStatus: request.status, approvalMethod: request.method }
+        : {}),
+    },
+  });
+  if (request) {
+    const type =
+      request.status === "PENDING" ? BILLING_EVENTS.discountRequested : BILLING_EVENTS.discountApproved;
+    await uow.publish(billingEvent(type, chargeEventPayload(charge, ctx.user.id), now));
+  }
+  return ok({ status: charge.snapshot.status, netMinor: charge.snapshot.netMinor });
+}
+
+// PRD F09 approval by PIN, for callers that apply a discount inside their own transaction (F10).
+export async function verifyApproval(
+  deps: BillingDeps,
+  ctx: RequestContext,
+  approverUserId: string,
+  pin: string,
+): Promise<Result<{ approverUserId: string }>> {
+  const allowed = await authorize(ctx, "billing:operate");
+  if (!allowed.ok) return allowed;
+  return deps.approvals.verify(ctx, approverUserId, pin);
 }

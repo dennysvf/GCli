@@ -572,6 +572,12 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 - Expiração: ao fim da validade, as sessões restantes são perdidas e o status do pacote passa a "Expirado"; agendamentos futuros vinculados são desvinculados e sinalizados para a recepção. Gestor/Administrador pode estender a validade (até +365 dias) com motivo.
 - Cancelamento de pacote: Gestor/Administrador, com motivo; o saldo restante é zerado; qualquer estorno é registrado por meio do fluxo de estorno de F09.
 - Pacotes não pagos podem ser usados; o cabeçalho do paciente mostra "Pacote com saldo financeiro em aberto".
+- Esclarecimentos (especificação do F10):
+  - O vínculo é atômico com o agendamento: se o pacote expirou ou não tem saldo livre, o agendamento não é criado. Em uma série recorrente, as ocorrências são vinculadas em ordem de data até acabar o saldo livre e as demais são cobradas na chegada; a prévia da série informa quantas o pacote cobre.
+  - Saldo livre = total − sessões debitadas − agendamentos vinculados em aberto. Cancelar um agendamento libera a sessão. A falta libera, a menos que a configuração da organização debite. Reagendar para depois da validade é recusado, e trocar o serviço do agendamento remove o vínculo.
+  - O preço da venda pode ser menor que o do modelo: a diferença vira desconto na cobrança da venda, com as regras da F09 (motivo acima de 10%, aprovação do gestor acima de 20%). Preço maior é recusado. Os modelos têm um preço por moeda das unidades da organização, e a venda usa a moeda da unidade selecionada.
+  - A validade conta dias corridos a partir da data da venda (o dia da venda é o dia 1). As prorrogações somam até 365 dias no total por pacote, só enquanto o pacote está ativo; um pacote expirado não é reativado.
+  - Cancelar um pacote também cancela a cobrança da venda quando ela não tem pagamentos; com pagamentos, a cobrança fica para o fluxo de estorno da F09.
 
 **Experiência:**
 - Configurações > Pacotes: lista e formulário de modelos.
