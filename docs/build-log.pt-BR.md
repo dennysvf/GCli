@@ -31,9 +31,10 @@ English version: [build-log.en.md](build-log.en.md).
 17. [Oitava funcionalidade: F08 — Documentos do Paciente](#17-oitava-funcionalidade-f08--documentos-do-paciente)
 18. [Nona funcionalidade: F09 — Cobrança e Pagamentos](#18-nona-funcionalidade-f09--cobrança-e-pagamentos)
 19. [Décima funcionalidade: F10 — Pacotes de Sessões](#19-décima-funcionalidade-f10--pacotes-de-sessões)
-20. [Problemas encontrados e como foram resolvidos](#20-problemas-encontrados-e-como-foram-resolvidos)
-21. [Como reproduzir o ambiente do zero](#21-como-reproduzir-o-ambiente-do-zero)
-22. [Lições aprendidas](#22-lições-aprendidas)
+20. [Décima primeira funcionalidade: F11 — Caixa e Despesas](#20-décima-primeira-funcionalidade-f11--caixa-e-despesas)
+21. [Problemas encontrados e como foram resolvidos](#21-problemas-encontrados-e-como-foram-resolvidos)
+22. [Como reproduzir o ambiente do zero](#22-como-reproduzir-o-ambiente-do-zero)
+23. [Lições aprendidas](#23-lições-aprendidas)
 
 ---
 
@@ -839,7 +840,63 @@ As decisões viraram o **ADR-035** (vínculo opaco, venda atômica, razão só d
 
 ---
 
-## 20. Problemas encontrados e como foram resolvidos
+## 20. Décima primeira funcionalidade: F11 — Caixa e Despesas
+
+A F11 fecha o dia do dinheiro: o caixa da unidade (o que entrou, o que saiu da gaveta, o que foi contado), as despesas e outras receitas da clínica, e o extrato que junta tudo. A pergunta central da especificação foi **onde mora a verdade sobre os pagamentos**: na cobrança, que o caixa apenas lê.
+
+### 20.1 Decisões tomadas na entrevista
+
+| Decisão | Resultado |
+|---|---|
+| Escopo | Núcleo e completo juntos: o caixa, despesas, receitas manuais, recorrência mensal e o extrato |
+| Pagamentos no caixa | **Lidos da cobrança, nunca copiados**; o fechamento guarda um retrato dos totais por forma de pagamento |
+| Pagamento antes de abrir o caixa | Aceito, e aparece quando o caixa abrir; só um caixa **fechado** bloqueia |
+| Saldo de abertura | Sugerido a partir do dinheiro contado no último fechamento da unidade; alterá-lo exige motivo |
+| Dias passados | A recepção abre só o de hoje; o gestor abre uma data passada; ninguém abre o futuro; a recepção pode fechar um dia esquecido |
+| Corrigir uma movimentação | Nunca editada nem apagada: é **estornada** com motivo e continua visível, riscada |
+| Categorias | Uma tabela configurável de categorias de despesa, receita e transferência; "Transferência" move dinheiro para dentro e para fora da gaveta e fica fora do extrato |
+| Extrato | Inclui as movimentações manuais do caixa, começa em um saldo anterior e usa uma moeda por vez |
+| Recorrência | Uma despesa mensal cria 12 ocorrências e um job diário mantém 12 à frente até um gestor encerrar a série |
+| Permissões | Ações novas: `cash:operate` (recepção e gestores), `cash:reopen` e `finance:manage` (gestores) |
+
+As decisões viraram o **ADR-036** e a seção 5.16 do design system. A especificação e o plano estão em [F11-cash-register-and-expenses/](F11-cash-register-and-expenses/).
+
+### 20.2 O que o banco garante
+
+- **Um caixa por unidade e dia:** um índice único; abrir um dia que já tem caixa devolve o existente.
+- **Fechamentos são imutáveis:** sem `UPDATE` nem `DELETE`; um `CHECK` liga a diferença ao dinheiro contado e ao esperado e exige justificativa de 10 caracteres quando ela não é zero.
+- **Nada é apagado:** caixas, movimentações, lançamentos e pagamentos não têm `DELETE`; o estorno de uma movimentação e de um pagamento são `CHECK`s de tudo ou nada; só um lançamento pendente pode ser excluído logicamente.
+- **Fechamento e pagamentos não se cruzam:** o fechamento trava a linha do caixa (`FOR UPDATE`); o gate que a cobrança chama em todo pagamento pega a mesma linha `FOR SHARE`.
+
+### 20.3 Implementação em 5 estágios
+
+| Estágio | O que entrou |
+|---|---|
+| 1 — Documentação e pontos de integração | PRD, ADR-036, design system; o gate virou uma pergunta de sim ou não, com a cobrança mantendo sua mensagem; a leitura de pagamentos; as três permissões |
+| 2 — Banco e domínio | Migração `0014_cash`; o agregado do caixa, o dinheiro esperado, lançamentos, datas da recorrência e o extrato, tudo puro e com testes unitários |
+| 3 — Casos de uso | Abertura, movimentações, fechamento, reabertura, lançamentos, séries, categorias, extrato, comprovantes e os jobs de sistema |
+| 4 — Telas | Financeiro > Caixa, Despesas, Receitas e Extrato, e as categorias financeiras em Configurações |
+| 5 — Acabamento | Os jobs do worker, dados de demonstração, jornadas E2E, revisão do design system e este diário |
+
+### 20.4 Problemas encontrados na F11
+
+| Problema | Causa | Solução |
+|---|---|---|
+| Um pagamento podia entrar em um dia que estava sendo fechado | Duas transações, uma lendo o dia e outra gravando um pagamento | O gate pega a linha do caixa `FOR SHARE` dentro do pagamento; o fechamento lê os pagamentos só depois de segurar a linha `FOR UPDATE` |
+| O gate devolvia um erro do caixa para a cobrança | A mensagem pertence à operação que falha, não ao caixa | `isClosed` responde um booleano e a cobrança monta o próprio erro com o nome da unidade |
+| O job de recorrência recriaria uma ocorrência que o usuário excluiu | A ocorrência excluída mantém o índice, mas uma lista ingênua a ignorava | A lista de índices existentes inclui as ocorrências excluídas |
+| Uma transferência inflava o extrato | Levar dinheiro ao banco não é receita | Transferências contam no dinheiro esperado e são filtradas do extrato |
+| Nomes do seed colidiram | O seed já tinha `categories` e `categoryOf` para serviços | As variáveis financeiras ganharam nomes próprios |
+
+### 20.5 O que a F11 deixou pronto
+
+- **Caixas, fechamentos e lançamentos** (com unidade, categoria, moeda e datas) para a F12 e a F13.
+- **Uma porta com implementação real:** `CashRegisterGate`, então um dia fechado recusa pagamentos e estornos.
+- **Envio de comprovantes** no mesmo caminho do armazenamento privado dos documentos.
+
+---
+
+## 21. Problemas encontrados e como foram resolvidos
 
 Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos esses problemas apareceram porque **cada etapa foi executada de verdade**, e não só escrita.
 
@@ -862,7 +919,7 @@ Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos es
 
 ---
 
-## 21. Como reproduzir o ambiente do zero
+## 22. Como reproduzir o ambiente do zero
 
 ### Pré-requisitos
 
@@ -937,7 +994,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 22. Lições aprendidas
+## 23. Lições aprendidas
 
 1. **Entrevista antes de documento.** Uma pergunta por vez, sempre com uma recomendação, resolve mais do que um documento longo escrito no escuro.
 2. **IDs de ponta a ponta** (F01 → história → critério → teste → commit) tornam o projeto rastreável sem esforço extra.

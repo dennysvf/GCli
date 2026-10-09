@@ -2,6 +2,7 @@ import { hash } from "@node-rs/argon2";
 import { parseArgs } from "node:util";
 import { registerModules } from "@/composition";
 import { billing } from "@/modules/billing";
+import { cash } from "@/modules/cash";
 import { documents } from "@/modules/documents";
 import { packages } from "@/modules/packages";
 import { patients } from "@/modules/patients";
@@ -785,6 +786,90 @@ async function main(): Promise<number> {
   });
   if (unpaidSale.ok) packageCount += 1;
 
+  // Cash register and finances (PRD F11): yesterday closed with a justified difference, today open
+  // with a movement, an overdue expense, a recurring rent and a revenue already received.
+  const financeCategories = must(await cash.listCategories(ctx), "listCategories");
+  const financeCategoryOf = (kind: "EXPENSE" | "REVENUE", name: string) => {
+    const found = financeCategories.find((item) => item.kind === kind && item.name === name);
+    if (!found) throw new Error(`categoria ${name} ausente`);
+    return found.id;
+  };
+  const businessToday = dateInTimeZone(new Date(), main.timeZone);
+  const yesterday = must(
+    await cash.openRegister(ctx, {
+      unitId: main.id,
+      businessDate: addDays(businessToday, -1),
+      openingMinor: 20_000,
+      openingReason: "Saldo inicial da demonstração",
+    }),
+    "openRegister",
+  ).register;
+  must(
+    await cash.recordMovement(ctx, {
+      registerId: yesterday.id,
+      direction: "OUT",
+      amountMinor: 4_590,
+      description: "Compra de material de limpeza",
+      categoryId: financeCategoryOf("EXPENSE", "Materiais"),
+    }),
+    "recordMovement",
+  );
+  must(
+    await cash.closeRegister(ctx, {
+      registerId: yesterday.id,
+      countedMinor: 15_000,
+      justification: "Troco dado a mais para um paciente",
+    }),
+    "closeRegister",
+  );
+  const todayRegister = must(
+    await cash.openRegister(ctx, { unitId: main.id, businessDate: businessToday, openingMinor: 15_000 }),
+    "openRegister",
+  ).register;
+  must(
+    await cash.recordMovement(ctx, {
+      registerId: todayRegister.id,
+      direction: "IN",
+      amountMinor: 2_000,
+      description: "Venda de brindes na recepção",
+      categoryId: financeCategoryOf("REVENUE", "Venda de produtos"),
+    }),
+    "recordMovement",
+  );
+  const entry = (overrides: Record<string, unknown>) =>
+    cash.createEntry(ctx, {
+      kind: "EXPENSE",
+      unitId: main.id,
+      currency: main.currency,
+      categoryId: financeCategoryOf("EXPENSE", "Utilidades"),
+      ...overrides,
+    });
+  must(
+    await entry({ description: "Conta de luz", amountMinor: 38_000, dueDate: addDays(businessToday, -5) }),
+    "createEntry",
+  );
+  must(
+    await entry({
+      description: "Aluguel da sala 3",
+      amountMinor: 350_000,
+      categoryId: financeCategoryOf("EXPENSE", "Aluguel"),
+      dueDate: addDays(businessToday, 5),
+      repeatMonthly: true,
+    }),
+    "createEntry",
+  );
+  must(
+    await entry({
+      kind: "REVENUE",
+      description: "Aluguel de sala para palestra",
+      amountMinor: 60_000,
+      categoryId: financeCategoryOf("REVENUE", "Aluguel de sala"),
+      dueDate: businessToday,
+      paid: { paidOn: businessToday, method: "PIX" },
+    }),
+    "createEntry",
+  );
+
   console.log("Dados de demonstração criados:");
   console.log(
     `- 5 serviços, 4 profissionais, ${patientIds.length} pacientes, ${booked} agendamentos avulsos`,
@@ -795,6 +880,9 @@ async function main(): Promise<number> {
   console.log(`- ${documentCount} documentos de pacientes (enviados, clínicos e uma declaração emitida)`);
   console.log(
     `- ${packageCount} pacotes vendidos (um pago, com sessões vinculadas, e um com saldo financeiro em aberto)`,
+  );
+  console.log(
+    "- caixa de ontem fechado com diferença justificada, caixa de hoje aberto, despesas (uma vencida, uma recorrente) e uma receita",
   );
   console.log(`- cobranças com ${paymentCount} pagamentos, um desconto aguardando aprovação e um estorno`);
   console.log(
