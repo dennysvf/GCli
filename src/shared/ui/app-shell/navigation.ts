@@ -18,6 +18,10 @@ export type NavIcon =
   | "file-text"
   | "wallet"
   | "package"
+  | "cash"
+  | "receipt"
+  | "revenue"
+  | "statement"
   | "shield";
 
 export const NAVIGATION: NavGroup[] = [
@@ -39,6 +43,10 @@ export const NAVIGATION: NavGroup[] = [
     items: [
       { href: "/financial/charges", labelKey: "charges", icon: "wallet", anyOf: ["billing:operate"] },
       { href: "/financial/approvals", labelKey: "approvals", icon: "list", anyOf: ["billing:approve"] },
+      { href: "/financial/cash", labelKey: "cash", icon: "cash", anyOf: ["cash:operate"] },
+      { href: "/financial/expenses", labelKey: "expenses", icon: "receipt", anyOf: ["finance:manage"] },
+      { href: "/financial/revenues", labelKey: "revenues", icon: "revenue", anyOf: ["finance:manage"] },
+      { href: "/financial/statement", labelKey: "statement", icon: "statement", anyOf: ["finance:manage"] },
     ],
   },
   {

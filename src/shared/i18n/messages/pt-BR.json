@@ -201,7 +201,11 @@
       "charges": "Cobranças",
       "approvals": "Aprovações",
       "billingSettings": "Financeiro",
-      "packages": "Pacotes"
+      "packages": "Pacotes",
+      "cash": "Caixa",
+      "expenses": "Despesas",
+      "revenues": "Receitas",
+      "statement": "Extrato"
     },
     "roles": {
       "ADMINISTRATOR": "Administrador",

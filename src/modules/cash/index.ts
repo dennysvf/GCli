@@ -107,5 +107,7 @@ export type { CategoryRecord, CategoryKind } from "./application/ports";
 export type { UploadIntent } from "./application/attachments";
 export type { EntryList, EntryView, CreatedEntry } from "./application/entries";
 export type { CloseResult, MovementResult, OpenResult } from "./application/registers";
-export type { StatementView } from "./application/statement";
+export type { StatementView as StatementData } from "./application/statement";
 export type { DayLine, HistoryItem, RegisterDay, RegisterView } from "./application/views";
+export { CashRegisterView, CategoriesPanel, EntriesView, StatementView } from "./client";
+export type { CashActions, EntryFields, FinanceActions } from "./client";

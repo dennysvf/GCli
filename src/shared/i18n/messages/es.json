@@ -201,7 +201,11 @@
       "charges": "Cobros",
       "approvals": "Aprobaciones",
       "billingSettings": "Finanzas",
-      "packages": "Paquetes"
+      "packages": "Paquetes",
+      "cash": "Caja",
+      "expenses": "Gastos",
+      "revenues": "Ingresos",
+      "statement": "Extracto"
     },
     "roles": {
       "ADMINISTRATOR": "Administrador",
