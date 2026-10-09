@@ -86,6 +86,8 @@ graph TD
   scheduling -. eventos .-> billing
   scheduling -. eventos .-> packages
   billing --> packages
+  catalog --> packages
+  patients --> packages
   billing -. eventos .-> cash
   patients --> documents
   professionals --> documents
@@ -491,6 +493,11 @@ Cada ADR vale até ser substituído por um novo ADR. Para mudar uma decisão, ad
 - *Decisão:* Handlers síncronos de eventos podem recusar a operação que publicou o evento lançando `EventRejection`, que carrega um `DomainError`; `withTransaction` desfaz tudo e o devolve como um `Result` de falha. A cobrança usa isso para que uma cobrança paga bloqueie desfazer a chegada, sob o mesmo bloqueio de linha que os pagamentos usam. A aprovação em linha de descontos grandes usa um PIN pessoal de 6 dígitos guardado como hash argon2 no usuário, com bloqueio após 5 falhas; a verificação roda em transação própria para que as tentativas erradas sejam contadas mesmo quando a alteração da cobrança falha. As regras de dinheiro também são garantidas pelo banco: um CHECK mantém o valor pago dentro do líquido, um índice único parcial permite uma cobrança viva por agendamento, uma chave estrangeira composta liga o pagamento à moeda da cobrança, a chave de idempotência é chave primária e pagamentos nunca são apagados. A cobrança declara as portas `ChargeExemptionPolicy` (F10) e `CashRegisterGate` (F11) com padrões inertes, e o módulo de unidades ganha a porta `UnitFinancialRecords` para que uma unidade com cobranças não mude de país.
 - *Por quê:* Um erro na cobrança vira divergência financeira, então as invariantes devem valer qualquer que seja a aplicação. Um handler que recusa evita uma porta do agendamento que pergunta à cobrança antes de desfazer, e mantém o agendamento sem conhecer cobranças. Um PIN é rápido na recepção e nunca é a senha de login.
 - *Contrapartida:* Um handler que lança `EventRejection` interrompe a operação inteira, então só deve ser usado para recusas de negócio esperadas. PINs são mais fracos que senhas, o que o bloqueio, a regra de PIN fraco e a auditoria compensam.
+
+**ADR-035 — Pacotes de sessões: vínculos opacos, venda atômica e livro-razão só de inclusão (complementa ADR-007, ADR-022 e ADR-034)**
+- *Decisão:* O agendamento leva um `packageId` opcional dos formulários de agendar e editar para os seus eventos sem conhecer pacotes. O módulo de pacotes reage dentro da transação do agendamento: vincula sob o bloqueio de linha do pacote, ou recusa com `EventRejection` (ADR-034) quando o pacote expirou ou não tem saldo livre. A cobrança expõe a criação da cobrança de pacote, o desconto e o cancelamento como funções que recebem a transação de quem chama, para que a venda (pacote, cobrança e desconto) seja confirmada ou desfeita como um só bloco. O saldo é garantido pelo banco (um CHECK mantém débitos e perdas dentro do total, um índice único parcial permite um vínculo vivo por agendamento) e toda mudança de saldo é um movimento só de inclusão. Pacotes implementa a `ChargeExemptionPolicy` da cobrança e a `PackageLinkLookup` do agendamento, ambas declaradas com padrão inerte.
+- *Por quê:* Uma sessão debitada duas vezes ou um pacote vendido sem a cobrança é um erro financeiro. Manter o vínculo na mesma transação do agendamento elimina a janela em que existe um agendamento sem o seu pacote, e os eventos opacos evitam um ciclo entre agenda e pacotes.
+- *Contrapartida:* A transação de agendar passa a executar código de pacotes, então um handler lento atrasa o agendamento; os handlers fazem uma leitura bloqueada e uma inserção. As funções da cobrança que aceitam transação duplicam os pontos de entrada das versões independentes.
 
 ## 13. Evolução para SaaS
 

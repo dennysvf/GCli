@@ -17,6 +17,7 @@ export type NavIcon =
   | "list"
   | "file-text"
   | "wallet"
+  | "package"
   | "shield";
 
 export const NAVIGATION: NavGroup[] = [
@@ -67,6 +68,7 @@ export const NAVIGATION: NavGroup[] = [
       },
       { href: "/settings/documents", labelKey: "documents", icon: "file-text", anyOf: ["setup:manage"] },
       { href: "/settings/billing", labelKey: "billingSettings", icon: "wallet", anyOf: ["setup:manage"] },
+      { href: "/settings/packages", labelKey: "packages", icon: "package", anyOf: ["setup:manage"] },
       {
         href: "/settings/privacy-terms",
         labelKey: "privacyTerms",

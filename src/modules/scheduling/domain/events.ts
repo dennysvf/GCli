@@ -34,6 +34,8 @@ export const TRANSITION_EVENTS: Record<Exclude<Transition, "CANCEL">, string> = 
   NO_SHOW: SCHEDULING_EVENTS.markedNoShow,
 };
 
+export type PackageLinkRequest = { packageId: string | null; mode: "STRICT" | "UP_TO_BALANCE" };
+
 export type AppointmentEventPayload = {
   appointmentId: string;
   status: AppointmentStatus;
@@ -48,12 +50,20 @@ export type AppointmentEventPayload = {
   priceMinor: number;
   currency: string;
   actorUserId: string;
+  packageLink?: PackageLinkRequest;
 };
 
 export function appointmentEvent(
   type: string,
   props: Readonly<AppointmentProps>,
-  context: { previousStatus: AppointmentStatus | null; actorUserId: string; now: Date },
+  context: {
+    previousStatus: AppointmentStatus | null;
+    actorUserId: string;
+    now: Date;
+    // PRD F10: the package chosen when booking or editing. Scheduling only carries it; the
+    // packages module reacts (a string links, null removes it, absent leaves the link as it is).
+    packageLink?: PackageLinkRequest;
+  },
 ): AppointmentEvent {
   const payload: AppointmentEventPayload = {
     appointmentId: props.id,
@@ -69,6 +79,7 @@ export function appointmentEvent(
     priceMinor: props.priceMinor,
     currency: props.currency,
     actorUserId: context.actorUserId,
+    ...(context.packageLink ? { packageLink: context.packageLink } : {}),
   };
   return { type, occurredAt: context.now, payload };
 }

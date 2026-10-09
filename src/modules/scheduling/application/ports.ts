@@ -221,11 +221,20 @@ export interface ClinicalNoteLookup {
   ): Promise<Map<string, ClinicalNoteState>>;
 }
 
+// The package session of each appointment, provided by packages (F10). Until it registers, no
+// appointment is linked, so the agenda shows no mark (ADR-007, ADR-022).
+export type PackageLinkState = { packageId: string; session: number; total: number; flagged: boolean };
+
+export interface PackageLinkLookup {
+  linkStates(organizationId: string, appointmentIds: string[]): Promise<Map<string, PackageLinkState>>;
+}
+
 export type SchedulingDeps = {
   appointments: AppointmentRepository;
   series: SeriesRepository;
   directory: SchedulingDirectory;
   pdf: AgendaPdfRenderer;
   clinicalNotes: () => ClinicalNoteLookup;
+  packageLinks: () => PackageLinkLookup;
   clock: () => Date;
 };

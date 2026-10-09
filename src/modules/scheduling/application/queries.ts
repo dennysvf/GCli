@@ -34,6 +34,8 @@ export type AgendaItem = {
   seriesIndex: number | null;
   notes: string | null;
   price: { amountMinor: number; currency: string };
+  // PRD F10: "Sessão 4/10" for an appointment linked to a package.
+  package: { packageId: string; session: number; total: number; flagged: boolean } | null;
   updatedAt: string;
   version: number;
 };
@@ -89,6 +91,10 @@ export async function toItems(
     byId(rooms),
     byId(units),
   ];
+  const links = await deps.packageLinks().linkStates(
+    ctx.organizationId,
+    records.map((row) => row.id),
+  );
   return records.map((row) => {
     const patient = patientMap.get(row.patientId);
     const service = serviceMap.get(row.serviceId);
@@ -122,6 +128,7 @@ export async function toItems(
       seriesIndex: row.seriesIndex,
       notes: row.notes,
       price: { amountMinor: row.priceMinor, currency: row.currency },
+      package: links.get(row.id) ?? null,
       updatedAt: row.updatedAt.toISOString(),
       version: row.version,
     };

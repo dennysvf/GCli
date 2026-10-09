@@ -30,6 +30,7 @@ import { AppointmentsTable } from "./appointments-table";
 import {
   AppointmentPanel,
   type AppointmentActions,
+  type PackageChoiceSlot,
   type PanelSection,
   type Permissions,
 } from "./appointment-panel";
@@ -66,6 +67,8 @@ export type AgendaViewProps = {
   actions: BookingActions & AppointmentActions;
   // The "Cobrança" section of the side panel (F09), composed by the page.
   chargeSection?: PanelSection | undefined;
+  // The "Usar pacote" choice of the booking and edit forms (F10), composed by the page.
+  packageSlot?: PackageChoiceSlot | undefined;
 };
 
 type Drop = { item: AgendaItem; column: GridColumn; minute: number; findings: FindingDto[] };
@@ -390,6 +393,7 @@ export function AgendaView(props: AgendaViewProps) {
           canRegisterPatient={permissions.canRegisterPatient}
           patientForm={props.patientForm}
           actions={actions}
+          packageSlot={props.packageSlot}
           onClose={() => setBooking(null)}
           onBooked={() => {
             setBooking(null);
@@ -410,6 +414,7 @@ export function AgendaView(props: AgendaViewProps) {
           permissions={permissions}
           actions={actions}
           chargeSection={props.chargeSection}
+          packageSlot={props.packageSlot}
           onChanged={() => {
             void agenda.refresh();
             if (state.view === "list") router.refresh();

@@ -125,6 +125,9 @@ export async function updateAppointment(
           previousStatus: before.status,
           actorUserId: ctx.user.id,
           now: deps.clock(),
+          ...(data.packageId !== undefined
+            ? { packageLink: { packageId: data.packageId, mode: "STRICT" as const } }
+            : {}),
         }),
       ],
     });

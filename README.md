@@ -84,7 +84,8 @@ CLAUDE.md         Regras de engenharia resumidas para desenvolvimento assistido 
 - [x] F07 — Registro do atendimento clínico
 - [x] F08 — Documentos do paciente
 - [x] F09 — Cobrança e pagamentos
-- [ ] F10 em diante, seguindo as ondas de execução do PRD
+- [x] F10 — Pacotes de sessões
+- [ ] F11 em diante, seguindo as ondas de execução do PRD
 - [ ] Deploy de uma versão de demonstração
 
 ## Como rodar localmente
@@ -102,7 +103,7 @@ npm run dev:worker            # em outro terminal: envia os e-mails
 npm run seed:demo             # opcional, depois de aceitar o convite: dados de demonstração
 ```
 
-O convite do administrador chega no Mailpit (http://localhost:8025). Testes: `npm test`, `npm run test:integration` e `npm run test:e2e`. Para rodar tudo em contêineres: `docker compose --profile app up -d --build` (http://localhost:3000). O passo a passo completo está no [diário de bordo](docs/build-log.pt-BR.md#20-como-reproduzir-o-ambiente-do-zero).
+O convite do administrador chega no Mailpit (http://localhost:8025). Testes: `npm test`, `npm run test:integration` e `npm run test:e2e`. Para rodar tudo em contêineres: `docker compose --profile app up -d --build` (http://localhost:3000). O passo a passo completo está no [diário de bordo](docs/build-log.pt-BR.md#21-como-reproduzir-o-ambiente-do-zero).
 
 ### Ambientes: desenvolvimento e produção
 

@@ -222,7 +222,10 @@
     "serviceOption": "{name} · {minutes} min · {price}",
     "dragOver": "Over {column}.",
     "openRecord": "Open clinical record",
-    "recordReminder": "You have not finalized the record of this appointment yet."
+    "recordReminder": "You have not finalized the record of this appointment yet.",
+    "package": "Package",
+    "packageSession": "Session {session}/{total}",
+    "packageFlagged": "Package expired"
   },
   "findings": {
     "SCHEDULING_PROFESSIONAL_CONFLICT": "{professional} already has an appointment from {start} to {end}. Do you want to record it as an overbooking?",

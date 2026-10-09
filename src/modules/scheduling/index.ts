@@ -18,7 +18,7 @@ import {
 import { changeAppointmentStatus } from "./application/change-status";
 import { previewConflicts } from "./application/check-conflicts";
 import { findNextAvailableSlots } from "./application/find-available-slots";
-import type { ClinicalNoteLookup, SchedulingDeps } from "./application/ports";
+import type { ClinicalNoteLookup, PackageLinkLookup, SchedulingDeps } from "./application/ports";
 import { getAgenda, getAppointment, listAppointments, listPatientAppointments } from "./application/queries";
 import { rescheduleAppointment } from "./application/reschedule-appointment";
 import { bookSeries, editSeries, previewSeries, previewSeriesEdit } from "./application/series";
@@ -26,6 +26,7 @@ import { updateAppointment } from "./application/update-appointment";
 import { reactPdfAgendaRenderer } from "./infrastructure/agenda-pdf";
 import { schedulingDirectory } from "./infrastructure/directory";
 import { noClinicalNotes } from "./infrastructure/no-clinical-notes";
+import { noPackageLinks } from "./infrastructure/no-package-links";
 import {
   appointmentsForRecords,
   getAppointmentForRecord,
@@ -43,12 +44,16 @@ import {
 // F07 registers the real lookup (ADR-022); until then no appointment has a note.
 const clinicalNoteLookup = definePort<ClinicalNoteLookup>("scheduling.ClinicalNoteLookup", noClinicalNotes);
 
+// F10 registers the real lookup (ADR-022); until then no appointment is linked to a package.
+const packageLinkLookup = definePort<PackageLinkLookup>("scheduling.PackageLinkLookup", noPackageLinks);
+
 const deps: SchedulingDeps = {
   appointments: prismaAppointmentRepository,
   series: prismaSeriesRepository,
   directory: schedulingDirectory,
   pdf: reactPdfAgendaRenderer,
   clinicalNotes: () => clinicalNoteLookup.get(),
+  packageLinks: () => packageLinkLookup.get(),
   clock: () => new Date(),
 };
 
@@ -80,6 +85,8 @@ export const scheduling = {
   appointmentsForRecords,
   registerClinicalNoteLookup: (implementation: ClinicalNoteLookup | null) =>
     clinicalNoteLookup.register(implementation),
+  registerPackageLinkLookup: (implementation: PackageLinkLookup | null) =>
+    packageLinkLookup.register(implementation),
   // Cancellation reasons
   listCancellationReasons: (ctx: RequestContext, options?: { activeOnly?: boolean }) =>
     listCancellationReasons(ctx, options),
@@ -115,11 +122,17 @@ export type { FindingDto } from "./application/booking";
 export type { SeriesPreview, OccurrencePreview } from "./application/series";
 export type { CancellationReasonItem } from "./application/cancellation-reasons";
 export type { AvailableSlotDto } from "./application/find-available-slots";
-export type { ClinicalNoteLookup, ClinicalNoteState } from "./application/ports";
+export type {
+  ClinicalNoteLookup,
+  ClinicalNoteState,
+  PackageLinkLookup,
+  PackageLinkState,
+} from "./application/ports";
+export type { PackageLinkRequest } from "./domain/events";
 export type { AppointmentForList, AppointmentForRecord } from "./infrastructure/records-reads";
 export { schedulingCatalog } from "./messages/catalog";
 export { AgendaView, type AgendaActions, type AgendaViewProps } from "./ui/agenda-view";
-export type { PanelSection } from "./ui/appointment-panel";
+export type { PackageChoiceSlot, PanelSection } from "./ui/appointment-panel";
 export type { AgendaBy, AgendaViewKind, ToolbarState } from "./ui/agenda-toolbar";
 export type { ServiceOption, PatientFormData } from "./ui/booking-panel";
 export { AppointmentsTable } from "./ui/appointments-table";

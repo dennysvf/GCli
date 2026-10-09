@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { forbidden, notFound } from "next/navigation";
 import { BillingTab, billing } from "@/modules/billing";
+import { packages } from "@/modules/packages";
+import { Alert } from "@/shared/ui/components/alert";
 import { ClinicalNotesTable, clinicalRecords } from "@/modules/clinical-records";
 import { DocumentsTab, documents } from "@/modules/documents";
 import { getOrganizationProfile } from "@/modules/identity";
@@ -32,6 +34,8 @@ import {
   updateDocumentAction,
 } from "./documents/actions";
 import { billingActions } from "../../financial/billing-actions";
+import { packagesActions } from "../../packages/package-actions";
+import { PackagesPanel } from "./packages-panel";
 import {
   openConsentFileAction,
   recordConsentAction,
@@ -89,6 +93,8 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
 
   // PRD F09: the Financeiro tab for those who operate billing (Professionals have none).
   const charges = can(ctx, "billing:operate") ? await billing.listPatientCharges(ctx, patientId) : null;
+  // PRD F10: the packages of the patient, with the notice for a package whose charge is still open.
+  const patientPackages = charges?.ok ? await packages.listPatientPackages(ctx, { patientId }) : null;
 
   return (
     <div className="grid gap-6">
@@ -119,6 +125,9 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
         }
       />
       <IncompleteRecordAlert patient={details} />
+      {patientPackages?.ok && patientPackages.value.hasOpenBalance ? (
+        <Alert variant="warning">{t("packages.ui.openBalanceNotice")}</Alert>
+      ) : null}
       {/* PRD F05: the other tabs (Documentos, Financeiro, Linha do tempo) arrive with the features
           that fill them; F06 adds Agendamentos. */}
       <Tabs defaultValue="data">
@@ -217,6 +226,15 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
               timeZone={timeZone}
               actions={billingActions}
             />
+            {patientPackages?.ok ? (
+              <PackagesPanel
+                patient={{ id: patientId, displayName: details.displayName }}
+                initial={patientPackages.value}
+                timeZone={timeZone}
+                canApprove={can(ctx, "billing:approve")}
+                actions={packagesActions}
+              />
+            ) : null}
           </TabsContent>
         ) : null}
       </Tabs>

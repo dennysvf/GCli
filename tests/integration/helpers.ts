@@ -30,7 +30,9 @@ export async function resetDatabase(): Promise<void> {
     cancellation_reason, clinical_note, clinical_note_version, clinical_note_addendum, clinical_attachment,
     clinical_attachment_upload, clinical_alert, clinical_alert_change,
     document_category, document_template, patient_document, patient_document_upload, document_storage_usage,
-    charge, payment, payment_submission, charge_discount_request, charge_number_sequence, disabled_payment_method CASCADE`);
+    charge, payment, payment_submission, charge_discount_request, charge_number_sequence, disabled_payment_method,
+    package_template, package_template_price, patient_package, package_appointment, package_movement,
+    package_settings, package_expiration_run CASCADE`);
 }
 
 export async function closeHelpers(): Promise<void> {

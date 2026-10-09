@@ -1,7 +1,7 @@
 import { authorize, recordDenial } from "@/shared/authz/guard";
 import { can } from "@/shared/authz/permissions";
 import type { RequestContext } from "@/shared/context/types";
-import { withTransaction } from "@/shared/db/transaction";
+import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
 import { formatDate, formatLocale } from "@/shared/i18n/format";
 import { addDays } from "@/shared/kernel/calendar-date";
 import { fail, ok, type Result } from "@/shared/kernel/result";
@@ -346,4 +346,34 @@ export async function voidCharge(
   );
   if (!changed.ok) return changed;
   return ok(await viewOf(deps.directory, ctx, changed.value.charge));
+}
+
+// For F10: cancelling a package voids its sale charge in the same transaction when no payment was
+// received. A charge with payments is left to the refund flow (F09), and `voided` says so.
+export async function voidChargeIn(
+  deps: BillingDeps,
+  ctx: RequestContext,
+  uow: UnitOfWork,
+  input: { chargeId: string; reason: string },
+): Promise<Result<{ voided: boolean }>> {
+  const allowed = await authorize(ctx, "billing:approve");
+  if (!allowed.ok) return allowed;
+  const charge = await deps.charges.findById(uow, ctx.organizationId, input.chargeId, { lock: true });
+  if (!charge) return fail(BillingErrors.chargeNotFound());
+  if (charge.snapshot.cancelledAt || charge.snapshot.paidMinor > 0) return ok({ voided: false });
+  const now = deps.clock();
+  const before = copyProps(charge);
+  const voided = charge.void({ reason: input.reason, userId: ctx.user.id, now });
+  if (!voided.ok) return voided;
+  if ((await deps.charges.save(uow, charge)) === "STALE") return fail(BillingErrors.chargeStale());
+  await uow.audit.record({
+    action: "UPDATE",
+    entityType: "charge",
+    entityId: charge.id,
+    summary: "Cobrança cancelada com o pacote",
+    changes: chargeChanges(before, charge.snapshot),
+    metadata: { number: charge.snapshot.number },
+  });
+  await uow.publish(billingEvent(BILLING_EVENTS.chargeVoided, chargeEventPayload(charge, ctx.user.id), now));
+  return ok({ voided: true });
 }

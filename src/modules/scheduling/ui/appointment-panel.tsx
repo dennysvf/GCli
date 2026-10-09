@@ -44,6 +44,20 @@ export type AppointmentActions = {
 // "Cobrança" of F09). The app layer composes it, so scheduling never imports billing.
 export type PanelSection = ComponentType<{ appointmentId: string; status: AppointmentStatus }>;
 
+// The choice of a package in the booking and edit forms (the "Usar pacote" of F10), composed by the
+// app layer. `value` is the chosen package (null = none); the slot never knows scheduling internals.
+export type PackageChoiceSlot = ComponentType<{
+  patientId: string;
+  serviceId: string;
+  date: string;
+  value: string | null;
+  onChange: (packageId: string | null) => void;
+  // The package the appointment already uses, kept as an option when it is the current link.
+  currentPackageId?: string | null;
+  // Set when booking a series: how many appointments it will create.
+  seriesCount?: number | null;
+}>;
+
 export type Permissions = {
   canManage: boolean;
   canRevertAnyTime: boolean;
@@ -84,6 +98,7 @@ export function AppointmentPanel({
   permissions,
   actions,
   chargeSection: ChargeSection,
+  packageSlot,
   onChanged,
   onClose,
 }: {
@@ -97,6 +112,7 @@ export function AppointmentPanel({
   permissions: Permissions;
   actions: AppointmentActions;
   chargeSection?: PanelSection | undefined;
+  packageSlot?: PackageChoiceSlot | undefined;
   onChanged: () => void;
   onClose: () => void;
 }) {
@@ -236,6 +252,19 @@ export function AppointmentPanel({
                         formatLocale(locale, country),
                       )}
                     </dd>
+                    {details.package ? (
+                      <>
+                        <dt className="text-muted-foreground">{t("scheduling.ui.package")}</dt>
+                        <dd>
+                          {details.package.flagged
+                            ? t("scheduling.ui.packageFlagged")
+                            : t("scheduling.ui.packageSession", {
+                                session: details.package.session,
+                                total: details.package.total,
+                              })}
+                        </dd>
+                      </>
+                    ) : null}
                     {details.seriesIndex ? (
                       <>
                         <dt className="text-muted-foreground">{t("scheduling.ui.series")}</dt>
@@ -394,6 +423,7 @@ export function AppointmentPanel({
                   granularity={granularity}
                   services={services}
                   actions={actions}
+                  packageSlot={packageSlot}
                   onSaved={() =>
                     done(
                       mode.change === "reschedule"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import type { PackageChoiceSlot } from "./appointment-panel";
 import { formatMinute } from "@/shared/kernel/calendar-date";
 import { Button } from "@/shared/ui/components/button";
 import { Input } from "@/shared/ui/components/input";
@@ -34,6 +35,7 @@ export function ChangeForm({
   granularity,
   services,
   actions,
+  packageSlot: PackageSlot,
   onSaved,
   onBack,
 }: {
@@ -43,6 +45,7 @@ export function ChangeForm({
   granularity: number;
   services: ServiceOption[];
   actions: AppointmentActions;
+  packageSlot?: PackageChoiceSlot | undefined;
   onSaved: () => void;
   onBack: () => void;
 }) {
@@ -57,6 +60,11 @@ export function ChangeForm({
   const [roomId, setRoomId] = useState(details.room?.id ?? "");
   const [duration, setDuration] = useState(String(details.durationMinutes));
   const [notes, setNotes] = useState(details.notes ?? "");
+  const currentPackageId = details.package?.packageId ?? null;
+  const [packageChoice, setPackageChoice] = useState<{ key: string; id: string | null } | null>(null);
+  const packageKey = `${serviceId}|${date}`;
+  // The current link stays chosen until the user picks another option or changes the service.
+  const packageId = packageChoice && packageChoice.key === packageKey ? packageChoice.id : currentPackageId;
   const [options, setOptions] = useState<BookingOptions | null>(null);
   const [findings, setFindings] = useState<FindingDto[]>([]);
   const [overbooking, setOverbooking] = useState(false);
@@ -186,6 +194,9 @@ export function ChangeForm({
               durationMinutes: Number(duration),
               roomId: roomId || null,
               notes: notes || null,
+              ...(packageId !== currentPackageId || serviceId !== details.service.id
+                ? { packageId: serviceId !== details.service.id && packageChoice === null ? null : packageId }
+                : {}),
               ...overrides(),
             });
       if (!result.ok) return failed(result);
@@ -338,6 +349,17 @@ export function ChangeForm({
               }}
             />
           </Field>
+          {PackageSlot && !series && change === "edit" ? (
+            <PackageSlot
+              patientId={details.patient.id}
+              serviceId={serviceId}
+              date={date}
+              value={packageId}
+              currentPackageId={currentPackageId}
+              onChange={(id) => setPackageChoice({ key: packageKey, id })}
+            />
+          ) : null}
+
           <Field id="change-notes" label={t("scheduling.ui.notesForFrontDesk")} error={errors.notes}>
             <Textarea
               id="change-notes"

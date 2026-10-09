@@ -55,6 +55,13 @@ model Organization {
   discountRequests       ChargeDiscountRequest[]
   chargeSequences        ChargeNumberSequence[]
   disabledPaymentMethods DisabledPaymentMethod[]
+  packageTemplates       PackageTemplate[]
+  packageTemplatePrices  PackageTemplatePrice[]
+  patientPackages        PatientPackage[]
+  packageAppointments    PackageAppointment[]
+  packageMovements       PackageMovement[]
+  packageSettings        PackageSettings?
+  packageExpirationRuns  PackageExpirationRun[]
 
   @@map("organization")
 }
@@ -95,6 +102,9 @@ model User {
   discountRequestsMade    ChargeDiscountRequest[] @relation("RequestedBy")
   discountRequestsDecided ChargeDiscountRequest[] @relation("DecidedBy")
   disabledPaymentMethods  DisabledPaymentMethod[]
+  packagesSold            PatientPackage[]        @relation("PackageSoldBy")
+  packagesClosed          PatientPackage[]        @relation("PackageClosedBy")
+  packageMovements        PackageMovement[]
 
   @@index([organizationId, status, role], map: "ix_app_user_org_status_role")
   @@map("app_user")
@@ -261,6 +271,7 @@ model Unit {
   appointments     Appointment[]
   charges          Charge[]
   payments         Payment[]
+  patientPackages  PatientPackage[]
 
   @@index([organizationId, active], map: "ix_unit_org_active")
   @@map("unit")
@@ -367,14 +378,16 @@ model Service {
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization  Organization          @relation(fields: [organizationId], references: [id], map: "fk_service_org")
-  category      ServiceCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict, map: "fk_service_category")
-  allowedRooms  ServiceAllowedRoom[]
-  prices        ServicePrice[]
-  priceChanges  ServicePriceChange[]
-  professionals ProfessionalService[]
-  appointments  Appointment[]
-  charges       Charge[]
+  organization     Organization          @relation(fields: [organizationId], references: [id], map: "fk_service_org")
+  category         ServiceCategory       @relation(fields: [categoryId], references: [id], onDelete: Restrict, map: "fk_service_category")
+  allowedRooms     ServiceAllowedRoom[]
+  prices           ServicePrice[]
+  priceChanges     ServicePriceChange[]
+  professionals    ProfessionalService[]
+  appointments     Appointment[]
+  charges          Charge[]
+  packageTemplates PackageTemplate[]
+  patientPackages  PatientPackage[]
 
   @@index([organizationId, active], map: "ix_service_org_active")
   @@index([categoryId], map: "ix_service_category")
@@ -608,15 +621,16 @@ model Patient {
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization   Organization      @relation(fields: [organizationId], references: [id], map: "fk_patient_org")
-  referralSource ReferralSource?   @relation(fields: [referralSourceId], references: [id], onDelete: Restrict, map: "fk_patient_referral_source")
-  tags           PatientTag[]
-  consents       ConsentRecord[]
-  appointments   Appointment[]
-  clinicalNotes  ClinicalNote[]
-  clinicalAlerts ClinicalAlert[]
-  documents      PatientDocument[]
-  charges        Charge[]
+  organization    Organization      @relation(fields: [organizationId], references: [id], map: "fk_patient_org")
+  referralSource  ReferralSource?   @relation(fields: [referralSourceId], references: [id], onDelete: Restrict, map: "fk_patient_referral_source")
+  tags            PatientTag[]
+  consents        ConsentRecord[]
+  appointments    Appointment[]
+  clinicalNotes   ClinicalNote[]
+  clinicalAlerts  ClinicalAlert[]
+  documents       PatientDocument[]
+  charges         Charge[]
+  patientPackages PatientPackage[]
 
   @@index([organizationId, normalizedName, birthDate], map: "ix_patient_org_identity")
   @@index([organizationId, active, normalizedName], map: "ix_patient_org_active_name")
@@ -768,6 +782,8 @@ model Appointment {
   reschedules        AppointmentReschedule[]
   clinicalNotes      ClinicalNote[]
   charges            Charge[]
+  packageLinks       PackageAppointment[]
+  packageMovements   PackageMovement[]
 
   @@index([organizationId, unitId, startsAt], map: "ix_appointment_org_unit_start")
   @@index([organizationId, professionalId, startsAt], map: "ix_appointment_org_professional_start")
@@ -1177,6 +1193,7 @@ model Charge {
   unit         Unit                    @relation(fields: [unitId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_unit")
   createdBy    User                    @relation("ChargeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_created_by")
   cancelledBy  User?                   @relation("ChargeCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_charge_cancelled_by")
+  package      PatientPackage?
 
   @@unique([organizationId, id, currency], map: "uq_charge_currency")
   @@unique([organizationId, number], map: "uq_charge_number")
@@ -1283,4 +1300,146 @@ model DisabledPaymentMethod {
 
   @@id([organizationId, country, method])
   @@map("disabled_payment_method")
+}
+
+// F10 session packages. Spec: docs/F10-session-packages/spec.md (section 6). Constraints that Prisma
+// cannot express (CHECKs, partial unique indexes, the case-insensitive name index) are written by
+// hand in the migration; every foreign key is declared here so the CI drift check passes.
+model PackageTemplate {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String   @db.VarChar(80)
+  serviceId      String   @map("service_id") @db.Uuid
+  sessions       Int      @db.SmallInt
+  validityDays   Int      @map("validity_days") @db.SmallInt
+  active         Boolean  @default(true)
+  version        Int      @default(1)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization           @relation(fields: [organizationId], references: [id], map: "fk_package_template_org")
+  service      Service                @relation(fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_package_template_service")
+  prices       PackageTemplatePrice[]
+  packages     PatientPackage[]
+
+  @@index([organizationId, active, name], map: "ix_package_template_org")
+  @@map("package_template")
+}
+
+model PackageTemplatePrice {
+  organizationId String @map("organization_id") @db.Uuid
+  templateId     String @map("template_id") @db.Uuid
+  currency       String @db.Char(3)
+  amountMinor    BigInt @map("amount_minor")
+
+  organization Organization    @relation(fields: [organizationId], references: [id], map: "fk_package_template_price_org")
+  template     PackageTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_package_template_price_template")
+
+  @@id([templateId, currency])
+  @@map("package_template_price")
+}
+
+model PatientPackage {
+  id                String    @id @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  patientId         String    @map("patient_id") @db.Uuid
+  templateId        String    @map("template_id") @db.Uuid
+  name              String    @db.VarChar(80)
+  serviceId         String    @map("service_id") @db.Uuid
+  totalSessions     Int       @map("total_sessions") @db.SmallInt
+  usedSessions      Int       @default(0) @map("used_sessions") @db.SmallInt
+  forfeitedSessions Int       @default(0) @map("forfeited_sessions") @db.SmallInt
+  unitId            String    @map("unit_id") @db.Uuid
+  currency          String    @db.Char(3)
+  priceMinor        BigInt    @map("price_minor")
+  soldOn            DateTime  @map("sold_on") @db.Date
+  validityDays      Int       @map("validity_days") @db.SmallInt
+  extendedDays      Int       @default(0) @map("extended_days") @db.SmallInt
+  expiresOn         DateTime  @map("expires_on") @db.Date
+  status            String    @default("ACTIVE") @db.VarChar(10)
+  chargeId          String    @unique(map: "uq_patient_package_charge") @map("charge_id") @db.Uuid
+  soldById          String    @map("sold_by_id") @db.Uuid
+  closedAt          DateTime? @map("closed_at") @db.Timestamptz(6)
+  closedById        String?   @map("closed_by_id") @db.Uuid
+  closeReason       String?   @map("close_reason") @db.VarChar(500)
+  version           Int       @default(1)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization         @relation(fields: [organizationId], references: [id], map: "fk_patient_package_org")
+  patient      Patient              @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_patient_package_patient")
+  template     PackageTemplate      @relation(fields: [templateId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_patient_package_template")
+  service      Service              @relation(fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_patient_package_service")
+  unit         Unit                 @relation(fields: [unitId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_patient_package_unit")
+  charge       Charge               @relation(fields: [chargeId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_patient_package_charge")
+  soldBy       User                 @relation("PackageSoldBy", fields: [soldById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_patient_package_sold_by")
+  closedBy     User?                @relation("PackageClosedBy", fields: [closedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_patient_package_closed_by")
+  links        PackageAppointment[]
+  movements    PackageMovement[]
+
+  @@index([organizationId, patientId, status], map: "ix_patient_package_patient")
+  @@map("patient_package")
+}
+
+model PackageAppointment {
+  id             String    @id @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  packageId      String    @map("package_id") @db.Uuid
+  appointmentId  String    @map("appointment_id") @db.Uuid
+  status         String    @db.VarChar(20)
+  flagged        Boolean   @default(false)
+  linkedAt       DateTime  @default(now()) @map("linked_at") @db.Timestamptz(6)
+  debitedAt      DateTime? @map("debited_at") @db.Timestamptz(6)
+  closedAt       DateTime? @map("closed_at") @db.Timestamptz(6)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], map: "fk_package_appointment_org")
+  package      PatientPackage @relation(fields: [packageId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_package_appointment_package")
+  appointment  Appointment    @relation(fields: [appointmentId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_package_appointment_appointment")
+
+  @@index([organizationId, packageId, status], map: "ix_package_appointment_package")
+  @@index([organizationId, appointmentId], map: "ix_package_appointment_appointment")
+  @@map("package_appointment")
+}
+
+model PackageMovement {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  packageId      String   @map("package_id") @db.Uuid
+  appointmentId  String?  @map("appointment_id") @db.Uuid
+  kind           String   @db.VarChar(10)
+  sessions       Int      @db.SmallInt
+  days           Int?     @db.SmallInt
+  reason         String?  @db.VarChar(500)
+  actorUserId    String?  @map("actor_user_id") @db.Uuid
+  occurredAt     DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  organization Organization   @relation(fields: [organizationId], references: [id], map: "fk_package_movement_org")
+  package      PatientPackage @relation(fields: [packageId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_package_movement_package")
+  appointment  Appointment?   @relation(fields: [appointmentId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_package_movement_appointment")
+  actor        User?          @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_package_movement_actor")
+
+  @@index([organizationId, packageId, occurredAt], map: "ix_package_movement_package")
+  @@map("package_movement")
+}
+
+model PackageSettings {
+  organizationId String   @id @map("organization_id") @db.Uuid
+  debitNoShow    Boolean  @default(false) @map("debit_no_show")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedById    String?  @map("updated_by_id") @db.Uuid
+
+  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_package_settings_org")
+
+  @@map("package_settings")
+}
+
+model PackageExpirationRun {
+  organizationId String   @map("organization_id") @db.Uuid
+  runOn          DateTime @map("run_on") @db.Date
+  ranAt          DateTime @default(now()) @map("ran_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_package_expiration_run_org")
+
+  @@id([organizationId, runOn])
+  @@map("package_expiration_run")
 }

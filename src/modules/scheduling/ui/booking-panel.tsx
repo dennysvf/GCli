@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import type { PackageChoiceSlot } from "./appointment-panel";
 import {
   QuickPatientForm,
   type ListItem,
@@ -99,6 +100,7 @@ export function BookingPanel({
   canRegisterPatient,
   patientForm,
   actions,
+  packageSlot: PackageSlot,
   onClose,
   onBooked,
 }: {
@@ -112,6 +114,7 @@ export function BookingPanel({
   canRegisterPatient: boolean;
   patientForm: PatientFormData;
   actions: BookingActions;
+  packageSlot?: PackageChoiceSlot | undefined;
   onClose: () => void;
   onBooked: () => void;
 }) {
@@ -128,6 +131,11 @@ export function BookingPanel({
   const [startTime, setStartTime] = useState(draft.startTime);
   const [duration, setDuration] = useState("");
   const [notes, setNotes] = useState("");
+  // The package follows the patient, the service and the date; a change of any resets the choice.
+  const [packageChoice, setPackageChoice] = useState<{ key: string; id: string | null }>({
+    key: "",
+    id: null,
+  });
   const [repeat, setRepeat] = useState(false);
   const [recurrence, setRecurrence] = useState<RecurrenceState>({
     frequency: "WEEKLY",
@@ -213,7 +221,11 @@ export function BookingPanel({
     };
   }, [unitId, serviceId, professionalId, roomId, date, startTime, duration, patient]);
 
+  const packageKey = `${patient?.id ?? ""}|${serviceId}|${date}`;
+  const packageId = packageChoice.key === packageKey ? packageChoice.id : null;
+
   const baseInput = () => ({
+    ...(packageId ? { packageId } : {}),
     patientId: patient?.id,
     serviceId,
     professionalId,
@@ -468,6 +480,17 @@ export function BookingPanel({
             <p className="text-muted-foreground text-sm tabular-nums">
               {startTime}–{endTime} · {priceText(service)}
             </p>
+          ) : null}
+
+          {PackageSlot && patient && serviceId ? (
+            <PackageSlot
+              patientId={patient.id}
+              serviceId={serviceId}
+              date={date}
+              value={packageId}
+              onChange={(id) => setPackageChoice({ key: packageKey, id })}
+              seriesCount={repeat ? (series?.total ?? null) : null}
+            />
           ) : null}
 
           <Field id="booking-notes" label={t("scheduling.ui.notesForFrontDesk")} error={errors.notes}>

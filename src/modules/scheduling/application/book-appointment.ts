@@ -11,7 +11,7 @@ import { parseInput } from "@/shared/kernel/validation";
 import { Appointment, type AppointmentProps } from "../domain/appointment";
 import { checkConflicts, resolveFindings } from "../domain/conflicts/check";
 import { SchedulingErrors } from "../domain/errors";
-import { appointmentEvent, SCHEDULING_EVENTS } from "../domain/events";
+import { appointmentEvent, SCHEDULING_EVENTS, type PackageLinkRequest } from "../domain/events";
 import {
   decisionOf,
   findingDtos,
@@ -60,6 +60,7 @@ export async function insertAppointment(
   ctx: RequestContext,
   uow: UnitOfWork,
   appointment: Appointment,
+  packageLink?: PackageLinkRequest,
 ): Promise<Result<void>> {
   const outcome = await deps.appointments.save(uow, appointment, {
     userId: ctx.user.id,
@@ -85,6 +86,7 @@ export async function insertAppointment(
       previousStatus: null,
       actorUserId: ctx.user.id,
       now: deps.clock(),
+      ...(packageLink ? { packageLink } : {}),
     }),
   );
   return ok(undefined);
@@ -157,7 +159,13 @@ export async function bookAppointment(
   const appointment = booked.value;
 
   return withTransaction(ctx, async (uow) => {
-    const saved = await insertAppointment(deps, ctx, uow, appointment);
+    const saved = await insertAppointment(
+      deps,
+      ctx,
+      uow,
+      appointment,
+      data.packageId ? { packageId: data.packageId, mode: "STRICT" } : undefined,
+    );
     if (!saved.ok) return saved;
     const props = appointment.snapshot;
     return ok({

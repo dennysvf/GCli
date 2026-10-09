@@ -14,6 +14,7 @@ import {
   processClinicalAttachment,
 } from "./jobs/clinical-records";
 import { cleanupDocumentUploads, processDocumentFileJob } from "./jobs/documents";
+import { expirePackagesJob } from "./jobs/packages";
 import { cleanupPatientUploads } from "./jobs/patients-cleanup";
 import { sendOutboxEmail } from "./jobs/email-send";
 import { startOutboxLoop } from "./outbox-dispatcher";
@@ -73,6 +74,12 @@ async function main() {
     if (removed) logger.info({ removed }, "unused document upload intents removed");
   });
 
+  // F10: expires the packages past their validity (after 00:10 of each organization's day).
+  await boss.work(QUEUES.packagesExpire, async () => {
+    const expired = await expirePackagesJob();
+    if (expired) logger.info({ expired }, "packages expired");
+  });
+
   // Monthly on day 1 at 03:00, and daily at 03:30 (server time).
   await boss.schedule(QUEUES.auditEnsurePartitions, "0 3 1 * *");
   await boss.schedule(QUEUES.identityCleanup, "30 3 * * *");
@@ -82,6 +89,8 @@ async function main() {
   await boss.schedule(QUEUES.clinicalUploadsCleanup, "0 4 * * *");
   // F08: daily at 04:15.
   await boss.schedule(QUEUES.documentsUploadsCleanup, "15 4 * * *");
+  // F10: every 15 minutes; each organization is handled once a day, after 00:10 in its time zone.
+  await boss.schedule(QUEUES.packagesExpire, "*/15 * * * *");
   await boss.send(QUEUES.auditEnsurePartitions, {}, { singletonKey: "startup" });
 
   const stopOutbox = startOutboxLoop(boss);

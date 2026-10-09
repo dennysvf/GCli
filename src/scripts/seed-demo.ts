@@ -3,6 +3,7 @@ import { parseArgs } from "node:util";
 import { registerModules } from "@/composition";
 import { billing } from "@/modules/billing";
 import { documents } from "@/modules/documents";
+import { packages } from "@/modules/packages";
 import { patients } from "@/modules/patients";
 import { professionals } from "@/modules/professionals";
 import { scheduling } from "@/modules/scheduling";
@@ -727,6 +728,63 @@ async function main(): Promise<number> {
   });
   if (manual.ok) await receiveFor(manual.value.id, [{ method: "PIX", amountMinor: 8990 }]);
 
+  // Packages (PRD F10): two templates, a paid physiotherapy package whose sessions are linked to
+  // upcoming appointments, and an unpaid skin-care package that shows the open balance notice.
+  let packageCount = 0;
+  const template = async (
+    name: string,
+    serviceId: string,
+    sessions: number,
+    validityDays: number,
+    amountMinor: number,
+  ) =>
+    must(
+      await packages.saveTemplate(ctx, {
+        name,
+        serviceId,
+        sessions,
+        validityDays,
+        prices: [{ currency: main.currency, amountMinor }],
+      }),
+      "saveTemplate",
+    ).templateId;
+  const fisioTemplate = await template("Fisioterapia 10 sessões", fisio, 10, 180, 135_000);
+  const limpezaTemplate = await template("Limpeza de pele 4 sessões", limpeza, 4, 90, 48_000);
+  const fisioSale = await packages.sellPackage(ctx, {
+    patientId: patientIds[3],
+    templateId: fisioTemplate,
+    unitId: main.id,
+    priceMinor: 135_000,
+  });
+  if (fisioSale.ok) {
+    packageCount += 1;
+    await billing.receivePayment(ctx, {
+      chargeId: fisioSale.value.charge.id,
+      submissionKey: newId(),
+      unitId: main.id,
+      payments: [{ method: "PIX", amountMinor: 135_000 }],
+    });
+    const upcoming = await db().appointment.findMany({
+      where: { patientId: patientIds[3], serviceId: fisio, status: { in: ["SCHEDULED", "CONFIRMED"] } },
+      orderBy: { startsAt: "asc" },
+      take: 3,
+    });
+    for (const appointment of upcoming) {
+      await scheduling.updateAppointment(ctx, {
+        appointmentId: appointment.id,
+        version: appointment.version,
+        packageId: fisioSale.value.package.id,
+      });
+    }
+  }
+  const unpaidSale = await packages.sellPackage(ctx, {
+    patientId: patientIds[1],
+    templateId: limpezaTemplate,
+    unitId: main.id,
+    priceMinor: 48_000,
+  });
+  if (unpaidSale.ok) packageCount += 1;
+
   console.log("Dados de demonstração criados:");
   console.log(
     `- 5 serviços, 4 profissionais, ${patientIds.length} pacientes, ${booked} agendamentos avulsos`,
@@ -735,6 +793,9 @@ async function main(): Promise<number> {
     `- série de fisioterapia: ${series.ok ? `${series.value.appointmentIds.length} sessões` : series.error.code}`,
   );
   console.log(`- ${documentCount} documentos de pacientes (enviados, clínicos e uma declaração emitida)`);
+  console.log(
+    `- ${packageCount} pacotes vendidos (um pago, com sessões vinculadas, e um com saldo financeiro em aberto)`,
+  );
   console.log(`- cobranças com ${paymentCount} pagamentos, um desconto aguardando aprovação e um estorno`);
   console.log(
     `- usuários (senha ${PASSWORD}): rita@clinicademo.com.br (Recepção), beatriz@clinicademo.com.br (Profissional), marcos@clinicademo.com.br (Gestor, PIN de aprovação ${MANAGER_PIN})`,

@@ -30,9 +30,10 @@ Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 16. [Environments: development and production](#16-environments-development-and-production)
 17. [Eighth feature: F08 — Patient Documents](#17-eighth-feature-f08--patient-documents)
 18. [Ninth feature: F09 — Billing and Payments](#18-ninth-feature-f09--billing-and-payments)
-19. [Problems found and how they were solved](#19-problems-found-and-how-they-were-solved)
-20. [Reproducing the environment from scratch](#20-reproducing-the-environment-from-scratch)
-21. [Lessons learned](#21-lessons-learned)
+19. [Tenth feature: F10 — Session Packages](#19-tenth-feature-f10--session-packages)
+20. [Problems found and how they were solved](#20-problems-found-and-how-they-were-solved)
+21. [Reproducing the environment from scratch](#21-reproducing-the-environment-from-scratch)
+22. [Lessons learned](#22-lessons-learned)
 
 ---
 
@@ -785,7 +786,60 @@ The work went to PR #25. The quality, integration and Docker image jobs passed t
 
 ---
 
-## 19. Problems found and how they were solved
+## 19. Tenth feature: F10 — Session Packages
+
+F10 sells a package of sessions (for example 10 physiotherapy sessions), links appointments to it and debits one session each time an appointment is completed. It crosses three modules that must not know each other (scheduling, billing and the new `packages`), so the specification started from **who owns each fact**: scheduling owns the appointment, billing owns the money, packages own the balance.
+
+### 19.1 Decisions made in the interview
+
+| Decision | Result |
+|---|---|
+| How scheduling talks to packages | It carries an **opaque** package id and a mode (`STRICT` for one appointment, `UP_TO_BALANCE` for a series) in the event; the packages handler links inside the scheduling transaction or refuses with `EventRejection` (ADR-034) |
+| Free balance | Total − used − forfeited − open links; linking beyond it is refused |
+| When a session is debited | On completion; undoing the completion restores it. A no-show debits only if the organization turned that setting on; otherwise the link is released. Cancelling releases |
+| Sale | The charge (origin PACKAGE) and the package are created in **one transaction**. A price below the template becomes a F09 discount (with the same 10% and 20% rules); a price above is refused |
+| Validity | Calendar days, the sale day counts as day 1; a manager can extend up to 365 days in total, only while the package is active |
+| Expiration | A daily job, after 00:10 in each organization's time zone, forfeits the unused sessions; it records each run so it can repeat safely |
+| Cancel | The unpaid sale charge is voided in the same transaction; a paid charge stays for the F09 refund flow |
+| Permissions | No new actions: `setup:manage` for templates, `billing:operate` to sell and link, `billing:approve` to extend and cancel; Professionals have no access |
+
+The decisions became **ADR-035** (opaque package links, atomic sale, append-only ledger) and section 5.15 of the design system. The specification and plan are in [F10-session-packages/](F10-session-packages/).
+
+### 19.2 What the database guarantees
+
+- **No double debit:** a partial unique index allows one live link (`LINKED` or `DEBITED`) per appointment.
+- **Balances stay coherent:** `CHECK` constraints on used, forfeited and total sessions, on validity and on the status.
+- **The ledger never changes:** `package_movement` has no `UPDATE` or `DELETE`; packages, templates and links cannot be deleted.
+- **Two simultaneous links:** the package row is locked, so two bookings cannot both take the last session.
+
+### 19.3 Implementation in 5 stages
+
+| Stage | What went in |
+|---|---|
+| 1 — Documentation and integration points | PRD clarifications, ADR-035, design system; scheduling carries the package link and shows it in the agenda; billing functions that join the caller's transaction (charge, discount, void) |
+| 2 — Database and domain | Migration `0013_packages`; the `SessionPackage` aggregate (sell, link, debit, restore, expire, extend, cancel) with its ledger |
+| 3 — Use cases | Templates, atomic sale, handlers for the appointment events, extension, cancellation, the expiration use case and the queries |
+| 4 — Screens | Settings > Pacotes, the patient's package cards with the sale dialog, "Usar pacote" in the booking and edit forms, and the "Sessão 4/10" mark in the agenda |
+| 5 — Finishing | The expiration job on the worker, demo data, E2E journeys, design system review and this log |
+
+### 19.4 Problems found in F10
+
+| Problem | Cause | Solution |
+|---|---|---|
+| Declaring every foreign key in `schema.prisma` | F09's CI drift came from hand-written foreign keys | Every relation of the migration was declared with `onUpdate: NoAction` and the drift check ran locally before the PR |
+| `charge` and `patient_package` would point at each other | The charge knows its package and the package knows its charge | The package keeps the foreign key to the charge; the charge keeps only the id, with no foreign key |
+| The agenda cannot import packages | Packages already depend on scheduling events | A `PackageLinkLookup` port in scheduling with an inert default; packages register the real one at startup |
+| Tests failed with "forbidden" and "too early" | Front desk cannot start or complete an appointment, and a no-show needs the appointment to have started | The tests act as the professional, and a helper moves the appointment into the past |
+
+### 19.5 What F10 left ready
+
+- **Package and ledger data** (sold, used, forfeited, expired, with price and unit) for F11, F12 and F13.
+- **A refusal path** (`EventRejection`) used a second time, now to protect the balance.
+- **The agenda mark** and the `PackageLinkLookup` port, which other modules can reuse to decorate appointments.
+
+---
+
+## 20. Problems found and how they were solved
 
 This may be the most useful section for anyone reproducing the project. All of these problems showed up because **each stage was actually executed**, not just written.
 
@@ -808,7 +862,7 @@ This may be the most useful section for anyone reproducing the project. All of t
 
 ---
 
-## 20. Reproducing the environment from scratch
+## 21. Reproducing the environment from scratch
 
 ### Prerequisites
 
@@ -883,7 +937,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 21. Lessons learned
+## 22. Lessons learned
 
 1. **Interview before document.** One question at a time, always with a recommendation, settles more than a long document written in the dark.
 2. **End-to-end IDs** (F01 → story → criterion → test → commit) make the project traceable at no extra cost.

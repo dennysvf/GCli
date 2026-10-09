@@ -86,6 +86,8 @@ graph TD
   scheduling -. events .-> billing
   scheduling -. events .-> packages
   billing --> packages
+  catalog --> packages
+  patients --> packages
   billing -. events .-> cash
   patients --> documents
   professionals --> documents
@@ -491,6 +493,11 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 - *Decision:* Synchronous event handlers may reject the operation that published the event by throwing `EventRejection`, which carries a `DomainError`; `withTransaction` rolls back and returns it as a failed `Result`. Billing uses it so that a paid charge blocks undoing the check-in under the same row lock that payments take. The inline approval of large discounts uses a personal 6-digit PIN stored as an argon2 hash on the user, with a lockout after 5 failures; the verification runs in its own transaction so failed attempts are counted even when the billing change fails. The money rules are also enforced by the database: a CHECK keeps the paid amount within the net amount, a partial unique index allows one live charge per appointment, a composite foreign key ties a payment to the currency of its charge, the idempotency key is a primary key, and payments are never deleted. Billing declares the `ChargeExemptionPolicy` (F10) and `CashRegisterGate` (F11) ports with inert defaults, and the units module gets a `UnitFinancialRecords` port so a unit with charges cannot change its country.
 - *Why:* A bug in billing becomes a financial discrepancy, so the invariants must hold whatever the application does. A rejecting handler avoids a scheduling port that asks billing before undoing, and keeps scheduling unaware of charges. A PIN is fast at the front desk and is never the login password.
 - *Trade-off:* A handler that throws `EventRejection` stops the whole operation, so handlers must use it only for expected business refusals. PINs are weaker than passwords, which the lockout, the weak-PIN rule and the audit compensate for.
+
+**ADR-035 — Session packages: opaque links, atomic sale and an append-only ledger (complements ADR-007, ADR-022 and ADR-034)**
+- *Decision:* Scheduling carries an optional `packageId` from the booking and edit forms into its events without knowing packages. The packages module reacts inside the scheduling transaction: it links the appointment under the package row lock, or refuses with `EventRejection` (ADR-034) when the package is expired or has no free balance. Billing exposes the creation of a package charge, the discount and the void as functions that take the caller's transaction, so a sale (package, charge and discount) commits or rolls back as one. The balance is enforced by the database (a CHECK keeps debits and forfeits within the total, a partial unique index allows one live link per appointment) and every change of the balance is an append-only movement. Packages implements the `ChargeExemptionPolicy` of billing and the `PackageLinkLookup` of scheduling, both declared with inert defaults.
+- *Why:* A session debited twice or a package sold without its charge is a financial error. Keeping the link in the same transaction as the booking removes the window where an appointment exists without its package, and opaque events avoid a cycle between scheduling and packages.
+- *Trade-off:* The booking transaction now runs packages code, so a slow handler slows booking; the handlers do one locked read and one insert. Billing functions that accept a transaction duplicate the entry points of their standalone versions.
 
 ## 13. Evolution to SaaS
 
