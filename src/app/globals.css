@@ -279,6 +279,14 @@
   text-transform: uppercase;
 }
 
+/* Dashboard indicators and the cash register total (design system 3.2, `figure`). */
+@utility figure {
+  font-size: 2rem;
+  line-height: 2.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Clinical note text (design system 5.12): the reading column, at most 72 characters wide. */
 @utility note-prose {
   max-width: 72ch;
