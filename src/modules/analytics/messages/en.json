@@ -1,0 +1,100 @@
+{
+  "errors": {
+    "ANALYTICS_PERIOD_TOO_LONG": "The period can have at most 366 days.",
+    "ANALYTICS_PERIOD_INVALID": "The end date must be on or after the start date.",
+    "ANALYTICS_UNIT_INVALID": "Unit not found.",
+    "ANALYTICS_PROFESSIONAL_INVALID": "Professional not found."
+  },
+  "validation": {
+    "invalidDate": "Enter a valid date.",
+    "invalidId": "Invalid selection.",
+    "invalidPeriod": "Choose a period.",
+    "dateRequired": "Enter the date."
+  },
+  "ui": {
+    "title": "Dashboard",
+    "filters": "Dashboard filters",
+    "period": "Period",
+    "from": "From",
+    "to": "To",
+    "unit": "Unit",
+    "professional": "Professional",
+    "allUnits": "All units",
+    "allProfessionals": "All professionals",
+    "inactiveUnit": "{name} (inactive)",
+    "inactiveProfessional": "{name} (inactive)",
+    "updatedAt": "Updated at {time}",
+    "updating": "Updating…",
+    "empty": "No data for the selected period.",
+    "emptyHint": "Choose another period or other filters.",
+    "professionalNote": "Expenses and result do not apply to a professional.",
+    "operations": "Operations",
+    "finance": "Finance",
+    "noValue": "—",
+    "formulaOf": "Formula: {label}"
+  },
+  "presets": {
+    "TODAY": "Today",
+    "LAST_7_DAYS": "Last 7 days",
+    "LAST_30_DAYS": "Last 30 days",
+    "CURRENT_MONTH": "This month",
+    "PREVIOUS_MONTH": "Last month",
+    "CUSTOM": "Custom"
+  },
+  "change": {
+    "percent": "{value}% vs. previous period",
+    "points": "{value} pp vs. previous period",
+    "noBase": "No comparison base",
+    "none": "No change"
+  },
+  "kpis": {
+    "appointments": {
+      "label": "Appointments",
+      "formula": "Appointments in the period, excluding cancelled ones."
+    },
+    "completed": {
+      "label": "Completed",
+      "formula": "Appointments in the period with status Completed."
+    },
+    "occupancy": {
+      "label": "Occupancy rate",
+      "formula": "Booked minutes of non-cancelled appointments ÷ available minutes (working hours of the professionals minus time-offs and unit closures). Overlapping appointments count once."
+    },
+    "cancellationRate": {
+      "label": "Cancellation rate",
+      "formula": "Cancelled ÷ all booked in the period."
+    },
+    "noShowRate": {
+      "label": "No-show rate",
+      "formula": "No-shows ÷ (completed + no-shows)."
+    },
+    "newPatients": {
+      "label": "New patients",
+      "formula": "Patients registered in the period. With a unit or professional selected, counts those whose first appointment was in that unit or with that professional."
+    },
+    "billed": {
+      "label": "Billed",
+      "formula": "Net amount of non-cancelled charges created in the period."
+    },
+    "received": {
+      "label": "Received",
+      "formula": "Payments minus refunds received in the period."
+    },
+    "receivable": {
+      "label": "Receivable",
+      "formula": "Open balance of non-cancelled charges created in the period."
+    },
+    "averageTicket": {
+      "label": "Average ticket",
+      "formula": "Received ÷ completed appointments, per currency."
+    },
+    "paidExpenses": {
+      "label": "Paid expenses",
+      "formula": "Paid expenses plus manual cash withdrawals, without transfers or reversals."
+    },
+    "result": {
+      "label": "Result",
+      "formula": "Received + manual revenues (received revenues and cash entries) − paid expenses."
+    }
+  }
+}
