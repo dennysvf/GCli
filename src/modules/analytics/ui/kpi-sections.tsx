@@ -6,7 +6,10 @@ import { useFormatters } from "@/shared/ui/i18n/use-formatters";
 import type { CountKpi, DashboardView, MoneyKpi, RateKpi } from "../application/views";
 import { KpiCard, KpiValue } from "./kpi-card";
 
-const GRID = "grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6";
+// Money figures are wide ("R$ 61.200,00" at 32 px), so the finance row never goes beyond 3 columns
+// (design system 5.17).
+const OPERATIONS_GRID = "grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6";
+const FINANCE_GRID = "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3";
 
 // The "Operação" and "Financeiro" rows of indicator cards (PRD F12 Experience, design system 5.17).
 export function KpiSections({ view }: { view: DashboardView }) {
@@ -71,13 +74,13 @@ export function KpiSections({ view }: { view: DashboardView }) {
         <h2 id="dashboard-operations" className="section-title">
           {t("ui.operations")}
         </h2>
-        <div className={GRID}>{operationCards}</div>
+        <div className={OPERATIONS_GRID}>{operationCards}</div>
       </section>
       <section aria-labelledby="dashboard-finance" className="grid gap-3">
         <h2 id="dashboard-finance" className="section-title">
           {t("ui.finance")}
         </h2>
-        <div className={GRID}>{financeCards}</div>
+        <div className={FINANCE_GRID}>{financeCards}</div>
         {view.professionalSelected ? (
           <p className="text-muted-foreground text-[0.8125rem]" data-testid="professional-note">
             {t("ui.professionalNote")}

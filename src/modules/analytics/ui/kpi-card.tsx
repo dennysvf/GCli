@@ -97,7 +97,13 @@ export function KpiValue({
 }) {
   return (
     <div className="grid gap-0.5">
-      <p className={primary ? "figure" : "text-[0.9375rem] leading-[1.375rem] font-semibold tabular-nums"}>
+      <p
+        className={
+          primary
+            ? "figure break-words"
+            : "text-[0.9375rem] leading-[1.375rem] font-semibold break-words tabular-nums"
+        }
+      >
         {value}
       </p>
       {change ? (

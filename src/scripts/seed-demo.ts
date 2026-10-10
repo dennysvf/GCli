@@ -885,6 +885,10 @@ async function main(): Promise<number> {
     "- caixa de ontem fechado com diferença justificada, caixa de hoje aberto, despesas (uma vencida, uma recorrente) e uma receita",
   );
   console.log(`- cobranças com ${paymentCount} pagamentos, um desconto aguardando aprovação e um estorno`);
+  // F12: last week's appointments and payments give "Últimos 7 dias" a previous period to compare.
+  console.log(
+    "- painel (/dashboard): use Últimos 7 dias ou Mês atual para ver os indicadores e a comparação",
+  );
   console.log(
     `- usuários (senha ${PASSWORD}): rita@clinicademo.com.br (Recepção), beatriz@clinicademo.com.br (Profissional), marcos@clinicademo.com.br (Gestor, PIN de aprovação ${MANAGER_PIN})`,
   );
