@@ -655,13 +655,13 @@ The differentiator is configurability without complexity: the same product serve
 - Filters: period (Hoje, Últimos 7 dias, Últimos 30 dias, Mês atual, Mês anterior, Personalizado up to 366 days), unit (all or one), professional (all or one).
 - KPIs (with formulas shown in a tooltip):
   - Agendamentos (total in period, excluding cancelled), Concluídos.
-  - Taxa de ocupação = booked minutes of non-cancelled appointments ÷ available minutes from professionals' working hours minus time-offs.
+  - Taxa de ocupação = booked minutes of non-cancelled appointments ÷ available minutes from professionals' working hours minus time-offs and unit closures. Booked minutes count only inside the available time, and overlapping appointments (Encaixe) of one professional count once, so the rate never exceeds 100%.
   - Taxa de cancelamento = cancelled ÷ total booked; Taxa de faltas = no-shows ÷ (completed + no-shows).
   - Novos pacientes (registered in period).
   - Faturado (net amount of non-cancelled charges), Recebido (payments minus refunds), A receber (open balances created in period), Ticket médio = received ÷ completed appointments.
-  - Despesas pagas, Resultado = Recebido + manual revenues − despesas pagas (only when professional filter = all).
+  - Despesas pagas, Resultado = Recebido + manual revenues − despesas pagas, with the same lines as the F11 statement (manual cash entries and withdrawals count, transfers do not). Both are shown only when the professional filter = all; with a professional selected, charge-based figures use the charge's professional.
 - Charts (Full Scope): daily received revenue (line), appointments by status (stacked bar per day), top 5 services by revenue (bar), revenue per professional (bar).
-- Comparison (Full Scope): each KPI shows variation versus the previous equivalent period (e.g., "+12%").
+- Comparison (Full Scope): each KPI shows variation versus the previous equivalent period (e.g., "+12%"): the period of the same length right before it, and for "Mês atual" from day 1 to the same day of the previous month. Counts and money show a percentage; rates show percentage points ("+3,5 p.p."); a zero previous value shows "Sem base de comparação".
 - Performance: ≤ 3 seconds p95 for 30 days and all units; data freshness ≤ 5 minutes (cached aggregates acceptable).
 
 **Experience:**

@@ -452,6 +452,16 @@ The cash register and the financial entries (F11) live under Financeiro. These r
 - **Statement:** a table with a first row "Saldo anterior", inflow and outflow columns right-aligned with tabular numerals, a running balance column, and totals per category and the result of the period below it.
 - **Receipts:** an attachment field with the accepted types and size in its helper text and a progress text while sending.
 
+### 5.17 Management dashboard
+
+The dashboard (F12) is the only screen built from indicator cards (section 5.6). These rules cover what the other sections do not show.
+- **Filter bar:** below the page title, one row from 1024 px up (period, unit, professional), wrapping on narrow screens. "Personalizado" reveals two date fields in the same row. Filters apply on change; there is no "Aplicar" button and no primary button on this screen. "Atualizado às 14:35" sits at the right end of the bar in `meta`; while recalculating it reads "Atualizando…" (`aria-live="polite"`) and the cards keep their previous values.
+- **Two rows of cards:** each row has a section heading ("Operação", "Financeiro") and a grid of 2 columns on phones, 3 on tablets and 6 from 1280 px up. Cards keep the same height within a row.
+- **Card content:** the label in `column-label` with an info icon button that opens the formula tooltip (keyboard focusable); the value in `figure`; money cards list one line per currency in `figure` for the first and `body-strong` for the others, never summed. Rates show one decimal ("72,4%"); a rate without a base shows "—".
+- **Variation:** in `meta` below the value: "+12% vs. período anterior" for counts and money (per currency line), "+3,5 p.p." for rates, "Sem base de comparação" or "Sem variação" when that applies. The arrow and the success or destructive text color appear only when the change is significant (5% or 2 p.p.), and the color follows the meaning of the indicator (more no-shows is bad). "A receber" never takes a color. The text always states the direction, so color is never alone.
+- **Professional selected:** the "Financeiro" row shows four cards and a `meta` note: "Despesas e resultado não se aplicam a um profissional."
+- **Empty state:** "Sem dados para o período selecionado." replaces both rows (section 7.4); the filters stay.
+
 ## 6. Visual details
 
 ### 6.1 Borders and radii

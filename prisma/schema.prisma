@@ -657,6 +657,7 @@ model Patient {
   patientPackages PatientPackage[]
 
   @@index([organizationId, normalizedName, birthDate], map: "ix_patient_org_identity")
+  @@index([organizationId, createdAt], map: "ix_patient_org_created")
   @@index([organizationId, active, normalizedName], map: "ix_patient_org_active_name")
   @@index([normalizedName(ops: raw("gin_trgm_ops"))], type: Gin, map: "ix_patient_name_trgm")
   @@index([phoneDigits(ops: raw("gin_trgm_ops"))], type: Gin, map: "ix_patient_phone_trgm")
@@ -1223,6 +1224,7 @@ model Charge {
   @@unique([organizationId, number], map: "uq_charge_number")
   @@index([organizationId, createdAt(sort: Desc), id(sort: Desc)], map: "ix_charge_list")
   @@index([organizationId, unitId, status, createdAt], map: "ix_charge_unit_status")
+  @@index([organizationId, unitId, createdAt], map: "ix_charge_org_unit_created")
   @@index([organizationId, patientId, createdAt(sort: Desc)], map: "ix_charge_patient")
   @@map("charge")
 }

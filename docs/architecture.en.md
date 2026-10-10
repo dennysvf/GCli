@@ -505,6 +505,11 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 - *Why:* A cash count is only trustworthy if the system lines cannot drift from the payment records and a closed day cannot change underneath it. Reading from the single source and serializing closing with payments removes both risks without duplicating money.
 - *Trade-off:* The register screen runs a read across modules on every load, and the shared lock adds a small cost to each payment.
 
+**ADR-037 — Analytics: read-only SQL aggregates, pure KPI functions and an in-process cache (complements ADR-019, ADR-029 and section 8)**
+- *Decision:* The `analytics` module reads the tables of other modules with raw SQL aggregates and never writes to them. Every query filters `organization_id` explicitly, takes the unit ids resolved from the filter, and assigns each record to the period by its local date in its unit's time zone, after a UTC window narrows the indexed scan. Money is grouped by currency and never summed across currencies. The formulas (period resolution, previous equivalent period, occupancy, rates, ticket, result, variation) are pure functions in `analytics/domain`, with no entities or repositories; occupancy loads the working intervals, time-offs, closures and appointment ranges and intersects them in memory, with daylight-saving-correct conversion (ADR-030). Results are cached in process for 5 minutes per organization and filter combination, after authorization, with a bounded size.
+- *Why:* The dashboard must answer in 3 seconds for 30 days and all units, and its figures must match the source records (F06, F09, F11). Aggregates in the database keep the work close to the data, pure functions make the PRD formulas testable, and the PRD accepts data up to 5 minutes old. Next.js Cache Components would change rendering for the whole app, and `unstable_cache` is deprecated.
+- *Trade-off:* Each web instance keeps its own cache, so two instances may show figures a few minutes apart. Raw SQL ties `analytics` to the column names of other modules; its integration tests catch drift. Materialized daily aggregates are the next step only if measurements show the need.
+
 ## 13. Evolution to SaaS
 
 The V1 design keeps these steps additive, with no rewrites:
