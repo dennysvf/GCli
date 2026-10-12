@@ -1,0 +1,100 @@
+{
+  "errors": {
+    "ANALYTICS_PERIOD_TOO_LONG": "El período puede tener como máximo 366 días.",
+    "ANALYTICS_PERIOD_INVALID": "La fecha final debe ser igual o posterior a la fecha inicial.",
+    "ANALYTICS_UNIT_INVALID": "Unidad no encontrada.",
+    "ANALYTICS_PROFESSIONAL_INVALID": "Profesional no encontrado."
+  },
+  "validation": {
+    "invalidDate": "Ingrese una fecha válida.",
+    "invalidId": "Selección no válida.",
+    "invalidPeriod": "Elija un período.",
+    "dateRequired": "Ingrese la fecha."
+  },
+  "ui": {
+    "title": "Panel",
+    "filters": "Filtros del panel",
+    "period": "Período",
+    "from": "Desde",
+    "to": "Hasta",
+    "unit": "Unidad",
+    "professional": "Profesional",
+    "allUnits": "Todas las unidades",
+    "allProfessionals": "Todos los profesionales",
+    "inactiveUnit": "{name} (inactiva)",
+    "inactiveProfessional": "{name} (inactivo)",
+    "updatedAt": "Actualizado a las {time}",
+    "updating": "Actualizando…",
+    "empty": "Sin datos para el período seleccionado.",
+    "emptyHint": "Elija otro período u otros filtros.",
+    "professionalNote": "Los gastos y el resultado no se aplican a un profesional.",
+    "operations": "Operación",
+    "finance": "Finanzas",
+    "noValue": "—",
+    "formulaOf": "Fórmula: {label}"
+  },
+  "presets": {
+    "TODAY": "Hoy",
+    "LAST_7_DAYS": "Últimos 7 días",
+    "LAST_30_DAYS": "Últimos 30 días",
+    "CURRENT_MONTH": "Mes actual",
+    "PREVIOUS_MONTH": "Mes anterior",
+    "CUSTOM": "Personalizado"
+  },
+  "change": {
+    "percent": "{value}% vs. período anterior",
+    "points": "{value} p.p. vs. período anterior",
+    "noBase": "Sin base de comparación",
+    "none": "Sin variación"
+  },
+  "kpis": {
+    "appointments": {
+      "label": "Citas",
+      "formula": "Citas del período, sin las canceladas."
+    },
+    "completed": {
+      "label": "Concluidas",
+      "formula": "Citas del período con estado Concluida."
+    },
+    "occupancy": {
+      "label": "Tasa de ocupación",
+      "formula": "Minutos reservados de citas no canceladas ÷ minutos disponibles (horario de trabajo de los profesionales menos ausencias y cierres de la unidad). Las citas superpuestas cuentan una vez."
+    },
+    "cancellationRate": {
+      "label": "Tasa de cancelación",
+      "formula": "Canceladas ÷ total reservado en el período."
+    },
+    "noShowRate": {
+      "label": "Tasa de inasistencia",
+      "formula": "Inasistencias ÷ (concluidas + inasistencias)."
+    },
+    "newPatients": {
+      "label": "Pacientes nuevos",
+      "formula": "Pacientes registrados en el período. Con una unidad o profesional seleccionado, cuenta a quienes tuvieron su primera cita en esa unidad o con ese profesional."
+    },
+    "billed": {
+      "label": "Facturado",
+      "formula": "Monto neto de los cobros no cancelados creados en el período."
+    },
+    "received": {
+      "label": "Recibido",
+      "formula": "Pagos menos reembolsos recibidos en el período."
+    },
+    "receivable": {
+      "label": "Por cobrar",
+      "formula": "Saldo pendiente de los cobros no cancelados creados en el período."
+    },
+    "averageTicket": {
+      "label": "Ticket promedio",
+      "formula": "Recibido ÷ citas concluidas, por moneda."
+    },
+    "paidExpenses": {
+      "label": "Gastos pagados",
+      "formula": "Gastos pagados más retiros manuales de caja, sin transferencias ni reversiones."
+    },
+    "result": {
+      "label": "Resultado",
+      "formula": "Recibido + ingresos manuales (ingresos recibidos y entradas de caja) − gastos pagados."
+    }
+  }
+}

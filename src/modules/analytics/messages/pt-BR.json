@@ -1,0 +1,100 @@
+{
+  "errors": {
+    "ANALYTICS_PERIOD_TOO_LONG": "O período deve ter no máximo 366 dias.",
+    "ANALYTICS_PERIOD_INVALID": "A data final deve ser igual ou posterior à data inicial.",
+    "ANALYTICS_UNIT_INVALID": "Unidade não encontrada.",
+    "ANALYTICS_PROFESSIONAL_INVALID": "Profissional não encontrado."
+  },
+  "validation": {
+    "invalidDate": "Informe uma data válida.",
+    "invalidId": "Seleção inválida.",
+    "invalidPeriod": "Escolha um período.",
+    "dateRequired": "Informe a data."
+  },
+  "ui": {
+    "title": "Painel",
+    "filters": "Filtros do painel",
+    "period": "Período",
+    "from": "De",
+    "to": "Até",
+    "unit": "Unidade",
+    "professional": "Profissional",
+    "allUnits": "Todas as unidades",
+    "allProfessionals": "Todos os profissionais",
+    "inactiveUnit": "{name} (inativa)",
+    "inactiveProfessional": "{name} (inativo)",
+    "updatedAt": "Atualizado às {time}",
+    "updating": "Atualizando…",
+    "empty": "Sem dados para o período selecionado.",
+    "emptyHint": "Escolha outro período ou outros filtros.",
+    "professionalNote": "Despesas e resultado não se aplicam a um profissional.",
+    "operations": "Operação",
+    "finance": "Financeiro",
+    "noValue": "—",
+    "formulaOf": "Fórmula: {label}"
+  },
+  "presets": {
+    "TODAY": "Hoje",
+    "LAST_7_DAYS": "Últimos 7 dias",
+    "LAST_30_DAYS": "Últimos 30 dias",
+    "CURRENT_MONTH": "Mês atual",
+    "PREVIOUS_MONTH": "Mês anterior",
+    "CUSTOM": "Personalizado"
+  },
+  "change": {
+    "percent": "{value}% vs. período anterior",
+    "points": "{value} p.p. vs. período anterior",
+    "noBase": "Sem base de comparação",
+    "none": "Sem variação"
+  },
+  "kpis": {
+    "appointments": {
+      "label": "Agendamentos",
+      "formula": "Agendamentos do período, sem os cancelados."
+    },
+    "completed": {
+      "label": "Concluídos",
+      "formula": "Agendamentos do período com status Concluído."
+    },
+    "occupancy": {
+      "label": "Taxa de ocupação",
+      "formula": "Minutos agendados de atendimentos não cancelados ÷ minutos disponíveis (horário de trabalho dos profissionais menos folgas e fechamentos da unidade). Atendimentos sobrepostos contam uma vez."
+    },
+    "cancellationRate": {
+      "label": "Taxa de cancelamento",
+      "formula": "Cancelados ÷ total agendado no período."
+    },
+    "noShowRate": {
+      "label": "Taxa de faltas",
+      "formula": "Faltas ÷ (concluídos + faltas)."
+    },
+    "newPatients": {
+      "label": "Novos pacientes",
+      "formula": "Pacientes cadastrados no período. Com unidade ou profissional selecionado, conta quem teve o primeiro atendimento nessa unidade ou com esse profissional."
+    },
+    "billed": {
+      "label": "Faturado",
+      "formula": "Valor líquido das cobranças não canceladas criadas no período."
+    },
+    "received": {
+      "label": "Recebido",
+      "formula": "Pagamentos menos estornos recebidos no período."
+    },
+    "receivable": {
+      "label": "A receber",
+      "formula": "Saldo em aberto das cobranças não canceladas criadas no período."
+    },
+    "averageTicket": {
+      "label": "Ticket médio",
+      "formula": "Recebido ÷ atendimentos concluídos, por moeda."
+    },
+    "paidExpenses": {
+      "label": "Despesas pagas",
+      "formula": "Despesas pagas mais saídas manuais do caixa, sem transferências nem estornos."
+    },
+    "result": {
+      "label": "Resultado",
+      "formula": "Recebido + receitas manuais (receitas recebidas e entradas do caixa) − despesas pagas."
+    }
+  }
+}

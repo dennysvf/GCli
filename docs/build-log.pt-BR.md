@@ -32,9 +32,10 @@ English version: [build-log.en.md](build-log.en.md).
 18. [Nona funcionalidade: F09 — Cobrança e Pagamentos](#18-nona-funcionalidade-f09--cobrança-e-pagamentos)
 19. [Décima funcionalidade: F10 — Pacotes de Sessões](#19-décima-funcionalidade-f10--pacotes-de-sessões)
 20. [Décima primeira funcionalidade: F11 — Caixa e Despesas](#20-décima-primeira-funcionalidade-f11--caixa-e-despesas)
-21. [Problemas encontrados e como foram resolvidos](#21-problemas-encontrados-e-como-foram-resolvidos)
-22. [Como reproduzir o ambiente do zero](#22-como-reproduzir-o-ambiente-do-zero)
-23. [Lições aprendidas](#23-lições-aprendidas)
+21. [Décima segunda funcionalidade: F12 — Painel de Gestão](#21-décima-segunda-funcionalidade-f12--painel-de-gestão)
+22. [Problemas encontrados e como foram resolvidos](#22-problemas-encontrados-e-como-foram-resolvidos)
+23. [Como reproduzir o ambiente do zero](#23-como-reproduzir-o-ambiente-do-zero)
+24. [Lições aprendidas](#24-lições-aprendidas)
 
 ---
 
@@ -896,7 +897,60 @@ As decisões viraram o **ADR-036** e a seção 5.16 do design system. A especifi
 
 ---
 
-## 21. Problemas encontrados e como foram resolvidos
+## 21. Décima segunda funcionalidade: F12 — Painel de Gestão
+
+A F12 é a primeira tela que só lê: agendamentos, ocupação, cancelamentos e faltas, e o dinheiro faturado, recebido, a receber, gasto e o que sobrou, por período, unidade e profissional. A pergunta central da especificação foi **como fazer os números baterem com os registros de onde vêm**, no tempo certo (3 segundos para 30 dias e todas as unidades) e em todas as moedas.
+
+### 21.1 Decisões tomadas na entrevista
+
+| Decisão | Resultado |
+|---|---|
+| Escopo | Os cartões e filtros do Essencial, mais a comparação com o período anterior; gráficos e detalhamento esperam a F13 |
+| Ocupação | Horário de trabalho menos folgas **e fechamentos da unidade**; atendimentos sobrepostos (Encaixe) de um profissional contam uma vez e só dentro do expediente, então a taxa nunca passa de 100% |
+| "Resultado" | As **mesmas linhas do extrato da F11**: entradas e saídas manuais do caixa contam, transferências não |
+| Profissional selecionado | Os valores de cobrança seguem o profissional da cobrança; "Despesas pagas" e "Resultado" ficam ocultos |
+| Período anterior | Mesmo tamanho, imediatamente antes; o mês atual até hoje compara com os mesmos dias do mês anterior |
+| Variação | Porcentagem para contagens e dinheiro, pontos percentuais para taxas; cor e seta só a partir de 5% ou 2 p.p. |
+| Cache | 5 minutos no processo, por organização e filtros, depois da autorização; o Cache Components do Next.js mudaria a renderização do app inteiro |
+
+As decisões viraram o **ADR-037** e a seção 5.17 do design system. A especificação e o plano estão em [F12-management-dashboard/](F12-management-dashboard/).
+
+### 21.2 Como os números se mantêm certos
+
+- **Agregados no banco:** uma consulta SQL por grupo de indicadores, com a organização filtrada explicitamente e cada registro posto no período pela data local no fuso da sua unidade.
+- **Fórmulas como funções puras:** período, período anterior, ocupação, taxas, ticket, resultado e variação têm testes unitários contra as fórmulas do PRD.
+- **Uma linha por moeda:** os valores são agrupados por moeda e nunca somados entre moedas (PRD F16).
+- **Medido, não suposto:** um teste de integração insere cerca de 15.000 agendamentos com cobranças e pagamentos e verifica o p95 de 20 execuções sem cache: **613 ms** (mediana de 426 ms) contra a meta de 3 segundos.
+
+### 21.3 Implementação em 5 etapas
+
+| Etapa | O que entrou |
+|---|---|
+| 1 — Documentação e índices | PRD, ADR-037, seção 5.17 do design system, migração `0015_analytics` (só índices) |
+| 2 — Domínio e consultas | Período, ocupação e cálculo dos indicadores, puros e com testes unitários; as consultas de leitura |
+| 3 — Caso de uso e módulo | Schema de entrada, o cache no processo, o caso de uso, os catálogos nos três idiomas e os testes de integração com dados controlados |
+| 4 — Tela | A página `/dashboard`, a barra de filtros guardada na URL, os cartões de indicadores com o tooltip da fórmula |
+| 5 — Acabamento | Teste de carga, nota nos dados de demonstração, jornadas E2E, revisão do design system e este diário |
+
+### 21.4 Problemas encontrados na F12
+
+| Problema | Causa | Solução |
+|---|---|---|
+| O estilo `figure` do design system não existia no CSS | O token estava documentado, mas nenhuma tela o usava até agora | Um utilitário `figure` no `globals.css` (32/36 px, 600, algarismos tabulares) |
+| O lint recusou as chaves dos indicadores no JSX | A regra de i18n trata qualquer texto literal dentro do JSX como texto de interface | Os cartões são montados em listas antes do JSX, então só texto de catálogo chega a ele |
+| Um Encaixe podia levar a ocupação acima de 100% | As durações eram somadas por agendamento | O tempo agendado é a união dos agendamentos de cada profissional, cruzada com o tempo disponível |
+| A jornada E2E não conseguia escolher o filtro de unidade | O cabeçalho do app tem seu próprio seletor "Unidade", com o mesmo rótulo | A jornada procura o seletor dentro do grupo "Filtros do painel" |
+| A jornada E2E não achava o profissional | `display_name` é opcional; as listas mostram o nome completo quando ele está vazio | A jornada lê `coalesce(display_name, full_name)` |
+| Um estorno reduzia o período errado | Um estorno pertence ao dia em que o dinheiro voltou, não ao dia do pagamento | Estornos são linhas negativas de pagamento contadas pela própria data |
+
+### 21.5 O que a F12 deixou pronto
+
+- **As regras de período e de período anterior** e os auxiliares de consulta, que os relatórios da F13 podem reaproveitar.
+- **Um conjunto de dados controlado** para testes de integração, que confere cada fórmula com valores calculados à mão.
+
+---
+
+## 22. Problemas encontrados e como foram resolvidos
 
 Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos esses problemas apareceram porque **cada etapa foi executada de verdade**, e não só escrita.
 
@@ -919,7 +973,7 @@ Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos es
 
 ---
 
-## 22. Como reproduzir o ambiente do zero
+## 23. Como reproduzir o ambiente do zero
 
 ### Pré-requisitos
 
@@ -994,7 +1048,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 23. Lições aprendidas
+## 24. Lições aprendidas
 
 1. **Entrevista antes de documento.** Uma pergunta por vez, sempre com uma recomendação, resolve mais do que um documento longo escrito no escuro.
 2. **IDs de ponta a ponta** (F01 → história → critério → teste → commit) tornam o projeto rastreável sem esforço extra.
@@ -1015,3 +1069,4 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 17. **Todo script de operação deve dizer onde vai gravar.** Rodar o script do CORS "para produção" teria gravado no ambiente local, sem erro nenhum. Mostrar o destino antes e ter um `--dry-run` evita esse engano.
 18. **Compartilhe o que duas funcionalidades usam antes de copiar.** O envio direto, a conversão de HEIC, o sanitizador e o editor nasceram no prontuário; a F08 os moveu para `src/shared` no primeiro estágio, e o prontuário continuou passando nos mesmos testes. Copiar teria feito as duas versões se afastarem.
 19. **Regra de dados sensíveis vira regra do banco.** O indicador clínico que nunca desliga e a cota sem corrida estão em gatilho e trava de linha, não só no código: um erro de aplicação não os quebra.
+20. **Um número do painel precisa bater com uma tela em que o usuário já confia.** O "Resultado" da F12 é conferido em teste contra o extrato da F11 para a mesma unidade e período; quando duas telas mostram o mesmo dinheiro, um teste as mantém iguais.

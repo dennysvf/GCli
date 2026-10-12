@@ -450,6 +450,16 @@ O caixa e os lançamentos financeiros (F11) ficam em Financeiro. Estas regras co
 - **Extrato:** uma tabela com a primeira linha "Saldo anterior", colunas de entrada e saída alinhadas à direita com números tabulares, uma coluna de saldo corrido, e os totais por categoria e o resultado do período abaixo.
 - **Comprovantes:** um campo de anexo com os tipos e o tamanho aceitos no texto de apoio e um texto de progresso durante o envio.
 
+### 5.17 Painel de gestão
+
+O painel (F12) é a única tela feita de cartões de indicadores (seção 5.6). Estas regras cobrem o que as outras seções não mostram.
+- **Barra de filtros:** abaixo do título da página, em uma linha a partir de 1024 px (período, unidade, profissional), quebrando em telas estreitas. "Personalizado" mostra dois campos de data na mesma linha. Os filtros se aplicam ao mudar; não há botão "Aplicar" nem botão primário nesta tela. "Atualizado às 14:35" fica no fim da barra em `meta`; enquanto recalcula, mostra "Atualizando…" (`aria-live="polite"`) e os cartões mantêm os valores anteriores.
+- **Duas linhas de cartões:** cada linha tem um título de seção ("Operação", "Financeiro") e uma grade. "Operação" tem 2 colunas no celular, 3 no tablet e 6 a partir de 1280 px; "Financeiro" tem 1 coluna no celular, 2 a partir de 640 px e 3 a partir de 1024 px, porque valores em dinheiro são largos. Os cartões têm a mesma altura dentro de uma linha.
+- **Conteúdo do cartão:** o rótulo em `column-label` com um botão de ícone de informação que abre o tooltip da fórmula (focável pelo teclado); o valor em `figure`; cartões de dinheiro listam uma linha por moeda, em `figure` a primeira e em `body-strong` as outras, nunca somadas. Taxas mostram uma casa decimal ("72,4%"); uma taxa sem base mostra "—".
+- **Variação:** em `meta` abaixo do valor: "+12% vs. período anterior" para contagens e dinheiro (por linha de moeda), "+3,5 p.p." para taxas, "Sem base de comparação" ou "Sem variação" quando for o caso. A seta e a cor de texto de sucesso ou destrutiva aparecem só quando a variação é significativa (5% ou 2 p.p.), e a cor segue o sentido do indicador (mais faltas é ruim). "A receber" nunca recebe cor. O texto sempre diz a direção, então a cor nunca aparece sozinha.
+- **Profissional selecionado:** a linha "Financeiro" mostra quatro cartões e uma nota em `meta`: "Despesas e resultado não se aplicam a um profissional."
+- **Estado vazio:** "Sem dados para o período selecionado." substitui as duas linhas (seção 7.4); os filtros continuam.
+
 ## 6. Detalhes visuais
 
 ### 6.1 Bordas e raios

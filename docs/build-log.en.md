@@ -32,9 +32,10 @@ Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 18. [Ninth feature: F09 — Billing and Payments](#18-ninth-feature-f09--billing-and-payments)
 19. [Tenth feature: F10 — Session Packages](#19-tenth-feature-f10--session-packages)
 20. [Eleventh feature: F11 — Cash Register and Expenses](#20-eleventh-feature-f11--cash-register-and-expenses)
-21. [Problems found and how they were solved](#21-problems-found-and-how-they-were-solved)
-22. [Reproducing the environment from scratch](#22-reproducing-the-environment-from-scratch)
-23. [Lessons learned](#23-lessons-learned)
+21. [Twelfth feature: F12 — Management Dashboard](#21-twelfth-feature-f12--management-dashboard)
+22. [Problems found and how they were solved](#22-problems-found-and-how-they-were-solved)
+23. [Reproducing the environment from scratch](#23-reproducing-the-environment-from-scratch)
+24. [Lessons learned](#24-lessons-learned)
 
 ---
 
@@ -896,7 +897,60 @@ The decisions became **ADR-036** and section 5.16 of the design system. The spec
 
 ---
 
-## 21. Problems found and how they were solved
+## 21. Twelfth feature: F12 — Management Dashboard
+
+F12 is the first screen that only reads: appointments, occupancy, cancellations and no-shows, and the money billed, received, receivable, spent and left over, for a period, a unit and a professional. The central question of the specification was **how to make the figures match the records they come from**, in time (3 seconds for 30 days and all units) and in every currency.
+
+### 21.1 Decisions made in the interview
+
+| Decision | Result |
+|---|---|
+| Scope | The Core cards and filters, plus the comparison with the previous period; charts and drill-down wait for F13 |
+| Occupancy | Working hours minus time-offs **and unit closures**; overlapping appointments (Encaixe) of one professional count once and only inside working hours, so the rate never passes 100% |
+| "Resultado" | The **same lines as the F11 statement**: manual cash entries and withdrawals count, transfers do not |
+| Professional selected | Charge figures follow the charge's professional; "Despesas pagas" and "Resultado" are hidden |
+| Previous period | Same length, right before; the current month to date compares with the same days of the previous month |
+| Variation | Percentage for counts and money, percentage points for rates; color and arrow only from 5% or 2 p.p. |
+| Cache | 5 minutes in process, per organization and filters, after authorization; Next.js Cache Components would have changed rendering for the whole app |
+
+The decisions became **ADR-037** and section 5.17 of the design system. The specification and plan are in [F12-management-dashboard/](F12-management-dashboard/).
+
+### 21.2 How the figures stay right
+
+- **Aggregates in the database:** one SQL query per group of KPIs, with the organization filtered explicitly and each record placed in the period by its local date in its unit's time zone.
+- **Formulas as pure functions:** period, previous period, occupancy, rates, ticket, result and variation are unit tested against the PRD formulas.
+- **One line per currency:** money is grouped by currency and never summed across currencies (PRD F16).
+- **Measured, not assumed:** an integration test inserts about 15,000 appointments with their charges and payments and checks the p95 of 20 uncached runs: **613 ms** (median 426 ms) against the 3-second target.
+
+### 21.3 Implementation in 5 stages
+
+| Stage | What went in |
+|---|---|
+| 1 — Documentation and indexes | PRD, ADR-037, design system section 5.17, migration `0015_analytics` (indexes only) |
+| 2 — Domain and queries | Period, occupancy and KPI math, pure and unit tested; the read queries |
+| 3 — Use case and module | Input schema, the in-process cache, the use case, the catalogs in three languages and the controlled-dataset integration tests |
+| 4 — Screen | The `/dashboard` page, the filter bar kept in the URL, the indicator cards with formula tooltips |
+| 5 — Finishing | Load test, demo data note, E2E journeys, design system review and this log |
+
+### 21.4 Problems found in F12
+
+| Problem | Cause | Solution |
+|---|---|---|
+| The `figure` style of the design system did not exist in CSS | The token was documented but no screen used it until now | A `figure` utility in `globals.css` (32/36 px, 600, tabular numerals) |
+| The lint refused the KPI keys in the JSX | The i18n rule treats any string literal inside JSX as interface text | The cards are built in arrays before the JSX, so only catalog text reaches it |
+| An Encaixe could push occupancy above 100% | Durations were summed per appointment | Booked time is the union of each professional's appointments, intersected with the available time |
+| The E2E journey could not pick the unit filter | The app header has its own "Unidade" selector with the same label | The journey looks for the trigger inside the "Filtros do painel" group |
+| The E2E journey could not find the professional | `display_name` is optional; the lists show the full name when it is empty | The journey reads `coalesce(display_name, full_name)` |
+| A refund lowered the wrong period | A refund belongs to the day the money went back, not to the day of the payment | Refunds are negative payment rows counted by their own date |
+
+### 21.5 What F12 left ready
+
+- **The period and previous-period rules** and the query helpers, which F13 reports can reuse.
+- **A controlled dataset** for integration tests that checks every formula against hand-computed values.
+
+---
+
+## 22. Problems found and how they were solved
 
 This may be the most useful section for anyone reproducing the project. All of these problems showed up because **each stage was actually executed**, not just written.
 
@@ -919,7 +973,7 @@ This may be the most useful section for anyone reproducing the project. All of t
 
 ---
 
-## 22. Reproducing the environment from scratch
+## 23. Reproducing the environment from scratch
 
 ### Prerequisites
 
@@ -994,7 +1048,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 23. Lessons learned
+## 24. Lessons learned
 
 1. **Interview before document.** One question at a time, always with a recommendation, settles more than a long document written in the dark.
 2. **End-to-end IDs** (F01 → story → criterion → test → commit) make the project traceable at no extra cost.
@@ -1015,3 +1069,4 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 17. **Every operational script must say where it will write.** Running the CORS script "for production" would have written to the local environment, with no error at all. Printing the target first and offering `--dry-run` prevents that mistake.
 18. **Share what two features use before copying it.** Direct upload, HEIC conversion, the sanitizer and the editor were born in the clinical record; F08 moved them to `src/shared` in its first stage, and the clinical record kept passing the same tests. Copying would have let the two versions drift.
 19. **A rule about sensitive data becomes a database rule.** The clinical flag that never turns off and the race-free quota live in a trigger and a row lock, not only in code: an application bug cannot break them.
+20. **A dashboard figure must reconcile with a screen the user already trusts.** The F12 "Resultado" is checked in a test against the F11 statement for the same unit and period; when two screens show the same money, a test keeps them equal.

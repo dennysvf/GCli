@@ -655,13 +655,13 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 - Filtros: período (Hoje, Últimos 7 dias, Últimos 30 dias, Mês atual, Mês anterior, Personalizado até 366 dias), unidade (todas ou uma), profissional (todos ou um).
 - Indicadores (com fórmulas mostradas em um tooltip):
   - Agendamentos (total no período, excluindo cancelados), Concluídos.
-  - Taxa de ocupação = minutos agendados de atendimentos não cancelados ÷ minutos disponíveis a partir do horário de trabalho dos profissionais menos as folgas.
+  - Taxa de ocupação = minutos agendados de atendimentos não cancelados ÷ minutos disponíveis a partir do horário de trabalho dos profissionais menos as folgas e os fechamentos da unidade. Os minutos agendados contam apenas dentro do tempo disponível, e atendimentos sobrepostos (Encaixe) de um profissional contam uma vez, então a taxa nunca passa de 100%.
   - Taxa de cancelamento = cancelados ÷ total agendado; Taxa de falta = faltas ÷ (concluídos + faltas).
   - Novos pacientes (cadastrados no período).
   - Faturado (valor líquido de cobranças não canceladas), Recebido (pagamentos menos estornos), A receber (saldos em aberto criados no período), Ticket médio = recebido ÷ atendimentos concluídos.
-  - Despesas pagas, Resultado = Recebido + receitas manuais − despesas pagas (apenas quando o filtro de profissional = todos).
+  - Despesas pagas, Resultado = Recebido + receitas manuais − despesas pagas, com as mesmas linhas do extrato da F11 (entradas e saídas manuais do caixa contam, transferências não). Os dois aparecem apenas quando o filtro de profissional = todos; com um profissional selecionado, os valores de cobrança usam o profissional da cobrança.
 - Gráficos (Escopo Completo): faturamento recebido diário (linha), agendamentos por status (barra empilhada por dia), top 5 serviços por faturamento (barra), faturamento por profissional (barra).
-- Comparação (Escopo Completo): cada indicador mostra a variação em relação ao período equivalente anterior (ex.: "+12%").
+- Comparação (Escopo Completo): cada indicador mostra a variação em relação ao período equivalente anterior (ex.: "+12%"): o período de mesmo tamanho imediatamente antes e, para "Mês atual", do dia 1 ao mesmo dia do mês anterior. Contagens e valores mostram porcentagem; taxas mostram pontos percentuais ("+3,5 p.p."); um valor anterior zero mostra "Sem base de comparação".
 - Desempenho: ≤ 3 segundos p95 para 30 dias e todas as unidades; atualização dos dados ≤ 5 minutos (agregados em cache são aceitáveis).
 
 **Experiência:**
