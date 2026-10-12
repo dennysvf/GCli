@@ -237,7 +237,8 @@
       "typeOptions": {
         "CANCELLED": "Cancellations",
         "NO_SHOW": "No-shows"
-      }
+      },
+      "inactive": "{name} (inactive)"
     },
     "ui": {
       "filters": "Report filters",

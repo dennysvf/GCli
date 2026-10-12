@@ -237,7 +237,8 @@
       "typeOptions": {
         "CANCELLED": "Cancelaciones",
         "NO_SHOW": "Ausencias"
-      }
+      },
+      "inactive": "{name} (inactivo)"
     },
     "ui": {
       "filters": "Filtros del informe",
