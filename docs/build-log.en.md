@@ -1,10 +1,10 @@
 # Build log — how GCli was built
 
-This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F09 and F16). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
+This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F12 and F16). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
 
 The work was done as a pair: a product owner and an AI coding assistant. The product owner answered questions, made the business decisions and approved each stage; the assistant ran the interviews, wrote documents and code, ran the tests and recorded what it found along the way.
 
-> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations → F08 → F09.
+> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations → F08 → F09 → F10 → F11 → F12.
 
 Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 
@@ -942,11 +942,13 @@ The decisions became **ADR-037** and section 5.17 of the design system. The spec
 | The E2E journey could not pick the unit filter | The app header has its own "Unidade" selector with the same label | The journey looks for the trigger inside the "Filtros do painel" group |
 | The E2E journey could not find the professional | `display_name` is optional; the lists show the full name when it is empty | The journey reads `coalesce(display_name, full_name)` |
 | A refund lowered the wrong period | A refund belongs to the day the money went back, not to the day of the payment | Refunds are negative payment rows counted by their own date |
+| **The F12 E2E journeys failed only in CI**, showing "Sem dados para o período selecionado." | The Administrator lands on the dashboard at sign-in (PRD F01), so the first sign-in of the run, with the database still empty, cached an empty "Mês atual" for 5 minutes. The CI runs the suite faster than a laptop, so the cache had not expired when the F12 journeys ran; locally the run took 8 to 10 minutes and the cache had expired | Each journey opens a period that no other journey loads ("Últimos 30 dias", "Últimos 7 dias"), so it computes from real data. The product keeps the 5-minute cache the PRD accepts |
 
 ### 21.5 What F12 left ready
 
 - **The period and previous-period rules** and the query helpers, which F13 reports can reuse.
 - **A controlled dataset** for integration tests that checks every formula against hand-computed values.
+- **A rule for testing cached screens:** an E2E journey must not depend on a figure that an earlier sign-in may have cached; it opens filters nobody else loads.
 
 ---
 
