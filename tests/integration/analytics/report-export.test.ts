@@ -153,7 +153,7 @@ describe("PDF export", () => {
     expect(document?.generated).toContain(world.manager.user.name);
     expect(document?.pageLabel).toBe("Página {page} de {total}");
     expect(document?.rows).toHaveLength(1);
-    expect(document?.totalsRow?.[0]).toBe("Total: 1 linhas");
+    expect(document?.totalsRow?.[0]).toBe("Total: 1 linha");
     expect(exported.value.fileName.endsWith(".pdf")).toBe(true);
   });
 
@@ -176,5 +176,41 @@ describe("PDF export", () => {
     const price = documents[0]?.totals.find((pair) => pair.label === "Preço");
     expect(price?.value).toMatch(/R\$ 2\.000,00/);
     expect(price?.value).toMatch(/€ 250,00/);
+  });
+});
+
+describe("report language", () => {
+  it("F13: report columns, CSV headers and values, and PDF texts follow the user's language", async () => {
+    const period = await controlledDataset(world);
+    const english = { ...world.manager, locale: "en" as const };
+    const spanish = { ...world.manager, locale: "es" as const };
+    const { api, documents } = freshReports();
+
+    const view = await api.getReport(english, "appointments", custom(period, { status: "COMPLETED" }));
+    if (!view.ok) throw new Error(view.error.code);
+    expect(view.value.columns.map((column) => column.label)).toEqual([
+      "Date",
+      "Time",
+      "Patient",
+      "Service",
+      "Professional",
+      "Unit",
+      "Room",
+      "Status",
+      "Price",
+    ]);
+    expect(JSON.stringify(view.value.rows[0])).toContain("Completed");
+    expect(view.value.totalsRow.date?.[0]).toBe("Total: 4 rows");
+
+    const pdf = await api.exportReport(english, "appointments", "pdf", custom(period));
+    if (!pdf.ok) throw new Error(pdf.error.code);
+    expect(documents[0]?.title).toBe("Appointments");
+    expect(documents[0]?.pageLabel).toBe("Page {page} of {total}");
+    expect(documents[0]?.subtitle).toContain("Period:");
+
+    const es = await api.exportReport(spanish, "cancellations", "pdf", custom(period));
+    if (!es.ok) throw new Error(es.error.code);
+    expect(documents[1]?.title).toBe("Cancelaciones y ausencias");
+    expect(documents[1]?.pageLabel).toBe("Página {page} de {total}");
   });
 });

@@ -212,15 +212,15 @@
     "noService": "No service",
     "noProfessional": "No professional",
     "csvCurrency": "Currency",
-    "totalRows": "Total: {count} rows",
+    "totalRows": "{count, plural, one {Total: # row} other {Total: # rows}}",
     "summaries": {
       "byReason": "By reason",
       "byProfessional": "By professional",
       "subtotals": "Subtotals",
       "byBucket": "By aging bucket"
     },
-    "tooltips": {
-      "daysOpen": "A charge is due on issue. Days open = today minus the issue date, in the unit's time zone."
+    "notes": {
+      "receivables": "A charge is due on issue. Days open = today minus the issue date, in the unit's time zone."
     },
     "filters": {
       "all": "All",

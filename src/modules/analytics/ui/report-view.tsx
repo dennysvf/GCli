@@ -16,6 +16,8 @@ import { ReportFilters } from "./report-filters";
 import { ReportSummaries } from "./report-summaries";
 import { ReportTable } from "./report-table";
 
+const RECEIVABLES: ReportId = "receivables";
+
 export type ReportAction = (report: string, input: unknown) => Promise<ActionResult<ReportData>>;
 
 function searchOf(report: ReportId, filters: ReportFilterState, page: number): string {
@@ -141,6 +143,10 @@ export function ReportView({
           {pending ? t("ui.generating") : t("ui.generate")}
         </Button>
       </div>
+
+      {report === RECEIVABLES ? (
+        <p className="text-muted-foreground text-[0.8125rem]">{t("notes.receivables")}</p>
+      ) : null}
 
       {error ? <Alert variant="destructive">{error}</Alert> : null}
 

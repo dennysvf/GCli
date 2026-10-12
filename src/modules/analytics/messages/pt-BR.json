@@ -212,15 +212,15 @@
     "noService": "Sem serviço",
     "noProfessional": "Sem profissional",
     "csvCurrency": "Moeda",
-    "totalRows": "Total: {count} linhas",
+    "totalRows": "{count, plural, one {Total: # linha} other {Total: # linhas}}",
     "summaries": {
       "byReason": "Por motivo",
       "byProfessional": "Por profissional",
       "subtotals": "Subtotais",
       "byBucket": "Por faixa de atraso"
     },
-    "tooltips": {
-      "daysOpen": "A cobrança vence na emissão. Dias em aberto = hoje menos a data de emissão, no fuso da unidade."
+    "notes": {
+      "receivables": "A cobrança vence na emissão. Dias em aberto = hoje menos a data de emissão, no fuso da unidade."
     },
     "filters": {
       "all": "Todos",

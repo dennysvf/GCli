@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from "@react-pdf/renderer";
 import { createElement } from "react";
 import { PDF_COLORS, PdfDocument, PdfSummary, PdfTable } from "@/shared/pdf/document";
 import { renderPdf } from "@/shared/pdf/render";
-import type { ReportPdfDocument, ReportPdfRenderer } from "../application/ports";
+import type { ReportPdfDocument } from "../application/ports";
 
 // The printed report (design system 5.11, 5.18): A4 landscape on the shared base, with the summary
 // tables and totals first, then one table whose last row holds the totals.
@@ -52,6 +52,6 @@ function Report({ document }: { document: ReportPdfDocument }) {
   );
 }
 
-export const reactPdfReportRenderer: ReportPdfRenderer = {
-  render: (document) => renderPdf(createElement(Report, { document })),
-};
+export function renderReport(document: ReportPdfDocument): Promise<Buffer> {
+  return renderPdf(createElement(Report, { document }));
+}

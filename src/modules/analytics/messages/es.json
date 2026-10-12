@@ -212,15 +212,15 @@
     "noService": "Sin servicio",
     "noProfessional": "Sin profesional",
     "csvCurrency": "Moneda",
-    "totalRows": "Total: {count} filas",
+    "totalRows": "{count, plural, one {Total: # fila} other {Total: # filas}}",
     "summaries": {
       "byReason": "Por motivo",
       "byProfessional": "Por profesional",
       "subtotals": "Subtotales",
       "byBucket": "Por tramo de antigüedad"
     },
-    "tooltips": {
-      "daysOpen": "El cobro vence en la emisión. Días abierto = hoy menos la fecha de emisión, en la zona horaria de la unidad."
+    "notes": {
+      "receivables": "El cobro vence en la emisión. Días abierto = hoy menos la fecha de emisión, en la zona horaria de la unidad."
     },
     "filters": {
       "all": "Todos",

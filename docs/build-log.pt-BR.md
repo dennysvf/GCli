@@ -1,10 +1,10 @@
 # Diário de bordo — como o GCli foi construído
 
-Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F12 e F16). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
+Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F13 e F16). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
 
 O trabalho foi feito em dupla: uma pessoa responsável pelo produto e um assistente de programação com IA. A pessoa respondeu perguntas, tomou as decisões de negócio e aprovou cada etapa; o assistente conduziu entrevistas, escreveu documentos e código, rodou os testes e registrou o que encontrou pelo caminho.
 
-> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação → F08 → F09 → F10 → F11 → F12.
+> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação → F08 → F09 → F10 → F11 → F12 → F13.
 
 English version: [build-log.en.md](build-log.en.md).
 
@@ -33,9 +33,10 @@ English version: [build-log.en.md](build-log.en.md).
 19. [Décima funcionalidade: F10 — Pacotes de Sessões](#19-décima-funcionalidade-f10--pacotes-de-sessões)
 20. [Décima primeira funcionalidade: F11 — Caixa e Despesas](#20-décima-primeira-funcionalidade-f11--caixa-e-despesas)
 21. [Décima segunda funcionalidade: F12 — Painel de Gestão](#21-décima-segunda-funcionalidade-f12--painel-de-gestão)
-22. [Problemas encontrados e como foram resolvidos](#22-problemas-encontrados-e-como-foram-resolvidos)
-23. [Como reproduzir o ambiente do zero](#23-como-reproduzir-o-ambiente-do-zero)
-24. [Lições aprendidas](#24-lições-aprendidas)
+22. [Décima terceira funcionalidade: F13 — Relatórios e Exportação](#22-décima-terceira-funcionalidade-f13--relatórios-e-exportação)
+23. [Problemas encontrados e como foram resolvidos](#23-problemas-encontrados-e-como-foram-resolvidos)
+24. [Como reproduzir o ambiente do zero](#24-como-reproduzir-o-ambiente-do-zero)
+25. [Lições aprendidas](#25-lições-aprendidas)
 
 ---
 
@@ -952,7 +953,65 @@ As decisões viraram o **ADR-037** e a seção 5.17 do design system. A especifi
 
 ---
 
-## 22. Problemas encontrados e como foram resolvidos
+## 22. Décima terceira funcionalidade: F13 — Relatórios e Exportação
+
+A F13 transforma os dados que as outras funcionalidades gravaram em cinco relatórios (Agendamentos, Cancelamentos e faltas, Receitas, Contas a receber e Produtividade por profissional) que se exportam em CSV e PDF. A pergunta central da especificação foi **como exportar 50.000 linhas em 10 segundos sem carregá-las na memória**, e como fazer a tela, o CSV e o PDF mostrarem sempre os mesmos números.
+
+### 22.1 Decisões tomadas na entrevista
+
+| Decisão | Resultado |
+|---|---|
+| Escopo | Essencial e Completo: os cinco relatórios, o CSV e o PDF |
+| "Dias em atraso" | A cobrança não tem data de vencimento (ela vence na emissão), então o relatório conta **dias em aberto** desde a data de emissão, no fuso da unidade; o PRD foi ajustado |
+| Índice de relatórios | Uma lista, não cartões: o design system reserva cartões aos indicadores do painel; o PRD foi ajustado |
+| Uma definição por relatório | Filtros, colunas, totais, página e lotes de exportação ficam num registro; tela, CSV e PDF leem a mesma definição, então os totais sempre batem |
+| CSV | Resposta em streaming, lida em lotes por chave (keyset); a contagem é conferida antes do primeiro byte, e acima de 50.000 linhas o pedido é recusado |
+| PDF | A mesma base de PDF dos outros documentos, agora com a opção de paisagem e um bloco de resumo; acima de 5.000 linhas o usuário é orientado a exportar em CSV |
+| Auditoria | Todo evento `EXPORT` é confirmado **antes** do primeiro byte, com relatório, formato, filtros e quantidade de linhas |
+| Nota do cancelamento | Texto livre pode ter dado pessoal, então nunca é exportado |
+
+As decisões viraram o **ADR-038** e a seção 5.18 do design system. A especificação e o plano estão em [F13-reports-and-export/](F13-reports-and-export/).
+
+### 22.2 Como a exportação se mantém rápida e correta
+
+- **Páginas e lotes pelo mesmo SQL:** a tela pagina com `OFFSET` (50 linhas); o CSV lê lotes por chave `(data, id)` e escreve cada lote conforme ele chega.
+- **Junções depois do limite:** a consulta primeiro corta o lote na tabela principal e só então junta paciente, serviço e profissional das linhas do lote.
+- **Medido, não suposto:** um teste de integração insere 50.000 agendamentos e confere que o CSV tem todas as linhas, uma vez cada, em ordem, em cerca de **2 segundos** (meta: 10).
+- **Uma linha por moeda:** totais e subtotais agrupam por moeda; a produtividade tem uma linha por profissional **e moeda**, para nunca somar moedas diferentes.
+- **Fusos:** cada registro cai no período pela data local da sua unidade; um teste coloca um pagamento às 00:30 em Lisboa (23:30 UTC do dia anterior) e confere o dia certo.
+
+### 22.3 Implementação em 5 etapas
+
+| Etapa | O que entrou |
+|---|---|
+| 1 — Documentação e base | PRD, ADR-038, seção 5.18, PDF em paisagem com bloco de resumo e o item "Relatórios" no menu |
+| 2 — Domínio e relatórios | Faixas de atraso, antecedência e subtotais (puros, com testes), o registro e as cinco definições, a formatação e os catálogos nos três idiomas |
+| 3 — Casos de uso e endpoint | Buscar relatório, exportar, o cabeçalho da organização, o PDF e a rota de exportação |
+| 4 — Telas | Índice, página do relatório, filtros lembrados na sessão, tabela com linha de totais, resumos, paginação e botões de exportação com progresso |
+| 5 — Acabamento | Dados de demonstração, testes de carga e limites, jornadas E2E, revisão do design system e este diário |
+
+### 22.4 Problemas encontrados na F13
+
+| Problema | Causa | Solução |
+|---|---|---|
+| O CSV de 50.000 linhas levou 17 s | Cada lote juntava paciente, serviço e profissional de **todas** as linhas restantes antes do `LIMIT` | A consulta corta o lote na tabela principal e junta os nomes depois; o tamanho do lote passou para 10.000 |
+| Ainda 11 s depois disso | Um formatador de data (`Intl.DateTimeFormat`) era criado a cada linha | A data do CSV é montada à mão (dia/mês/ano ou mês/dia/ano) |
+| O download travava no último lote | Um lote vazio não enfileirava nada e a leitura ficava esperando | O fluxo é fechado assim que o último lote é lido |
+| Lotes pulavam linhas | O deslocamento (`OFFSET`) era somado ao cursor por chave | O CSV usa só o cursor; o deslocamento é só da tela |
+| O teste não via o BOM do CSV | `TextDecoder` descarta o BOM por padrão | O leitor do teste mantém o BOM (`ignoreBOM`) |
+| A carga de teste falhou ao inserir | Um agendamento de 1 minuto viola a regra de duração mínima de 5 minutos | A carga usa agendamentos de 5 minutos |
+| O lint recusou os botões de exportação | Texto literal (`"csv"`) dentro do JSX | Constantes fora do JSX |
+| O lint recusou restaurar os filtros no `useEffect` | `setState` síncrono dentro do efeito | A restauração roda num microtask, depois da hidratação |
+
+### 22.5 O que a F13 deixou pronto
+
+- **Um registro de relatórios** para onde novos relatórios (por exemplo, os da F14) podem ser acrescentados com uma definição.
+- **O contrato de URL** `/reports/<relatório>?…&run=1`, que a F12 pode usar para abrir o relatório correspondente a partir de um indicador.
+- **Streaming de CSV por lotes** e **PDF em paisagem** na base compartilhada, reaproveitáveis pela exportação de auditoria (F15).
+
+---
+
+## 23. Problemas encontrados e como foram resolvidos
 
 Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos esses problemas apareceram porque **cada etapa foi executada de verdade**, e não só escrita.
 
@@ -975,7 +1034,7 @@ Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos es
 
 ---
 
-## 23. Como reproduzir o ambiente do zero
+## 24. Como reproduzir o ambiente do zero
 
 ### Pré-requisitos
 
@@ -1050,7 +1109,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 24. Lições aprendidas
+## 25. Lições aprendidas
 
 1. **Entrevista antes de documento.** Uma pergunta por vez, sempre com uma recomendação, resolve mais do que um documento longo escrito no escuro.
 2. **IDs de ponta a ponta** (F01 → história → critério → teste → commit) tornam o projeto rastreável sem esforço extra.
