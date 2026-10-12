@@ -1,10 +1,10 @@
 # Diário de bordo — como o GCli foi construído
 
-Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F09 e F16). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
+Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F12 e F16). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
 
 O trabalho foi feito em dupla: uma pessoa responsável pelo produto e um assistente de programação com IA. A pessoa respondeu perguntas, tomou as decisões de negócio e aprovou cada etapa; o assistente conduziu entrevistas, escreveu documentos e código, rodou os testes e registrou o que encontrou pelo caminho.
 
-> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação → F08 → F09.
+> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação → F08 → F09 → F10 → F11 → F12.
 
 English version: [build-log.en.md](build-log.en.md).
 
@@ -942,11 +942,13 @@ As decisões viraram o **ADR-037** e a seção 5.17 do design system. A especifi
 | A jornada E2E não conseguia escolher o filtro de unidade | O cabeçalho do app tem seu próprio seletor "Unidade", com o mesmo rótulo | A jornada procura o seletor dentro do grupo "Filtros do painel" |
 | A jornada E2E não achava o profissional | `display_name` é opcional; as listas mostram o nome completo quando ele está vazio | A jornada lê `coalesce(display_name, full_name)` |
 | Um estorno reduzia o período errado | Um estorno pertence ao dia em que o dinheiro voltou, não ao dia do pagamento | Estornos são linhas negativas de pagamento contadas pela própria data |
+| **As jornadas E2E da F12 falharam só no CI**, mostrando "Sem dados para o período selecionado." | O Administrador cai no painel ao entrar (PRD F01), então a primeira entrada da execução, com o banco ainda vazio, guardou em cache um "Mês atual" vazio por 5 minutos. O CI roda a suíte mais rápido que um notebook, então o cache ainda não tinha expirado quando as jornadas da F12 rodaram; localmente a execução levava de 8 a 10 minutos e o cache já tinha expirado | Cada jornada abre um período que nenhuma outra jornada carrega ("Últimos 30 dias", "Últimos 7 dias"), então calcula com dados reais. O produto mantém o cache de 5 minutos que o PRD aceita |
 
 ### 21.5 O que a F12 deixou pronto
 
 - **As regras de período e de período anterior** e os auxiliares de consulta, que os relatórios da F13 podem reaproveitar.
 - **Um conjunto de dados controlado** para testes de integração, que confere cada fórmula com valores calculados à mão.
+- **Uma regra para testar telas com cache:** uma jornada E2E não deve depender de um número que uma entrada anterior pode ter guardado em cache; ela abre filtros que ninguém mais carrega.
 
 ---
 
