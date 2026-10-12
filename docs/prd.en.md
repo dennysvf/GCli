@@ -689,7 +689,7 @@ The differentiator is configurability without complexity: the same product serve
   1. **Agendamentos**: date, time, patient, service, professional, unit, room, status, price. Filters: period, unit, professional, service, status.
   2. **Cancelamentos e faltas**: date, patient, phone, service, professional, type (cancelled/no-show), origin, reason, cancellation lead time (hours before the appointment); summary by reason and by professional.
   3. **Receitas**: payments and refunds in the period by method, service, professional, and unit, with subtotals per grouping selected by the user.
-  4. **Contas a receber**: open charges with patient, phone, origin, amount, open balance, days overdue, aging buckets 0–30, 31–60, 61–90, 90+ days.
+  4. **Contas a receber**: open charges with patient, phone, origin, amount, open balance, days open, aging buckets 0–30, 31–60, 61–90, 90+ days. Charges have no due date and are due on issue, so days open count from the charge's issue date (local date of the unit) to today. The period filters the issue date; extra filters are origin and bucket.
   5. **Produtividade por profissional**: per professional — appointments completed, no-shows, cancellations, hours attended, billed amount, received amount, average ticket.
 - Maximum period: 366 days. On-screen pagination of 50 rows with totals row.
 - CSV: UTF-8 with BOM; separators follow the user's language (pt-BR and es: semicolon and decimal comma, Excel-compatible; en: comma and decimal point), with a currency column for money; max 50,000 rows.
@@ -698,7 +698,7 @@ The differentiator is configurability without complexity: the same product serve
 - Exports are recorded in the audit log (F01) with report name and filters.
 
 **Experience:**
-- Relatórios screen: cards for the 5 reports; opening one shows filters, "Gerar" button, table result, and "Exportar CSV" / "Exportar PDF" buttons.
+- Relatórios screen: a list of the 5 reports (cards are reserved for dashboard indicators, design system 5.6); opening one shows filters, "Gerar" button, table result, and "Exportar CSV" / "Exportar PDF" buttons.
 - Filters are remembered per user and report during the session.
 - Long exports show a progress indicator and download automatically when ready.
 

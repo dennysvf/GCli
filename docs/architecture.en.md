@@ -263,7 +263,7 @@ The PRD's load (500 appointments/day, 30 concurrent users) is small for PostgreS
 | Dashboard ≤ 3 s for 30 days (F12) | SQL aggregate queries (no ORM loops), cached for 5 minutes per filter combination; materialized views only if measurements show a need |
 | Audit viewer ≤ 3 s with 1M rows (F15) | Monthly partitions, composite indexes on `(organizationId, occurredAt)` and `(entityType, entityId)`, keyset pagination |
 | Agenda freshness ≤ 30 s (F06) | Client polling every 30 s via TanStack Query on a lightweight endpoint returning appointments changed since the last `updatedAt` |
-| CSV export of 50k rows ≤ 10 s (F13) | Streamed responses using database cursors, never loading all rows into memory |
+| CSV export of 50k rows ≤ 10 s (F13) | Streamed responses reading keyset batches (ADR-038), never loading all rows into memory |
 
 **Rules:**
 - Every list is paginated: offset pagination for user-facing tables of up to 50 rows, keyset pagination for large or append-only data.
@@ -509,6 +509,11 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 - *Decision:* The `analytics` module reads the tables of other modules with raw SQL aggregates and never writes to them. Every query filters `organization_id` explicitly, takes the unit ids resolved from the filter, and assigns each record to the period by its local date in its unit's time zone, after a UTC window narrows the indexed scan. Money is grouped by currency and never summed across currencies. The formulas (period resolution, previous equivalent period, occupancy, rates, ticket, result, variation) are pure functions in `analytics/domain`, with no entities or repositories; occupancy loads the working intervals, time-offs, closures and appointment ranges and intersects them in memory, with daylight-saving-correct conversion (ADR-030). Results are cached in process for 5 minutes per organization and filter combination, after authorization, with a bounded size.
 - *Why:* The dashboard must answer in 3 seconds for 30 days and all units, and its figures must match the source records (F06, F09, F11). Aggregates in the database keep the work close to the data, pure functions make the PRD formulas testable, and the PRD accepts data up to 5 minutes old. Next.js Cache Components would change rendering for the whole app, and `unstable_cache` is deprecated.
 - *Trade-off:* Each web instance keeps its own cache, so two instances may show figures a few minutes apart. Raw SQL ties `analytics` to the column names of other modules; its integration tests catch drift. Materialized daily aggregates are the next step only if measurements show the need.
+
+**ADR-038 — Reports: one definition per report, streamed CSV and landscape PDF on the shared base (complements ADR-024, ADR-037 and section 8)**
+- *Decision:* Each F13 report is one definition in a registry inside `analytics`: filters, columns, an aggregate query for the count and totals, a page query and a keyset batch query. The screen, the CSV and the PDF format the same typed rows, so their totals always agree. The screen paginates with offset (50 rows). The CSV is a streamed response that reads keyset batches (the Prisma raw client cannot hold a cursor), so memory stays bounded. The row count is checked against the format limit (50,000 for CSV, 5,000 for PDF) before any byte is written, and the `EXPORT` audit event is committed before the first byte. The PDF reuses the base of ADR-024, which gains an orientation option (landscape) and a summary block. Charges have no due date, so the aging counts days open from the issue date. Reports are not cached.
+- *Why:* Reports return detail rows that must match F06 and F09 exactly and export up to 50,000 rows in 10 seconds. One definition per report keeps three outputs consistent and avoids fifteen near-identical use cases.
+- *Trade-off:* A generic definition shape every report must fit. Keyset batches are separate queries, so rows inserted during a long export may appear.
 
 ## 13. Evolution to SaaS
 

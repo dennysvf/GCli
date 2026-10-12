@@ -688,8 +688,8 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 - Relatórios:
   1. **Agendamentos**: data, horário, paciente, serviço, profissional, unidade, sala, status, preço. Filtros: período, unidade, profissional, serviço, status.
   2. **Cancelamentos e faltas**: data, paciente, telefone, serviço, profissional, tipo (cancelado/falta), origem, motivo, antecedência do cancelamento (horas antes do agendamento); resumo por motivo e por profissional.
-  3. **Faturamento**: pagamentos e estornos no período por forma, serviço, profissional e unidade, com subtotais por agrupamento escolhido pelo usuário.
-  4. **Contas a receber**: cobranças em aberto com paciente, telefone, origem, valor, saldo em aberto, dias em atraso, faixas de atraso 0–30, 31–60, 61–90, 90+ dias.
+  3. **Receitas**: pagamentos e estornos no período por forma, serviço, profissional e unidade, com subtotais por agrupamento escolhido pelo usuário.
+  4. **Contas a receber**: cobranças em aberto com paciente, telefone, origem, valor, saldo em aberto, dias em aberto, faixas de atraso 0–30, 31–60, 61–90, 90+ dias. A cobrança não tem vencimento e vence na emissão, então os dias em aberto contam da data de emissão (data local da unidade) até hoje. O período filtra a data de emissão; filtros extras: origem e faixa.
   5. **Produtividade por profissional**: por profissional — atendimentos concluídos, faltas, cancelamentos, horas atendidas, valor faturado, valor recebido, ticket médio.
 - Período máximo: 366 dias. Paginação em tela de 50 linhas com linha de totais.
 - CSV: UTF-8 com BOM; separadores seguem o idioma do usuário (pt-BR e es: ponto e vírgula e vírgula decimal, compatível com Excel; en: vírgula e ponto decimal), com coluna de moeda para valores; máx. 50.000 linhas.
@@ -698,7 +698,7 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 - Exportações são registradas no log de auditoria (F01) com o nome do relatório e os filtros.
 
 **Experiência:**
-- Tela Relatórios: cartões para os 5 relatórios; abrir um mostra filtros, botão "Gerar", tabela de resultado e botões "Exportar CSV" / "Exportar PDF".
+- Tela Relatórios: lista com os 5 relatórios (cartões ficam reservados aos indicadores do painel, design system 5.6); abrir um mostra filtros, botão "Gerar", tabela de resultado e botões "Exportar CSV" / "Exportar PDF".
 - Os filtros são lembrados por usuário e relatório durante a sessão.
 - Exportações longas mostram um indicador de progresso e baixam automaticamente quando prontas.
 
