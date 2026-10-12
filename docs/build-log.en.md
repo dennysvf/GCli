@@ -1002,6 +1002,7 @@ The decisions became **ADR-038** and section 5.18 of the design system. The spec
 | The load test failed to insert | A 1-minute appointment breaks the 5-minute minimum duration rule | The load uses 5-minute appointments |
 | Lint refused the export buttons | A literal string (`"csv"`) inside JSX | Constants outside the JSX |
 | Lint refused restoring the filters in `useEffect` | Synchronous `setState` inside the effect | The restore runs in a microtask, after hydration |
+| **The E2E setup broke** (`ERR_PACKAGE_PATH_NOT_EXPORTED` in `@react-pdf/hyphenate`) | The `analytics` module started importing the PDF engine statically, and `tsx` scripts (which load the composition root) cannot resolve `@react-pdf`'s package exports | The PDF engine is loaded only when rendering (dynamic `import()`), as the agenda, receipt and documents already did |
 
 ### 22.5 What F13 leaves ready
 

@@ -1002,6 +1002,7 @@ As decisões viraram o **ADR-038** e a seção 5.18 do design system. A especifi
 | A carga de teste falhou ao inserir | Um agendamento de 1 minuto viola a regra de duração mínima de 5 minutos | A carga usa agendamentos de 5 minutos |
 | O lint recusou os botões de exportação | Texto literal (`"csv"`) dentro do JSX | Constantes fora do JSX |
 | O lint recusou restaurar os filtros no `useEffect` | `setState` síncrono dentro do efeito | A restauração roda num microtask, depois da hidratação |
+| **O setup do E2E quebrou** (`ERR_PACKAGE_PATH_NOT_EXPORTED` em `@react-pdf/hyphenate`) | O módulo `analytics` passou a importar o motor de PDF de forma estática, e os scripts `tsx` (que carregam a raiz de composição) não resolvem os `exports` do `@react-pdf` | O motor de PDF é carregado só na hora de renderizar (`import()` dinâmico), como já faziam agenda, recibo e documentos |
 
 ### 22.5 O que a F13 deixou pronto
 
