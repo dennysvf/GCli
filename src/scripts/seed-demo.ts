@@ -870,6 +870,32 @@ async function main(): Promise<number> {
     "createEntry",
   );
 
+  // F13: open charges of different ages give the receivables report every aging bucket. They are
+  // inserted directly because the billing use cases always stamp "now" as the issue date.
+  const agingAges = [12, 34, 58, 75, 120];
+  for (const [index, age] of agingAges.entries()) {
+    const patientId = patientIds[index % patientIds.length];
+    if (!patientId) continue;
+    const issuedAt = new Date(Date.now() - age * 86_400_000);
+    await db().charge.create({
+      data: {
+        id: newId(),
+        organizationId: admin.organizationId,
+        number: `DEMO-${String(index + 1).padStart(4, "0")}`,
+        patientId,
+        origin: "MANUAL",
+        description: "Cobrança antiga de demonstração",
+        unitId: main.id,
+        currency: main.currency,
+        grossMinor: BigInt(15_000 + index * 2_500),
+        netMinor: BigInt(15_000 + index * 2_500),
+        status: "OPEN",
+        createdById: admin.id,
+        createdAt: issuedAt,
+      },
+    });
+  }
+
   console.log("Dados de demonstração criados:");
   console.log(
     `- 5 serviços, 4 profissionais, ${patientIds.length} pacientes, ${booked} agendamentos avulsos`,
@@ -888,6 +914,10 @@ async function main(): Promise<number> {
   // F12: last week's appointments and payments give "Últimos 7 dias" a previous period to compare.
   console.log(
     "- painel (/dashboard): use Últimos 7 dias ou Mês atual para ver os indicadores e a comparação",
+  );
+  // F13: the reports use the appointments, cancellations, payments, refund and the aged charges above.
+  console.log(
+    "- relatórios (/reports): Contas a receber (cobranças com 12 a 120 dias), Cancelamentos e faltas, Receitas e Produtividade",
   );
   console.log(
     `- usuários (senha ${PASSWORD}): rita@clinicademo.com.br (Recepção), beatriz@clinicademo.com.br (Profissional), marcos@clinicademo.com.br (Gestor, PIN de aprovação ${MANAGER_PIN})`,
