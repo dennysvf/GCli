@@ -3,13 +3,19 @@
     "ANALYTICS_PERIOD_TOO_LONG": "El período puede tener como máximo 366 días.",
     "ANALYTICS_PERIOD_INVALID": "La fecha final debe ser igual o posterior a la fecha inicial.",
     "ANALYTICS_UNIT_INVALID": "Unidad no encontrada.",
-    "ANALYTICS_PROFESSIONAL_INVALID": "Profesional no encontrado."
+    "ANALYTICS_PROFESSIONAL_INVALID": "Profesional no encontrado.",
+    "ANALYTICS_SERVICE_INVALID": "Servicio no encontrado.",
+    "ANALYTICS_REASON_INVALID": "Motivo de cancelación no encontrado.",
+    "ANALYTICS_REPORT_NOT_FOUND": "Informe no encontrado.",
+    "ANALYTICS_EXPORT_TOO_LARGE": "El resultado tiene {count} filas. La exportación a CSV acepta hasta 50.000 filas. Reduzca el período o aplique más filtros.",
+    "ANALYTICS_PDF_TOO_LARGE": "El resultado tiene {count} filas. El PDF acepta hasta 5.000 filas. Exporte a CSV o aplique más filtros."
   },
   "validation": {
     "invalidDate": "Ingrese una fecha válida.",
     "invalidId": "Selección no válida.",
     "invalidPeriod": "Elija un período.",
-    "dateRequired": "Ingrese la fecha."
+    "dateRequired": "Ingrese la fecha.",
+    "invalidFilter": "Selección no válida."
   },
   "ui": {
     "title": "Panel",
@@ -96,5 +102,183 @@
       "label": "Resultado",
       "formula": "Recibido + ingresos manuales (ingresos recibidos y entradas de caja) − gastos pagados."
     }
+  },
+  "reports": {
+    "title": "Informes",
+    "indexIntro": "Elija un informe para filtrar, generar y exportar.",
+    "names": {
+      "appointments": "Citas",
+      "cancellations": "Cancelaciones y ausencias",
+      "revenue": "Ingresos",
+      "receivables": "Cuentas por cobrar",
+      "productivity": "Productividad por profesional"
+    },
+    "descriptions": {
+      "appointments": "Todas las citas del período, con paciente, servicio, profesional, sala, estado y precio.",
+      "cancellations": "Cancelaciones y ausencias con origen, motivo y antelación, resumidas por motivo y por profesional.",
+      "revenue": "Pagos y reembolsos recibidos, con subtotales por forma de pago, servicio, profesional o unidad.",
+      "receivables": "Cobros abiertos con saldo, días abiertos y tramos de antigüedad.",
+      "productivity": "Citas, ausencias, cancelaciones, horas, facturado, cobrado y ticket medio de cada profesional."
+    },
+    "columns": {
+      "date": "Fecha",
+      "time": "Hora",
+      "patient": "Paciente",
+      "service": "Servicio",
+      "professional": "Profesional",
+      "unit": "Unidad",
+      "room": "Sala",
+      "status": "Estado",
+      "price": "Precio",
+      "phone": "Teléfono",
+      "type": "Tipo",
+      "origin": "Origen",
+      "reason": "Motivo",
+      "leadTimeHours": "Antelación (h)",
+      "chargeNumber": "Cobro",
+      "method": "Forma de pago",
+      "amount": "Importe",
+      "issuedOn": "Emisión",
+      "balance": "Saldo abierto",
+      "daysOpen": "Días abierto",
+      "bucket": "Tramo",
+      "completed": "Completadas",
+      "noShows": "Ausencias",
+      "cancelled": "Cancelaciones",
+      "hoursAttended": "Horas atendidas",
+      "billed": "Facturado",
+      "received": "Cobrado",
+      "averageTicket": "Ticket medio",
+      "count": "Cantidad",
+      "payments": "Pagos",
+      "refunds": "Reembolsos",
+      "net": "Neto"
+    },
+    "groupLabels": {
+      "METHOD": "Forma de pago",
+      "SERVICE": "Servicio",
+      "PROFESSIONAL": "Profesional",
+      "UNIT": "Unidad"
+    },
+    "values": {
+      "status": {
+        "SCHEDULED": "Programada",
+        "CONFIRMED": "Confirmada",
+        "CHECKED_IN": "Llegó",
+        "IN_PROGRESS": "En atención",
+        "COMPLETED": "Completada",
+        "NO_SHOW": "No asistió",
+        "CANCELLED": "Cancelada"
+      },
+      "cancellationOrigin": {
+        "PATIENT": "Paciente",
+        "CLINIC": "Clínica",
+        "PROFESSIONAL": "Profesional"
+      },
+      "method": {
+        "CASH": "Efectivo",
+        "PIX": "Pix",
+        "DEBIT_CARD": "Tarjeta de débito",
+        "CREDIT_CARD": "Tarjeta de crédito",
+        "TRANSFER": "Transferencia",
+        "CHECK": "Cheque",
+        "BIZUM": "Bizum",
+        "MBWAY": "MB Way",
+        "MULTIBANCO": "Multibanco",
+        "NEQUI": "Nequi",
+        "PSE": "PSE",
+        "SPEI": "SPEI",
+        "ZELLE": "Zelle",
+        "MERCADO_PAGO": "Mercado Pago",
+        "OTHER": "Otro"
+      },
+      "paymentKind": {
+        "PAYMENT": "Pago",
+        "REFUND": "Reembolso"
+      },
+      "chargeOrigin": {
+        "APPOINTMENT": "Atención",
+        "PACKAGE": "Paquete",
+        "MANUAL": "Manual"
+      },
+      "bucket": {
+        "D0_30": "0–30 días",
+        "D31_60": "31–60 días",
+        "D61_90": "61–90 días",
+        "D90_PLUS": "Más de 90 días"
+      }
+    },
+    "noReason": "Sin motivo",
+    "noService": "Sin servicio",
+    "noProfessional": "Sin profesional",
+    "csvCurrency": "Moneda",
+    "totalRows": "{count, plural, one {Total: # fila} other {Total: # filas}}",
+    "summaries": {
+      "byReason": "Por motivo",
+      "byProfessional": "Por profesional",
+      "subtotals": "Subtotales",
+      "byBucket": "Por tramo de antigüedad"
+    },
+    "notes": {
+      "receivables": "El cobro vence en la emisión. Días abierto = hoy menos la fecha de emisión, en la zona horaria de la unidad."
+    },
+    "filters": {
+      "all": "Todos",
+      "service": "Servicio",
+      "allServices": "Todos los servicios",
+      "status": "Estado",
+      "type": "Tipo",
+      "origin": "Origen",
+      "reason": "Motivo",
+      "allReasons": "Todos los motivos",
+      "groupBy": "Agrupar por",
+      "method": "Forma de pago",
+      "bucket": "Tramo de antigüedad",
+      "typeOptions": {
+        "CANCELLED": "Cancelaciones",
+        "NO_SHOW": "Ausencias"
+      },
+      "inactive": "{name} (inactivo)"
+    },
+    "ui": {
+      "filters": "Filtros del informe",
+      "generate": "Generar",
+      "generating": "Generando…",
+      "exportCsv": "Exportar CSV",
+      "exportPdf": "Exportar PDF",
+      "generatedAt": "Generado a las {time}",
+      "page": "Página {page} de {pageCount}",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "empty": "Sin datos para el período seleccionado.",
+      "emptyHint": "Elija otro período u otros filtros.",
+      "notGenerated": "Elija los filtros y haga clic en Generar.",
+      "back": "Informes",
+      "exportingCsv": "Generando archivo… {done} de {total} filas",
+      "exportingPdf": "Generando PDF…",
+      "exportDone": "Archivo generado.",
+      "exportFailed": "No se pudo generar el archivo.",
+      "pdfLimit": "El PDF acepta hasta {max} filas. Exporte a CSV.",
+      "csvLimit": "La exportación a CSV acepta hasta {max} filas. Reduzca el período o aplique más filtros."
+    },
+    "pdf": {
+      "generated": "Generado el {at} por {user}",
+      "page": "Página {page} de {total}",
+      "period": "Período: {from} a {to}",
+      "filter": "{name}: {value}",
+      "empty": "Sin datos para el período seleccionado."
+    },
+    "files": {
+      "appointments": "citas",
+      "cancellations": "cancelaciones-y-ausencias",
+      "revenue": "ingresos",
+      "receivables": "cuentas-por-cobrar",
+      "productivity": "productividad"
+    },
+    "summaryTitle": "Resumen",
+    "filtersTitle": "Filtros",
+    "periodLabel": "Período",
+    "unitLabel": "Unidad",
+    "professionalLabel": "Profesional"
   }
 }

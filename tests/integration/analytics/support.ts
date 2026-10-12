@@ -1,4 +1,13 @@
-import { createAnalytics, createTtlCache, type DashboardFigures } from "@/modules/analytics";
+import {
+  createAnalytics,
+  createTtlCache,
+  type DashboardFigures,
+  type OrganizationHeaderLookup,
+  type ReportExport,
+  type ReportPdfDocument,
+  type ReportPdfRenderer,
+  type ViewCell,
+} from "@/modules/analytics";
 import { cash } from "@/modules/cash";
 import { db } from "@/shared/db/client";
 import { addDays } from "@/shared/kernel/calendar-date";
@@ -454,3 +463,44 @@ export function custom(period: { from: string; to: string }, overrides: Record<s
 export function amounts(kpi: { lines: { currency: string; amountMinor: string }[] } | null) {
   return Object.fromEntries((kpi?.lines ?? []).map((line) => [line.currency, Number(line.amountMinor)]));
 }
+
+// Reports with a fake PDF renderer that keeps the documents it receives, so tests read what would
+// be printed (spec F13 section 7). `realPdf` keeps the real renderer.
+export function freshReports(
+  options: { clock?: () => Date; header?: OrganizationHeaderLookup; realPdf?: boolean } = {},
+) {
+  const documents: ReportPdfDocument[] = [];
+  const pdf: ReportPdfRenderer = {
+    render: async (document) => {
+      documents.push(document);
+      return Buffer.from("%PDF-fake");
+    },
+  };
+  const clock = options.clock ?? (() => new Date());
+  const api = createAnalytics((base) => ({
+    ...base,
+    clock,
+    cache: createTtlCache<DashboardFigures>({ clock }),
+    ...(options.header ? { organizationHeader: options.header } : {}),
+    ...(options.realPdf ? {} : { pdf }),
+  }));
+  return { api, documents };
+}
+
+export async function readBody(body: ReportExport["body"]): Promise<string> {
+  if (body instanceof ReadableStream) {
+    const reader = body.getReader();
+    // ignoreBOM keeps the BOM, which is part of what the export must deliver.
+    const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
+    let text = "";
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) return text + decoder.decode();
+      text += decoder.decode(chunk.value, { stream: true });
+    }
+  }
+  return body.toString("latin1");
+}
+
+export const textOf = (cell: ViewCell | undefined): string =>
+  cell === undefined ? "" : typeof cell === "string" ? cell : cell.text;

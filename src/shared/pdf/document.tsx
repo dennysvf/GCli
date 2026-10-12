@@ -51,6 +51,8 @@ export type PdfPageProps = {
   footerNote: string;
   // "Page {page} of {total}" in the language of the document; the placeholders are replaced per page.
   pageLabel: string;
+  // Reports are wide tables (PRD F13: A4 landscape); every other document stays portrait.
+  orientation?: "portrait" | "landscape";
   children?: ReactNode;
 };
 
@@ -62,11 +64,12 @@ export function PdfDocument({
   subtitle,
   footerNote,
   pageLabel,
+  orientation = "portrait",
   children,
 }: PdfPageProps) {
   return (
     <Document title={documentTitle} author={clinicName} creator="GCli" producer="GCli">
-      <Page size="A4" orientation="portrait" style={styles.page} wrap>
+      <Page size="A4" orientation={orientation} style={styles.page} wrap>
         <View style={styles.header} fixed>
           {/* react-pdf images have no alt text; the clinic name is written next to the logo. */}
           {/* eslint-disable-next-line jsx-a11y/alt-text */}
@@ -131,6 +134,42 @@ export function PdfTable({
               {value}
             </Text>
           ))}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// Label and value pairs shown before a table (report totals), and small titled tables.
+const summaryStyles = StyleSheet.create({
+  block: { marginBottom: 10 },
+  heading: { fontWeight: 600, fontSize: 9, marginBottom: 3 },
+  pair: { flexDirection: "row", marginBottom: 2 },
+  label: { width: 160, color: PDF_COLORS.ink2 },
+  value: { fontWeight: 600 },
+});
+
+export type PdfSummaryBlock = {
+  title?: string;
+  pairs?: { label: string; value: string }[];
+  table?: { columns: PdfColumn[]; rows: string[][] };
+};
+
+export function PdfSummary({ blocks }: { blocks: PdfSummaryBlock[] }) {
+  return (
+    <View>
+      {blocks.map((block, index) => (
+        <View key={index} style={summaryStyles.block} wrap={false}>
+          {block.title ? <Text style={summaryStyles.heading}>{block.title}</Text> : null}
+          {block.pairs?.map((pair) => (
+            <View key={pair.label} style={summaryStyles.pair}>
+              <Text style={summaryStyles.label}>{pair.label}</Text>
+              <Text style={summaryStyles.value}>{pair.value}</Text>
+            </View>
+          ))}
+          {block.table ? (
+            <PdfTable columns={block.table.columns} rows={block.table.rows} emptyText="" />
+          ) : null}
         </View>
       ))}
     </View>

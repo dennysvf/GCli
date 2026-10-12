@@ -22,6 +22,7 @@ export type NavIcon =
   | "receipt"
   | "revenue"
   | "statement"
+  | "report"
   | "shield";
 
 export const NAVIGATION: NavGroup[] = [
@@ -36,6 +37,7 @@ export const NAVIGATION: NavGroup[] = [
       },
       { href: "/patients", labelKey: "patients", icon: "patients", anyOf: ["patient:read"] },
       { href: "/dashboard", labelKey: "dashboard", icon: "dashboard", anyOf: ["dashboard:read"] },
+      { href: "/reports", labelKey: "reports", icon: "report", anyOf: ["report:read"] },
     ],
   },
   {

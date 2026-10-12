@@ -1,11 +1,9 @@
 import { authorize } from "@/shared/authz/guard";
 import type { RequestContext } from "@/shared/context/types";
-import { withTransaction, type UnitOfWork } from "@/shared/db/transaction";
-import { addDays } from "@/shared/kernel/calendar-date";
+import { withTransaction } from "@/shared/db/transaction";
 import { fail, ok, type Result } from "@/shared/kernel/result";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
 import { parseInput } from "@/shared/kernel/validation";
-import { zonedTimeToUtc } from "@/shared/kernel/zoned-time";
 import { AnalyticsErrors } from "../domain/errors";
 import {
   averageTicket,
@@ -25,7 +23,7 @@ import { availabilityInputs } from "./queries/availability";
 import { cashTotals } from "./queries/cash";
 import { chargeTotals } from "./queries/charges";
 import { countNewPatients } from "./queries/patients";
-import type { QueryScope } from "./queries/scope";
+import { loadDirectory, utcWindow, type QueryScope, type UnitRow } from "./queries/scope";
 import { dashboardFiltersSchema } from "./schemas";
 import type { CountKpi, DashboardView, MoneyKpi, RateKpi } from "./views";
 
@@ -46,38 +44,6 @@ export type AnalyticsDeps = {
   clock: () => Date;
   cache: TtlCache<DashboardFigures>;
 };
-
-type UnitRow = { id: string; time_zone: string };
-type Directory = { units: UnitRow[]; organizationZone: string; professionalExists: boolean };
-
-async function loadDirectory(
-  uow: UnitOfWork,
-  organizationId: string,
-  professionalId: string | null,
-): Promise<Directory> {
-  const [units, organization, professional] = await Promise.all([
-    uow.tx.$queryRaw<UnitRow[]>`
-      SELECT id, time_zone FROM unit WHERE organization_id = ${organizationId}::uuid ORDER BY name`,
-    uow.tx.$queryRaw<{ time_zone: string }[]>`
-      SELECT time_zone FROM organization WHERE id = ${organizationId}::uuid`,
-    professionalId
-      ? uow.tx.$queryRaw<{ id: string }[]>`
-          SELECT id FROM professional WHERE organization_id = ${organizationId}::uuid AND id = ${professionalId}::uuid`
-      : Promise.resolve([]),
-  ]);
-  return {
-    units,
-    organizationZone: organization[0]?.time_zone ?? "America/Sao_Paulo",
-    professionalExists: professionalId === null || professional.length > 0,
-  };
-}
-
-// UTC instants that can belong to the period in any of the zones (spec F12 decision D8).
-function utcWindow(period: DateRange, zones: string[]): { windowStart: Date; windowEnd: Date } {
-  const starts = zones.map((zone) => zonedTimeToUtc(`${period.from}T00:00`, zone).getTime());
-  const ends = zones.map((zone) => zonedTimeToUtc(`${addDays(period.to, 1)}T00:00`, zone).getTime());
-  return { windowStart: new Date(Math.min(...starts)), windowEnd: new Date(Math.max(...ends)) };
-}
 
 type Selection = {
   organizationId: string;

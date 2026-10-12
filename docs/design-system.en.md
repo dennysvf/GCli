@@ -462,6 +462,16 @@ The dashboard (F12) is the only screen built from indicator cards (section 5.6).
 - **Professional selected:** the "Financeiro" row shows four cards and a `meta` note: "Despesas e resultado não se aplicam a um profissional."
 - **Empty state:** "Sem dados para o período selecionado." replaces both rows (section 7.4); the filters stay.
 
+### 5.18 Reports
+
+The reports (F13) are tables, never cards. These rules cover what the other sections do not show.
+- **Index:** a list (section 5.4): the report name in `body-strong` as the link and a one-line description in `meta`.
+- **Filter bar:** the common filters (period, unit, professional) followed by the report's own filters, in one row from 1024 px up, wrapping on narrow screens. "Gerar" is the one primary button of the screen. "Exportar CSV" and "Exportar PDF" are secondary and sit above the table at the right end.
+- **Result:** summaries first (small tables), then the main table with 50 rows per page and pagination below. The last row is the totals row with the double rule (section 5.4). Money totals list one line per currency, never summed. "Gerado às 14:35" sits in `meta`.
+- **Cells:** statuses and types use stamps (section 5.5) written as text; amounts are right-aligned with tabular numerals; a missing value shows "—".
+- **Export progress:** a text line with `aria-live="polite"` ("Gerando arquivo… 12.000 de 48.000 linhas", "Gerando PDF…"). When the result exceeds a limit, the button is disabled and the advice is written next to it ("O PDF aceita até 5.000 linhas. Exporte em CSV.").
+- **Empty state:** "Sem dados para o período selecionado." replaces the table; the filters stay.
+
 ## 6. Visual details
 
 ### 6.1 Borders and radii

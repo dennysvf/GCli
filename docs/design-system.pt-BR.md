@@ -460,6 +460,16 @@ O painel (F12) é a única tela feita de cartões de indicadores (seção 5.6). 
 - **Profissional selecionado:** a linha "Financeiro" mostra quatro cartões e uma nota em `meta`: "Despesas e resultado não se aplicam a um profissional."
 - **Estado vazio:** "Sem dados para o período selecionado." substitui as duas linhas (seção 7.4); os filtros continuam.
 
+### 5.18 Relatórios
+
+Os relatórios (F13) são tabelas, nunca cartões. Estas regras cobrem o que as outras seções não mostram.
+- **Índice:** uma lista (seção 5.4): o nome do relatório em `body-strong` como link e uma descrição de uma linha em `meta`.
+- **Barra de filtros:** os filtros comuns (período, unidade, profissional) seguidos dos filtros do relatório, em uma linha a partir de 1024 px, quebrando em telas estreitas. "Gerar" é o único botão primário da tela. "Exportar CSV" e "Exportar PDF" são secundários e ficam acima da tabela, na extremidade direita.
+- **Resultado:** primeiro os resumos (tabelas pequenas), depois a tabela principal com 50 linhas por página e paginação abaixo. A última linha é a de totais com a regra dupla (seção 5.4). Totais em dinheiro listam uma linha por moeda, sem somar. "Gerado às 14:35" fica em `meta`.
+- **Células:** estados e tipos usam selos (seção 5.5) escritos em texto; valores alinhados à direita com algarismos tabulares; valor ausente mostra "—".
+- **Progresso da exportação:** uma linha de texto com `aria-live="polite"` ("Gerando arquivo… 12.000 de 48.000 linhas", "Gerando PDF…"). Quando o resultado passa de um limite, o botão fica desativado e a orientação aparece ao lado ("O PDF aceita até 5.000 linhas. Exporte em CSV.").
+- **Estado vazio:** "Sem dados para o período selecionado." substitui a tabela; os filtros continuam.
+
 ## 6. Detalhes visuais
 
 ### 6.1 Bordas e raios

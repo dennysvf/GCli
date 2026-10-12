@@ -1,10 +1,10 @@
 # Build log — how GCli was built
 
-This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F12 and F16). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
+This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F13 and F16). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
 
 The work was done as a pair: a product owner and an AI coding assistant. The product owner answered questions, made the business decisions and approved each stage; the assistant ran the interviews, wrote documents and code, ran the tests and recorded what it found along the way.
 
-> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations → F08 → F09 → F10 → F11 → F12.
+> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations → F08 → F09 → F10 → F11 → F12 → F13.
 
 Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 
@@ -33,9 +33,10 @@ Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 19. [Tenth feature: F10 — Session Packages](#19-tenth-feature-f10--session-packages)
 20. [Eleventh feature: F11 — Cash Register and Expenses](#20-eleventh-feature-f11--cash-register-and-expenses)
 21. [Twelfth feature: F12 — Management Dashboard](#21-twelfth-feature-f12--management-dashboard)
-22. [Problems found and how they were solved](#22-problems-found-and-how-they-were-solved)
-23. [Reproducing the environment from scratch](#23-reproducing-the-environment-from-scratch)
-24. [Lessons learned](#24-lessons-learned)
+22. [Thirteenth feature: F13 — Reports and Export](#22-thirteenth-feature-f13--reports-and-export)
+23. [Problems found and how they were solved](#23-problems-found-and-how-they-were-solved)
+24. [Reproducing the environment from scratch](#24-reproducing-the-environment-from-scratch)
+25. [Lessons learned](#25-lessons-learned)
 
 ---
 
@@ -952,7 +953,66 @@ The decisions became **ADR-037** and section 5.17 of the design system. The spec
 
 ---
 
-## 22. Problems found and how they were solved
+## 22. Thirteenth feature: F13 — Reports and Export
+
+F13 turns the data the other features recorded into five reports (Appointments, Cancellations and no-shows, Revenue, Receivables and Professional productivity) that export to CSV and PDF. The central question of the specification was **how to export 50,000 rows in 10 seconds without loading them in memory**, and how to make the screen, the CSV and the PDF always show the same numbers.
+
+### 22.1 Decisions made in the interview
+
+| Decision | Result |
+|---|---|
+| Scope | Core and Full Scope: the five reports, the CSV and the PDF |
+| "Days overdue" | A charge has no due date (it is due on issue), so the report counts **days open** from the issue date, in the unit's time zone; the PRD was adjusted |
+| Reports index | A list, not cards: the design system reserves cards for the dashboard indicators; the PRD was adjusted |
+| One definition per report | Filters, columns, totals, page and export batches live in a registry; screen, CSV and PDF read the same definition, so totals always agree |
+| CSV | A streamed response read in keyset batches; the row count is checked before the first byte, and above 50,000 rows the request is refused |
+| PDF | The same PDF base as the other documents, now with a landscape option and a summary block; above 5,000 rows the user is advised to export CSV |
+| Audit | Every `EXPORT` event is committed **before** the first byte, with the report, format, filters and row count |
+| Cancellation note | Free text may hold personal data, so it is never exported |
+
+The decisions became **ADR-038** and section 5.18 of the design system. The specification and plan are in [F13-reports-and-export/](F13-reports-and-export/).
+
+### 22.2 How the export stays fast and correct
+
+- **Pages and batches from the same SQL:** the screen paginates with `OFFSET` (50 rows); the CSV reads `(date, id)` keyset batches and writes each batch as it arrives.
+- **Joins after the limit:** the query first cuts the batch on the main table and only then joins patient, service and professional for the rows of the batch.
+- **Measured, not assumed:** an integration test inserts 50,000 appointments and checks that the CSV has every row, once, in order, in about **2 seconds** (target: 10).
+- **One line per currency:** totals and subtotals group by currency; productivity has one row per professional **and currency**, so currencies are never added together.
+- **Time zones:** each record falls in the period by its unit's local date; a test puts a payment at 00:30 in Lisbon (23:30 UTC of the previous day) and checks the right day.
+
+### 22.3 Implementation in 5 stages
+
+| Stage | What went in |
+|---|---|
+| 1 — Documentation and base | PRD, ADR-038, section 5.18, landscape PDF with a summary block and the "Reports" menu item |
+| 2 — Domain and reports | Aging buckets, lead time and subtotals (pure, with tests), the registry and the five definitions, formatting and the catalogs in three languages |
+| 3 — Use cases and endpoint | Get report, export, the organization header, the PDF and the export route |
+| 4 — Screens | Index, report page, filters remembered for the session, table with a totals row, summaries, pagination and export buttons with progress |
+| 5 — Finishing | Demo data, load and limit tests, E2E journeys, design system review and this log |
+
+### 22.4 Problems found in F13
+
+| Problem | Cause | Solution |
+|---|---|---|
+| The 50,000-row CSV took 17 s | Each batch joined patient, service and professional for **all** remaining rows before the `LIMIT` | The query cuts the batch on the main table and joins the names afterwards; the batch size became 10,000 |
+| Still 11 s after that | A date formatter (`Intl.DateTimeFormat`) was created for every row | The CSV date is built by hand (day/month/year or month/day/year) |
+| The download hung on the last batch | An empty batch enqueued nothing and the reader kept waiting | The stream is closed as soon as the last batch is read |
+| Batches skipped rows | The `OFFSET` was added on top of the keyset cursor | The CSV uses only the cursor; the offset is for the screen |
+| The test could not see the CSV BOM | `TextDecoder` drops the BOM by default | The test reader keeps the BOM (`ignoreBOM`) |
+| The load test failed to insert | A 1-minute appointment breaks the 5-minute minimum duration rule | The load uses 5-minute appointments |
+| Lint refused the export buttons | A literal string (`"csv"`) inside JSX | Constants outside the JSX |
+| Lint refused restoring the filters in `useEffect` | Synchronous `setState` inside the effect | The restore runs in a microtask, after hydration |
+| **The E2E setup broke** (`ERR_PACKAGE_PATH_NOT_EXPORTED` in `@react-pdf/hyphenate`) | The `analytics` module started importing the PDF engine statically, and `tsx` scripts (which load the composition root) cannot resolve `@react-pdf`'s package exports | The PDF engine is loaded only when rendering (dynamic `import()`), as the agenda, receipt and documents already did |
+
+### 22.5 What F13 leaves ready
+
+- **A reports registry** where new reports (for example, those of F14) can be added with one definition.
+- **The URL contract** `/reports/<report>?…&run=1`, which F12 can use to open the matching report from an indicator.
+- **Batched CSV streaming** and **landscape PDF** on the shared base, reusable by the audit export (F15).
+
+---
+
+## 23. Problems found and how they were solved
 
 This may be the most useful section for anyone reproducing the project. All of these problems showed up because **each stage was actually executed**, not just written.
 
@@ -975,7 +1035,7 @@ This may be the most useful section for anyone reproducing the project. All of t
 
 ---
 
-## 23. Reproducing the environment from scratch
+## 24. Reproducing the environment from scratch
 
 ### Prerequisites
 
@@ -1050,7 +1110,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 24. Lessons learned
+## 25. Lessons learned
 
 1. **Interview before document.** One question at a time, always with a recommendation, settles more than a long document written in the dark.
 2. **End-to-end IDs** (F01 → story → criterion → test → commit) make the project traceable at no extra cost.
