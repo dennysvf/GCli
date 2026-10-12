@@ -140,30 +140,37 @@ export const cancellationsReport: ReportDefinition = {
     const afterAt = after?.at ?? null;
     const afterId = after?.id ?? null;
     const rows = await uow.tx.$queryRaw<Row[]>`
-      SELECT a.starts_at AS sort_at, a.id AS row_id, a.unit_id, a.starts_at, a.cancelled_at,
-             to_char(a.starts_at AT TIME ZONE u.time_zone, 'YYYY-MM-DD') AS date,
+      WITH page AS (
+        SELECT a.id, a.unit_id, a.starts_at, a.cancelled_at, a.patient_id, a.service_id, a.professional_id,
+               a.status, a.cancellation_origin, a.cancellation_reason_id, u.time_zone
+        FROM appointment a
+        JOIN unit u ON u.id = a.unit_id
+        WHERE a.organization_id = ${organizationId}::uuid
+          AND a.unit_id = ANY(${unitIds}::uuid[])
+          AND a.status IN ('CANCELLED', 'NO_SHOW')
+          AND (${professionalId}::uuid IS NULL OR a.professional_id = ${professionalId}::uuid)
+          AND (${service}::uuid IS NULL OR a.service_id = ${service}::uuid)
+          AND (${rc.filters.type}::text = 'ALL' OR a.status = ${rc.filters.type})
+          AND (${rc.filters.origin}::text = 'ALL' OR a.cancellation_origin = ${rc.filters.origin})
+          AND (${reason}::uuid IS NULL OR a.cancellation_reason_id = ${reason}::uuid)
+          AND a.starts_at >= ${windowStart} AND a.starts_at < ${windowEnd}
+          AND (${afterAt}::timestamptz IS NULL OR a.starts_at >= ${afterAt}::timestamptz)
+          AND (a.starts_at AT TIME ZONE u.time_zone)::date BETWEEN ${period.from}::date AND ${period.to}::date
+          AND (${afterAt}::timestamptz IS NULL OR (a.starts_at, a.id) > (${afterAt}::timestamptz, ${afterId}::uuid))
+        ORDER BY a.starts_at, a.id
+        LIMIT ${limit} OFFSET ${offset}
+      )
+      SELECT pg.starts_at AS sort_at, pg.id AS row_id, pg.unit_id, pg.starts_at, pg.cancelled_at,
+             to_char(pg.starts_at AT TIME ZONE pg.time_zone, 'YYYY-MM-DD') AS date,
              coalesce(p.social_name, p.full_name) AS patient, p.mobile_phone AS phone,
              s.name AS service, coalesce(pr.display_name, pr.full_name) AS professional,
-             a.status, a.cancellation_origin AS origin, cr.name AS reason
-      FROM appointment a
-      JOIN unit u ON u.id = a.unit_id
-      JOIN patient p ON p.id = a.patient_id
-      JOIN service s ON s.id = a.service_id
-      JOIN professional pr ON pr.id = a.professional_id
-      LEFT JOIN cancellation_reason cr ON cr.id = a.cancellation_reason_id
-      WHERE a.organization_id = ${organizationId}::uuid
-        AND a.unit_id = ANY(${unitIds}::uuid[])
-        AND a.status IN ('CANCELLED', 'NO_SHOW')
-        AND (${professionalId}::uuid IS NULL OR a.professional_id = ${professionalId}::uuid)
-        AND (${service}::uuid IS NULL OR a.service_id = ${service}::uuid)
-        AND (${rc.filters.type}::text = 'ALL' OR a.status = ${rc.filters.type})
-        AND (${rc.filters.origin}::text = 'ALL' OR a.cancellation_origin = ${rc.filters.origin})
-        AND (${reason}::uuid IS NULL OR a.cancellation_reason_id = ${reason}::uuid)
-        AND a.starts_at >= ${windowStart} AND a.starts_at < ${windowEnd}
-        AND (a.starts_at AT TIME ZONE u.time_zone)::date BETWEEN ${period.from}::date AND ${period.to}::date
-        AND (${afterAt}::timestamptz IS NULL OR (a.starts_at, a.id) > (${afterAt}::timestamptz, ${afterId}::uuid))
-      ORDER BY a.starts_at, a.id
-      LIMIT ${limit} OFFSET ${offset}`;
+             pg.status, pg.cancellation_origin AS origin, cr.name AS reason
+      FROM page pg
+      JOIN patient p ON p.id = pg.patient_id
+      JOIN service s ON s.id = pg.service_id
+      JOIN professional pr ON pr.id = pg.professional_id
+      LEFT JOIN cancellation_reason cr ON cr.id = pg.cancellation_reason_id
+      ORDER BY pg.starts_at, pg.id`;
     return {
       rows: rows.map((row): RawRow => ({
         date: row.date,

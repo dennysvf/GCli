@@ -158,18 +158,12 @@ function csvStream(ctx: RequestContext, prepared: PreparedReport): ReadableStrea
   const { definition, rc, t } = prepared;
   const encoder = new TextEncoder();
   let cursor: Cursor | null = null;
-  let offset = 0;
   let started = false;
-  let finished = false;
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
-      if (finished) {
-        controller.close();
-        return;
-      }
       try {
         const batch = await withTransaction(ctx, async (uow) =>
-          ok(await definition.rows(uow, rc, { limit: EXPORT_BATCH_SIZE, offset, after: cursor })),
+          ok(await definition.rows(uow, rc, { limit: EXPORT_BATCH_SIZE, after: cursor })),
         );
         if (!batch.ok) throw new Error(batch.error.code);
         const lines = batch.value.rows.map((row) => csvRow(definition.columns, row, t, ctx.locale));
@@ -183,9 +177,11 @@ function csvStream(ctx: RequestContext, prepared: PreparedReport): ReadableStrea
         }
         if (text) controller.enqueue(encoder.encode(text));
         cursor = batch.value.cursor;
-        offset += batch.value.rows.length;
         // The productivity report has no cursor and is read in one batch.
-        if (batch.value.rows.length < EXPORT_BATCH_SIZE || batch.value.cursor === null) finished = true;
+        if (batch.value.rows.length < EXPORT_BATCH_SIZE || batch.value.cursor === null) {
+          // Closing here matters: a last empty batch enqueues nothing, so no further pull would run.
+          controller.close();
+        }
       } catch (error) {
         controller.error(error);
       }

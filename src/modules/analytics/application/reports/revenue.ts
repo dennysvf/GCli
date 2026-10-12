@@ -153,27 +153,35 @@ export const revenueReport: ReportDefinition = {
     const afterAt = after?.at ?? null;
     const afterId = after?.id ?? null;
     const rows = await uow.tx.$queryRaw<Row[]>`
-      SELECT p.received_at AS sort_at, p.id AS row_id,
-             to_char(p.received_at AT TIME ZONE u.time_zone, 'YYYY-MM-DD') AS date,
+      WITH page AS (
+        SELECT p.id, p.received_at, p.method, p.kind, p.amount_minor, p.currency, p.charge_id,
+               u.time_zone, u.name AS unit_name
+        FROM payment p
+        JOIN unit u ON u.id = p.unit_id
+        JOIN charge c ON c.id = p.charge_id
+        WHERE p.organization_id = ${organizationId}::uuid
+          AND p.unit_id = ANY(${unitIds}::uuid[])
+          AND (${professionalId}::uuid IS NULL OR c.professional_id = ${professionalId}::uuid)
+          AND (${service}::uuid IS NULL OR c.service_id = ${service}::uuid)
+          AND (${rc.filters.method}::text = 'ALL' OR p.method = ${rc.filters.method})
+          AND p.received_at >= ${windowStart} AND p.received_at < ${windowEnd}
+          AND (${afterAt}::timestamptz IS NULL OR p.received_at >= ${afterAt}::timestamptz)
+          AND (p.received_at AT TIME ZONE u.time_zone)::date BETWEEN ${period.from}::date AND ${period.to}::date
+          AND (${afterAt}::timestamptz IS NULL OR (p.received_at, p.id) > (${afterAt}::timestamptz, ${afterId}::uuid))
+        ORDER BY p.received_at, p.id
+        LIMIT ${limit} OFFSET ${offset}
+      )
+      SELECT pg.received_at AS sort_at, pg.id AS row_id,
+             to_char(pg.received_at AT TIME ZONE pg.time_zone, 'YYYY-MM-DD') AS date,
              coalesce(pt.social_name, pt.full_name) AS patient, c.number AS charge_number,
-             p.method, s.name AS service, coalesce(pr.display_name, pr.full_name) AS professional,
-             u.name AS unit, p.kind, p.amount_minor, p.currency
-      FROM payment p
-      JOIN unit u ON u.id = p.unit_id
-      JOIN charge c ON c.id = p.charge_id
+             pg.method, s.name AS service, coalesce(pr.display_name, pr.full_name) AS professional,
+             pg.unit_name AS unit, pg.kind, pg.amount_minor, pg.currency
+      FROM page pg
+      JOIN charge c ON c.id = pg.charge_id
       JOIN patient pt ON pt.id = c.patient_id
       LEFT JOIN service s ON s.id = c.service_id
       LEFT JOIN professional pr ON pr.id = c.professional_id
-      WHERE p.organization_id = ${organizationId}::uuid
-        AND p.unit_id = ANY(${unitIds}::uuid[])
-        AND (${professionalId}::uuid IS NULL OR c.professional_id = ${professionalId}::uuid)
-        AND (${service}::uuid IS NULL OR c.service_id = ${service}::uuid)
-        AND (${rc.filters.method}::text = 'ALL' OR p.method = ${rc.filters.method})
-        AND p.received_at >= ${windowStart} AND p.received_at < ${windowEnd}
-        AND (p.received_at AT TIME ZONE u.time_zone)::date BETWEEN ${period.from}::date AND ${period.to}::date
-        AND (${afterAt}::timestamptz IS NULL OR (p.received_at, p.id) > (${afterAt}::timestamptz, ${afterId}::uuid))
-      ORDER BY p.received_at, p.id
-      LIMIT ${limit} OFFSET ${offset}`;
+      ORDER BY pg.received_at, pg.id`;
     return {
       rows: rows.map((row): RawRow => ({
         date: row.date,

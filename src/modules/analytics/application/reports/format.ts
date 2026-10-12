@@ -100,8 +100,14 @@ export function csvHeader(columns: ColumnDef[], t: Translator, groupBy: string):
     : header;
 }
 
+// "2026-09-03" as the language writes it (03/09/2026; 09/03/2026 in en). Built by hand because
+// a formatter per row is the slowest part of a 50,000-row export (PRD F13: 10 seconds).
+function csvDate(date: string, locale: Locale): string {
+  const [year = "", month = "", day = ""] = date.split("-");
+  return locale === "en" ? `${month}/${day}/${year}` : `${day}/${month}/${year}`;
+}
+
 export function csvRow(columns: ColumnDef[], row: RawRow, t: Translator, locale: Locale): CsvCell[] {
-  const intl = formatLocale(locale);
   let currency = "";
   const cells = columns.map((column): CsvCell => {
     const cell = row[column.key];
@@ -113,7 +119,7 @@ export function csvRow(columns: ColumnDef[], row: RawRow, t: Translator, locale:
     if (column.kind === "hours") {
       return String(cell).replace(".", locale === "en" ? "." : ",");
     }
-    if (column.kind === "date") return formatDate(String(cell), intl);
+    if (column.kind === "date") return csvDate(String(cell), locale);
     if (column.kind === "label" || column.kind === "stamp")
       return t(`${column.labelPrefix ?? "analytics.reports.values"}.${cell}`);
     return typeof cell === "number" ? cell : String(cell);

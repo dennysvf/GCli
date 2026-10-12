@@ -21,7 +21,7 @@ export const REPORT_PAGE_SIZE = 50;
 export const CSV_MAX_ROWS = 50_000;
 export const PDF_MAX_ROWS = 5_000;
 // Spec F13 decision D5: rows read per query while an export is streamed.
-export const EXPORT_BATCH_SIZE = 2_000;
+export const EXPORT_BATCH_SIZE = 10_000;
 
 // PRD F13 receivables: aging buckets by days open; the last one has no upper bound.
 export const AGING_BUCKETS = [

@@ -37,10 +37,17 @@ export type { AnalyticsDeps, DashboardFigures } from "./application/get-dashboar
 export type { DashboardFilters } from "./application/schemas";
 export type { CountKpi, DashboardView, MoneyKpi, MoneyKpiLine, RateKpi } from "./application/views";
 export type { Change, ChangeKind, Tone } from "./domain/kpis";
+export type {
+  OrganizationHeader,
+  OrganizationHeaderLookup,
+  ReportPdfDocument,
+  ReportPdfRenderer,
+} from "./application/ports";
 export type { ReportExport, ReportExportFormat } from "./application/export-report";
 export type { ReportSummaryView, ReportView } from "./application/get-report";
 export { REPORT_IDS, type ReportId } from "./application/reports/types";
 export { isReportId } from "./application/reports/registry";
 export type { ViewCell, ViewColumn } from "./application/reports/format";
+export { agingBucket, daysOpen, type AgingBucketId } from "./domain/aging";
 export { PERIOD_PRESETS, type PeriodPreset } from "./domain/period";
 export { analyticsCatalog } from "./messages/catalog";

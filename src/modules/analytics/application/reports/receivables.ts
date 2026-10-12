@@ -128,29 +128,35 @@ export const receivablesReport: ReportDefinition = {
     const afterAt = after?.at ?? null;
     const afterId = after?.id ?? null;
     const rows = await uow.tx.$queryRaw<Row[]>`
-      SELECT c.created_at AS sort_at, c.id AS row_id, c.unit_id,
-             to_char(c.created_at AT TIME ZONE u.time_zone, 'YYYY-MM-DD') AS date,
+      WITH page AS (
+        SELECT c.id, c.unit_id, c.created_at, c.patient_id, c.number, c.origin, c.net_minor,
+               (c.net_minor - c.paid_minor) AS balance_minor, c.currency, u.time_zone, d.days
+        FROM charge c
+        JOIN unit u ON u.id = c.unit_id
+        CROSS JOIN LATERAL (
+          SELECT greatest(0, (${rc.now}::timestamptz AT TIME ZONE u.time_zone)::date
+                             - (c.created_at AT TIME ZONE u.time_zone)::date)::int AS days) d
+        WHERE c.organization_id = ${organizationId}::uuid
+          AND c.unit_id = ANY(${unitIds}::uuid[])
+          AND c.status IN ('PENDING_APPROVAL', 'OPEN', 'PARTIALLY_PAID')
+          AND c.net_minor - c.paid_minor > 0
+          AND (${professionalId}::uuid IS NULL OR c.professional_id = ${professionalId}::uuid)
+          AND (${origin}::text = 'ALL' OR c.origin = ${origin})
+          AND (${lo}::int IS NULL OR (d.days >= ${lo}::int AND (${hi}::int IS NULL OR d.days <= ${hi}::int)))
+          AND c.created_at >= ${windowStart} AND c.created_at < ${windowEnd}
+          AND (${afterAt}::timestamptz IS NULL OR c.created_at >= ${afterAt}::timestamptz)
+          AND (c.created_at AT TIME ZONE u.time_zone)::date BETWEEN ${period.from}::date AND ${period.to}::date
+          AND (${afterAt}::timestamptz IS NULL OR (c.created_at, c.id) > (${afterAt}::timestamptz, ${afterId}::uuid))
+        ORDER BY c.created_at, c.id
+        LIMIT ${limit} OFFSET ${offset}
+      )
+      SELECT pg.created_at AS sort_at, pg.id AS row_id, pg.unit_id,
+             to_char(pg.created_at AT TIME ZONE pg.time_zone, 'YYYY-MM-DD') AS date,
              coalesce(pt.social_name, pt.full_name) AS patient, pt.mobile_phone AS phone,
-             c.number AS charge_number, c.origin, c.net_minor,
-             (c.net_minor - c.paid_minor) AS balance_minor, c.currency, d.days
-      FROM charge c
-      JOIN unit u ON u.id = c.unit_id
-      JOIN patient pt ON pt.id = c.patient_id
-      CROSS JOIN LATERAL (
-        SELECT greatest(0, (${rc.now}::timestamptz AT TIME ZONE u.time_zone)::date
-                           - (c.created_at AT TIME ZONE u.time_zone)::date)::int AS days) d
-      WHERE c.organization_id = ${organizationId}::uuid
-        AND c.unit_id = ANY(${unitIds}::uuid[])
-        AND c.status IN ('PENDING_APPROVAL', 'OPEN', 'PARTIALLY_PAID')
-        AND c.net_minor - c.paid_minor > 0
-        AND (${professionalId}::uuid IS NULL OR c.professional_id = ${professionalId}::uuid)
-        AND (${origin}::text = 'ALL' OR c.origin = ${origin})
-        AND (${lo}::int IS NULL OR (d.days >= ${lo}::int AND (${hi}::int IS NULL OR d.days <= ${hi}::int)))
-        AND c.created_at >= ${windowStart} AND c.created_at < ${windowEnd}
-        AND (c.created_at AT TIME ZONE u.time_zone)::date BETWEEN ${period.from}::date AND ${period.to}::date
-        AND (${afterAt}::timestamptz IS NULL OR (c.created_at, c.id) > (${afterAt}::timestamptz, ${afterId}::uuid))
-      ORDER BY c.created_at, c.id
-      LIMIT ${limit} OFFSET ${offset}`;
+             pg.number AS charge_number, pg.origin, pg.net_minor, pg.balance_minor, pg.currency, pg.days
+      FROM page pg
+      JOIN patient pt ON pt.id = pg.patient_id
+      ORDER BY pg.created_at, pg.id`;
     return {
       rows: rows.map((row): RawRow => ({
         patient: row.patient,
