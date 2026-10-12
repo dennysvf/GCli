@@ -7,6 +7,12 @@ import { signIn, sql } from "./support";
 const ADMIN_PASSWORD = "senhaAdmin2026";
 const DESK = { email: "carlos.recepcao@e2e.gcli", password: "senhaNova2026" };
 
+// The dashboard caches its figures for 5 minutes per filter combination (ADR-037), and every
+// Administrator sign-in lands on "Mês atual" with all units (PRD F01). The first sign-in of the run
+// happens while the database is still empty, so on a fast machine that cached empty result would
+// still be served here. Each journey therefore opens a period that no other journey loads.
+const JOURNEY_PERIOD = { manager: "LAST_30_DAYS", professional: "LAST_7_DAYS" } as const;
+
 async function signedIn(browser: Browser, user: { email: string; password: string }) {
   const context = await browser.newContext({ locale: "pt-BR", timezoneId: "America/Sao_Paulo" });
   const page = await context.newPage();
@@ -31,7 +37,7 @@ test('F12: manager opens the dashboard, changes the period and the unit, and see
   );
   if (!unit) throw new Error("no active unit");
   const page = await signedIn(browser, { email: ADMIN.email, password: ADMIN_PASSWORD });
-  await page.goto("/dashboard");
+  await page.goto(`/dashboard?period=${JOURNEY_PERIOD.manager}`);
   await expect(page.getByRole("heading", { name: "Painel", level: 1 })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Operação" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Financeiro" })).toBeVisible();
@@ -68,7 +74,7 @@ test('F12: selecting a professional hides "Despesas pagas" and "Resultado"', asy
   );
   if (!professional) throw new Error("no professional");
   const page = await signedIn(browser, { email: ADMIN.email, password: ADMIN_PASSWORD });
-  await page.goto("/dashboard");
+  await page.goto(`/dashboard?period=${JOURNEY_PERIOD.professional}`);
   await expect(card(page, "Despesas pagas")).toBeVisible();
   await pickOption(page, "Profissional", professional.display_name);
   await expect(page.getByTestId("professional-note")).toHaveText(
