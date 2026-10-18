@@ -740,10 +740,11 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 
 **Consome:**
 - F01: registros de eventos de auditoria (ator, ação, tipo de entidade, id da entidade, data/hora, endereço IP, valores antes/depois)
+- F05, F06, F09: páginas de paciente, agendamento e cobrança que recebem os links de atalho "Ver auditoria"
 
 **Capacidades:**
 - Acesso: apenas Administrador.
-- Filtros: período (máx. 366 dias por consulta), usuário, ação (criação, atualização, exclusão, leitura de registro clínico, login, falha de login, permissão negada, exportação), tipo de entidade (paciente, agendamento, nota clínica, cobrança, pagamento, caixa, usuário, configurações, etc.), id da entidade (ex.: aberto a partir da página do paciente "Ver auditoria").
+- Filtros: período (máx. 366 dias por consulta), usuário, ação (criação, atualização, exclusão, leitura de dado sensível — notas clínicas, documentos e consentimentos, login, falha de login, permissão negada, exportação), tipo de entidade (paciente, agendamento, nota clínica, cobrança, pagamento, caixa, usuário, configurações, etc.), id da entidade (ex.: aberto a partir da página do paciente "Ver auditoria").
 - Tabela de resultados: data/hora, usuário, ação, entidade, resumo; paginada em 100 por página; p95 ≤ 3 segundos para 1 milhão de registros.
 - Visão de detalhe: diferença campo a campo (antes → depois) para atualizações; texto clínico sensível não é exibido na diferença — apenas "conteúdo clínico alterado" com contagem de caracteres.
 - Exportação em CSV de até 100.000 linhas (mesmo formato de CSV de F13); a própria exportação é auditada.
@@ -874,7 +875,7 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 | F12 | Painel de Gestão | 2 | F05, F06, F09, F11 |
 | F13 | Relatórios e Exportação | 2 | F01, F06, F09 |
 | F14 | Linha do Tempo do Paciente e Solicitações LGPD | 2 | F05, F06, F07, F08, F09 |
-| F15 | Visualizador do Log de Auditoria | 2 | F01 |
+| F15 | Visualizador do Log de Auditoria | 2 | F01, F05, F06, F09 |
 | F16 | Internacionalização e Perfis de País | 1 | F01, F02, F03, F04, F05, F06 |
 
 ### Funcionalidades de Fundação
@@ -887,12 +888,12 @@ Funcionalidades da mesma onda podem ser construídas em paralelo. Uma onda só c
 **Nota:** Funcionalidades de fundação (ver "Funcionalidades de Fundação" acima) não podem ser executadas em paralelo entre si em um projeto novo (greenfield), mesmo que apareçam juntas em uma onda — elas compartilham arquivos de estrutura básica e precisam ser implementadas sequencialmente até que a base esteja pronta.
 
 - **Onda 1**: F01
-- **Onda 2**: F02, F03, F05, F15
+- **Onda 2**: F02, F03, F05
 - **Onda 3**: F04
 - **Onda 4**: F06
 - **Onda 5**: F16
 - **Onda 6**: F07, F08, F09
-- **Onda 7**: F10, F11, F13, F14
+- **Onda 7**: F10, F11, F13, F14, F15
 - **Onda 8**: F12
 
 ### Níveis de prioridade
@@ -938,6 +939,9 @@ graph TD
   F08 --> F14
   F09 --> F14
   F01 --> F15[F15 Visualizador de Auditoria]
+  F05 --> F15
+  F06 --> F15
+  F09 --> F15
   F02 --> F16[F16 Internacionalização]
   F03 --> F16
   F04 --> F16

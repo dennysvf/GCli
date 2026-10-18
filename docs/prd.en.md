@@ -740,10 +740,11 @@ The differentiator is configurability without complexity: the same product serve
 
 **Consumes:**
 - F01: audit event records (actor, action, entity type, entity id, timestamp, IP address, before/after values)
+- F05, F06, F09: patient, appointment and charge pages that host the "Ver auditoria" shortcut links
 
 **Capabilities:**
 - Access: Administrator only.
-- Filters: period (max 366 days per query), user, action (create, update, delete, read clinical record, login, login failure, permission denied, export), entity type (patient, appointment, clinical note, charge, payment, cash register, user, settings, etc.), entity id (e.g., opened from a patient's page "Ver auditoria").
+- Filters: period (max 366 days per query), user, action (create, update, delete, read sensitive data — clinical notes, documents and consents, login, login failure, permission denied, export), entity type (patient, appointment, clinical note, charge, payment, cash register, user, settings, etc.), entity id (e.g., opened from a patient's page "Ver auditoria").
 - Result table: date/time, user, action, entity, summary; paginated 100 per page; p95 ≤ 3 seconds for 1 million records.
 - Detail view: field-level diff (before → after) for updates; sensitive clinical text is not shown in the diff — only "conteúdo clínico alterado" with character counts.
 - CSV export up to 100,000 rows (same CSV format as F13); the export itself is audited.
@@ -874,7 +875,7 @@ The differentiator is configurability without complexity: the same product serve
 | F12 | Management Dashboard | 2 | F05, F06, F09, F11 |
 | F13 | Reports and Export | 2 | F01, F06, F09 |
 | F14 | Patient Timeline and LGPD Data Requests | 2 | F05, F06, F07, F08, F09 |
-| F15 | Audit Log Viewer | 2 | F01 |
+| F15 | Audit Log Viewer | 2 | F01, F05, F06, F09 |
 | F16 | Internationalization and Country Profiles | 1 | F01, F02, F03, F04, F05, F06 |
 
 ### Foundation Features
@@ -887,12 +888,12 @@ Features within the same wave can be built in parallel. A wave starts only after
 **Note:** Foundation features (see "Foundation Features" above) cannot run in parallel in a greenfield project even if they appear together in a wave — they share scaffolding files and must be implemented sequentially until the base is in place.
 
 - **Wave 1**: F01
-- **Wave 2**: F02, F03, F05, F15
+- **Wave 2**: F02, F03, F05
 - **Wave 3**: F04
 - **Wave 4**: F06
 - **Wave 5**: F16
 - **Wave 6**: F07, F08, F09
-- **Wave 7**: F10, F11, F13, F14
+- **Wave 7**: F10, F11, F13, F14, F15
 - **Wave 8**: F12
 
 ### Priority levels
@@ -938,6 +939,9 @@ graph TD
   F08 --> F14
   F09 --> F14
   F01 --> F15[F15 Audit Viewer]
+  F05 --> F15
+  F06 --> F15
+  F09 --> F15
   F02 --> F16[F16 Internationalization]
   F03 --> F16
   F04 --> F16
