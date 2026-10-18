@@ -6,16 +6,35 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { Readable } from "node:stream";
+import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import { getEnv } from "@/shared/config/env";
 
 // Private S3-compatible storage (architecture 5.6, ADR-009): MinIO locally, R2 in production.
 // Object keys never contain personal data: org/{orgId}/{module}/{uuid}.
 export type StoredObject = { body: Uint8Array; contentType: string | undefined };
 
+// Parts of a streamed upload (ADR-040): S3 needs at least 5 MB per part; a few parts in flight keep
+// the memory of a large export bounded.
+const STREAM_PART_BYTES = 8 * 1024 * 1024;
+const STREAM_PARTS_IN_FLIGHT = 4;
+
 export interface ObjectStorage {
   put(key: string, body: Uint8Array, contentType: string): Promise<void>;
+  // Uploads a stream in parts (F14 exports). The object exists only once the stream ended and the
+  // upload completed: an error in the stream or an abort through the signal discards every part.
+  putStream(
+    key: string,
+    body: Readable,
+    contentType: string,
+    options?: { signal?: AbortSignal },
+  ): Promise<void>;
   get(key: string): Promise<StoredObject | null>;
+  // The body of an object as a stream, or null when it does not exist (F14 exports read one file at
+  // a time instead of holding it in memory).
+  getStream(key: string): Promise<Readable | null>;
   delete(key: string): Promise<void>;
   // Metadata of a stored object, or null when it does not exist (confirms uploads).
   head(key: string): Promise<{ size: number; contentType: string | undefined } | null>;
@@ -57,11 +76,43 @@ class S3ObjectStorage implements ObjectStorage {
     );
   }
 
+  async putStream(key: string, body: Readable, contentType: string, options: { signal?: AbortSignal } = {}) {
+    const upload = new Upload({
+      client: this.client,
+      params: { Bucket: this.bucket, Key: key, Body: body, ContentType: contentType },
+      partSize: STREAM_PART_BYTES,
+      queueSize: STREAM_PARTS_IN_FLIGHT,
+      // A failed multipart upload is aborted, so no part is left behind and no object appears.
+      leavePartsOnError: false,
+    });
+    const abort = () => void upload.abort();
+    options.signal?.addEventListener("abort", abort, { once: true });
+    try {
+      await upload.done();
+    } finally {
+      options.signal?.removeEventListener("abort", abort);
+    }
+  }
+
   async get(key: string): Promise<StoredObject | null> {
     try {
       const response = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
       if (!response.Body) return null;
       return { body: await response.Body.transformToByteArray(), contentType: response.ContentType };
+    } catch (error) {
+      if ((error as { name?: string }).name === "NoSuchKey") return null;
+      throw error;
+    }
+  }
+
+  async getStream(key: string): Promise<Readable | null> {
+    try {
+      const response = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+      const body = response.Body;
+      if (!body) return null;
+      // In Node the SDK returns the HTTP response stream; other runtimes give a web stream.
+      if (body instanceof Readable) return body;
+      return Readable.fromWeb(body.transformToWebStream() as WebReadableStream);
     } catch (error) {
       if ((error as { name?: string }).name === "NoSuchKey") return null;
       throw error;

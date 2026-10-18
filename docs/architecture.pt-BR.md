@@ -100,10 +100,15 @@ graph TD
   catalog --> billing
   patients --> billing
   professionals --> billing
+  identity --> privacy
+  patients --> privacy
+  scheduling --> privacy
+  clinical-records --> privacy
+  documents --> privacy
 ```
 
 - Uma seta sólida significa "chama a API pública de". Uma seta pontilhada significa "reage a eventos de domínio publicados por".
-- `analytics`, `privacy` e `audit` leem dados de vários módulos por consultas de leitura dedicadas. Eles nunca escrevem nas tabelas de outros módulos.
+- `analytics`, `privacy` e `audit` leem dados de vários módulos por consultas de leitura dedicadas. Eles nunca escrevem nas tabelas de outros módulos: a anonimização do `privacy` altera pacientes, documentos e agendamentos apenas pelas funções transacionais que esses módulos expõem (ADR-040).
 - **Sem ciclos.** O PRD exige que a cobrança não seja gerada para agendamentos cobertos por pacote, mas `billing` não pode depender de `packages`. A solução é inversão de dependência: `billing` declara uma porta `ChargeExemptionPolicy`, e `packages` a implementa. Quando o módulo de pacotes não existe, a política padrão não isenta nada (ver ADR-007).
 
 ## 4. Estrutura de código e camadas
@@ -203,8 +208,9 @@ O pg-boss roda no mesmo banco PostgreSQL (ADR-008).
 | Expirar pacotes, desvincular agendamentos futuros | Diariamente às 00:10 (fuso da organização) | F10 |
 | Gerar ocorrências de despesas recorrentes | Mensalmente, no dia 1º | F11 |
 | Sinalizar caixas não fechados | Diariamente às 00:05 | F11 |
-| Gerar o ZIP de exportação LGPD | Sob solicitação | F14 |
-| Apagar arquivos de exportação expirados (mais de 7 dias) | Diariamente | F14 |
+| Gerar o ZIP de exportação LGPD | Outbox, sob solicitação | F14 |
+| Apagar o arquivo de uma exportação expirada ou de um documento apagado | Outbox, na anonimização | F14 |
+| Apagar arquivos de exportação expirados (mais de 7 dias) | Diariamente às 04:45 | F14 |
 
 As tarefas são idempotentes: cada uma pode rodar duas vezes sem duplicar efeitos, usando chaves únicas e verificação de estado.
 
@@ -514,6 +520,11 @@ Cada ADR vale até ser substituído por um novo ADR. Para mudar uma decisão, ad
 - *Decisão:* Cada relatório da F13 é uma definição em um registro dentro de `analytics`: filtros, colunas, uma consulta agregada para contagem e totais, uma consulta de página e uma consulta de lotes por keyset. A tela, o CSV e o PDF formatam as mesmas linhas tipadas, então seus totais sempre batem. A tela pagina com offset (50 linhas). O CSV é uma resposta em streaming que lê lotes por keyset (o cliente bruto do Prisma não mantém cursor), então a memória fica limitada. A contagem de linhas é conferida contra o limite do formato (50.000 para CSV, 5.000 para PDF) antes de qualquer byte, e o evento de auditoria `EXPORT` é confirmado antes do primeiro byte. O PDF reaproveita a base do ADR-024, que ganha a opção de orientação (paisagem) e um bloco de resumo. A cobrança não tem vencimento, então o aging conta os dias em aberto desde a emissão. Relatórios não usam cache.
 - *Por quê:* Relatórios devolvem linhas de detalhe que precisam bater exatamente com F06 e F09 e exportar até 50.000 linhas em 10 segundos. Uma definição por relatório mantém três saídas consistentes e evita quinze casos de uso quase iguais.
 - *Contrapartida:* Um formato genérico ao qual todo relatório precisa se adequar. Os lotes por keyset são consultas separadas, então linhas inseridas durante uma exportação longa podem aparecer.
+
+**ADR-040 — LGPD: linha do tempo como modelo de leitura, exportações geradas no worker e anonimização pelos módulos donos dos dados (complementa ADR-008, ADR-009, ADR-024, ADR-032, ADR-035 e a seção 7)**
+- *Decisão:* O módulo `privacy` é dono do registro de solicitações LGPD e das linhas de exportação e não escreve diretamente em nenhuma outra tabela. A linha do tempo do paciente é um modelo de leitura, não uma cópia: uma consulta por keyset une as tabelas de origem (paciente, consentimentos, agendamentos, notas finalizadas e adendos, documentos, cobranças e pagamentos) da mais recente para a mais antiga, depois que uma regra pura transforma o acesso de quem lê nos tipos de evento permitidos (a política de prontuário da F07 para itens clínicos, `billing:operate` para os financeiros, e apenas os próprios agendamentos para profissionais). Tipos ocultos são removidos no SQL, nunca no navegador, e o texto da nota nunca é selecionado: expandir um item chama `clinicalRecords.getNote`, que audita a leitura, e uma página que lista itens clínicos é uma leitura auditada do paciente. A exportação roda no worker a partir de uma mensagem do outbox. Ela transmite cada arquivo armazenado para um ZIP (`archiver`, ZIP64 quando necessário) enviado em partes (`@aws-sdk/lib-storage`), junto com `dados.json` e um resumo em PDF na base compartilhada. O objeto só existe quando o ZIP está completo; qualquer falha aborta o envio e marca a exportação como falha, e um índice único parcial permite uma geração por solicitação. Uma exportação fica disponível por 7 dias, o que é garantido pelo caso de uso de download e por uma tarefa diária de limpeza. Como direito de acesso da LGPD, a exportação de um Administrador inclui as notas e os anexos clínicos: uma exceção deliberada à regra da F07 de acesso apenas para profissionais, auditada na geração com os ids das notas e dos anexos. A anonimização roda em uma transação com a linha do paciente bloqueada: `patients`, `documents` e `scheduling` expõem cada um uma função que recebe a unidade de trabalho de quem chama (o padrão do ADR-035) e registra o próprio evento de auditoria apenas com os nomes dos campos, nunca os valores antigos. Os identificadores são substituídos pelo marcador "Paciente anonimizado #XXXXXX"; um documento não clínico enviado mantém a sua linha, marcada como apagada, e o arquivo armazenado é excluído depois do commit pelo outbox; um gatilho recusa qualquer alteração posterior de uma identidade anonimizada. Qualquer registro clínico (uma nota, um documento clínico ou o alerta clínico) bloqueia a anonimização e registra a solicitação como retenção legal (Lei 13.787/2018).
+- *Por quê:* A linha do tempo precisa responder em 2 segundos para históricos longos e nunca divergir dos registros de origem, então ela os lê em vez de projetá-los. Uma exportação de 500 arquivos não cabe em uma requisição, e um envio em streaming mantém a memória limitada. Cada módulo mantém as invariantes das próprias tabelas, então a anonimização os chama em vez de escrever nas suas linhas, e o gatilho do banco mantém a exclusão irreversível mesmo que a aplicação tenha um erro.
+- *Contrapartida:* Dados pessoais permanecem onde a lei ou o desenho da auditoria exigem: eventos antigos de `audit_event` guardam os valores antes/depois das edições do paciente (somente inserção, seção 5.3), e os arquivos de consentimento e os PDFs emitidos trazem o nome e o número do documento. Eles são mantidos como prova legal; apagá-los exigiria uma decisão própria. O agendamento não bloqueia a linha do paciente, então um agendamento feito no mesmo instante de uma anonimização não é serializado; o paciente anonimizado fica inativo e não é oferecido para novos agendamentos.
 
 ## 13. Evolução para SaaS
 

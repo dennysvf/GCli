@@ -100,10 +100,15 @@ graph TD
   catalog --> billing
   patients --> billing
   professionals --> billing
+  identity --> privacy
+  patients --> privacy
+  scheduling --> privacy
+  clinical-records --> privacy
+  documents --> privacy
 ```
 
 - A solid arrow means "calls the public API of". A dotted arrow means "reacts to domain events published by".
-- `analytics`, `privacy`, and `audit` read across modules through dedicated read queries. They never write to other modules' tables.
+- `analytics`, `privacy`, and `audit` read across modules through dedicated read queries. They never write to other modules' tables: the anonymization of `privacy` changes patients, documents and appointments only through the transactional functions those modules expose (ADR-040).
 - **No cycles.** The PRD requires billing to skip charges for package-covered appointments, but billing must not depend on packages. This is solved with dependency inversion: `billing` declares a `ChargeExemptionPolicy` port, and `packages` implements it. When the packages module is absent, the default policy exempts nothing (see ADR-007).
 
 ## 4. Code structure and layering
@@ -203,8 +208,9 @@ pg-boss runs on the same PostgreSQL database (ADR-008).
 | Expire packages, unlink future appointments | Daily at 00:10 (organization time zone) | F10 |
 | Generate recurring expense occurrences | Monthly on the 1st | F11 |
 | Flag unclosed cash registers | Daily at 00:05 | F11 |
-| Build LGPD export ZIP | On request | F14 |
-| Delete expired export files (older than 7 days) | Daily | F14 |
+| Build LGPD export ZIP | Outbox, on request | F14 |
+| Delete the stored file of an expired export or an erased document | Outbox, on anonymization | F14 |
+| Delete expired export files (older than 7 days) | Daily at 04:45 | F14 |
 
 Jobs are idempotent: each job can run twice without duplicating effects, using unique keys and state checks.
 
@@ -514,6 +520,11 @@ Each ADR is final until superseded by a new ADR. To change a decision, add a new
 - *Decision:* Each F13 report is one definition in a registry inside `analytics`: filters, columns, an aggregate query for the count and totals, a page query and a keyset batch query. The screen, the CSV and the PDF format the same typed rows, so their totals always agree. The screen paginates with offset (50 rows). The CSV is a streamed response that reads keyset batches (the Prisma raw client cannot hold a cursor), so memory stays bounded. The row count is checked against the format limit (50,000 for CSV, 5,000 for PDF) before any byte is written, and the `EXPORT` audit event is committed before the first byte. The PDF reuses the base of ADR-024, which gains an orientation option (landscape) and a summary block. Charges have no due date, so the aging counts days open from the issue date. Reports are not cached.
 - *Why:* Reports return detail rows that must match F06 and F09 exactly and export up to 50,000 rows in 10 seconds. One definition per report keeps three outputs consistent and avoids fifteen near-identical use cases.
 - *Trade-off:* A generic definition shape every report must fit. Keyset batches are separate queries, so rows inserted during a long export may appear.
+
+**ADR-040 — LGPD: a read-model timeline, worker-built exports and anonymization by the owning modules (complements ADR-008, ADR-009, ADR-024, ADR-032, ADR-035 and section 7)**
+- *Decision:* The `privacy` module owns the LGPD request register and the export rows and writes no other table directly. The patient timeline is a read model, not a copy: a keyset query unions the source tables (patient, consents, appointments, finalized notes and addenda, documents, charges and payments) newest first, after a pure rule turns the viewer's access into the allowed event kinds (the F07 records policy for clinical items, `billing:operate` for financial ones, and only their own appointments for professionals). Hidden kinds are removed in SQL, never in the browser, and note text is never selected: expanding an item calls `clinicalRecords.getNote`, which audits the read, and a page that lists clinical items is one audited read of the patient. The export runs in the worker from an outbox message. It streams every stored file into a ZIP (`archiver`, ZIP64 when needed) that is uploaded in parts (`@aws-sdk/lib-storage`), next to `dados.json` and a PDF summary on the shared base. The object exists only once the ZIP is complete; any failure aborts the upload and marks the export failed, and a partial unique index allows one build per request. An export is available for 7 days, enforced by the download use case and by a daily cleanup job. As the LGPD right of access, an Administrator's export includes the clinical notes and attachments: a deliberate exception to the F07 professionals-only rule, audited at generation with the note and attachment ids. Anonymization runs in one transaction with the patient row locked: `patients`, `documents` and `scheduling` each expose a function that takes the caller's unit of work (the pattern of ADR-035) and records its own audit event with field names only, never the old values. Identifiers are overwritten with the placeholder "Paciente anonimizado #XXXXXX"; a non-clinical uploaded document keeps its row, marked erased, and its stored file is deleted after commit through the outbox; a trigger refuses any later change to an anonymized identity. Any clinical record (a note, a clinical document or the clinical alert) blocks anonymization and registers the request as legal retention (Law 13.787/2018).
+- *Why:* The timeline must answer in 2 seconds for long histories and never drift from the source records, so it reads them instead of projecting them. An export of 500 files does not fit a request, and a streamed upload keeps memory bounded. Each module keeps the invariants of its own tables, so anonymization calls them instead of writing their rows, and the database trigger keeps the erasure irreversible even if the application has a bug.
+- *Trade-off:* Personal data stays where the law or the audit design requires it: earlier `audit_event` rows hold the before/after values of patient edits (append-only, section 5.3), and consent files and generated PDFs carry the name and the document number. They are kept as legal evidence; redacting them would need its own decision. Booking does not lock the patient row, so a booking made at the same instant as an anonymization is not serialized; the anonymized patient is inactive afterwards and is not offered for new bookings.
 
 ## 13. Evolution to SaaS
 

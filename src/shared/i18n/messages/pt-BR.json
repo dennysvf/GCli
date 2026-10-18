@@ -183,7 +183,8 @@
     "groups": {
       "operation": "Operação",
       "settings": "Configurações",
-      "financial": "Financeiro"
+      "financial": "Financeiro",
+      "lgpd": "LGPD"
     },
     "navigation": {
       "schedule": "Agenda",
@@ -206,7 +207,8 @@
       "cash": "Caixa",
       "expenses": "Despesas",
       "revenues": "Receitas",
-      "statement": "Extrato"
+      "statement": "Extrato",
+      "lgpdRequests": "Solicitações"
     },
     "roles": {
       "ADMINISTRATOR": "Administrador",

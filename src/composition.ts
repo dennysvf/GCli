@@ -7,6 +7,7 @@ import { documentsCatalog } from "@/modules/documents";
 import { identityCatalog } from "@/modules/identity";
 import { unitsCatalog } from "@/modules/units";
 import { patientsCatalog } from "@/modules/patients";
+import { privacyCatalog } from "@/modules/privacy";
 import { professionalsCatalog, registerProfessionalsPorts } from "@/modules/professionals";
 import { registerSchedulingPorts, schedulingCatalog } from "@/modules/scheduling";
 import { registerServicesPorts, servicesCatalog, subscribeServicesEvents } from "@/modules/services";
@@ -34,6 +35,7 @@ export function registerModules(): void {
   registerCatalog("packages", packagesCatalog);
   registerCatalog("cash", cashCatalog);
   registerCatalog("analytics", analyticsCatalog);
+  registerCatalog("privacy", privacyCatalog);
   subscribeServicesEvents(eventBus);
   registerServicesPorts();
   // F04: linked professionals for identity (F01) and professional counts for services (F03).

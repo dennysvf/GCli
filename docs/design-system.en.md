@@ -472,6 +472,29 @@ The reports (F13) are tables, never cards. These rules cover what the other sect
 - **Export progress:** a text line with `aria-live="polite"` ("Gerando arquivo… 12.000 de 48.000 linhas", "Gerando PDF…"). When the result exceeds a limit, the button is disabled and the advice is written next to it ("O PDF aceita até 5.000 linhas. Exporte em CSV.").
 - **Empty state:** "Sem dados para o período selecionado." replaces the table; the filters stay.
 
+### 5.20 Patient timeline
+
+The "Linha do tempo" tab of the patient page (F14) is a list in time, never a set of cards. These rules cover what the other sections do not show.
+- **List:** a vertical `<ol>` under month headings in `group-title` ("Outubro de 2026"), with a 1 px `rule` line along its left edge. The newest events come first.
+- **Event:** a 16 px icon of the event group beside the title in `body-strong` ("Agendamento", "Registro clínico finalizado", "Cobrança 2026-000042 criada"); the date and time in `meta` with tabular figures; the summary in `body` (service, professional, unit and room; document title and category; amount and method); "por {name}" in `meta`; and a stamp for each state (the appointment status, "Encaixe", "Finalizado automaticamente", "Clínico", "Arquivado", "Apagado", "Cancelada"). The icon reinforces the title and never replaces it.
+- **Disclosures:** "Ver histórico" (appointments) and "Ver registro" (clinical notes and addenda) are ghost buttons with `aria-expanded`; their labels become "Ocultar histórico" and "Ocultar registro". The history is a compact table (Status as a stamp, Data e hora, Por), oldest first. An expanded note sits in the reading column under its event, with its addenda as in section 5.12. A collapsed clinical item never shows note text or a preview.
+- **Filter bar:** above the list, a group named "Filtros da linha do tempo" with one checkbox per event group the user may see (Cadastro e consentimento, Agendamentos, Registros clínicos, Documentos, Financeiro), the date fields "De" and "Até", and "Limpar filtros" as a ghost button. Filters apply on change; the tab has no primary button. A period that ends before it starts shows the field error under "Até" and keeps the current list.
+- **Loading more:** below the list, an invisible sentinel loads the next 50 events when it scrolls into view, and "Carregar mais eventos" is a secondary button that does the same from the keyboard. A polite live region announces "{count} eventos carregados". After the last page, "Fim da linha do tempo." in `meta` takes the place of the button.
+- **States:** "Nenhum evento para os filtros selecionados." when nothing matches (section 7.4); the danger page alert "Não foi possível carregar a linha do tempo. Tente novamente." with a "Tentar novamente" button when a page fails; a skeleton of three events only after 300 ms.
+- **Responsive:** at 375 px and at 200% zoom the date moves under the title and the filters wrap; nothing scrolls sideways.
+
+### 5.21 LGPD requests
+
+"LGPD > Solicitações" (F14) is a register for Administrators: a table and a detail page. These rules cover what the other sections do not show.
+- **Register:** a table (section 5.4) with Data, Paciente, Tipo, Solicitante, Status and Concluída em ("—" while open), 50 rows per page; the patient name is the link to the request. The filters above it are the status ("Abertas" by default, "Todas", or one status) and the type. Open requests come first, oldest first. "Nova solicitação" is the one primary button and opens a side panel (patient search, type, requester, description with a character counter, and "Registrar solicitação" in the footer).
+- **Status stamps:** Pendente (neutral), Em geração (info), Falha na geração (danger), Concluída (success), Solicitação registrada — retenção legal (warning).
+- **Overdue:** a request open for more than 15 days carries a second warning stamp, "Pendente há {days} dias", next to its status. The text carries the meaning; color only reinforces it.
+- **Detail page:** a definition list (Paciente, Tipo, Solicitante, Descrição, Registrada em, Status, Concluída em, Resolução), then the history of the request as a compact table (Data e hora, Evento, Por), then one action block for the type of the request.
+- **Export block (access requests):** a status line in `meta` inside a polite live region ("Gerando exportação…" while the worker builds it). While the file is available, "Baixar exportação" is the primary button and "Disponível até {date}" sits in `meta`. After a failure the request stamp reads "Falha na geração" and "Tentar novamente" is a secondary button. An export past its 7 days reads "Exportação expirada em {date}", and "Gerar novamente" is a secondary button. There is never more than one primary button.
+- **Correction block:** "Concluir solicitação" opens a dialog with the required resolution field (10 to 2,000 characters) and its counter.
+- **Anonymization dialog:** an alert dialog in two steps. Step 1 is the danger page alert with the irreversibility text, with "Cancelar" and "Continuar". A blocking finding (clinical records, future appointments, open charges) replaces the next step with its PRD message and leaves only "Fechar". Step 2 is the field "Digite o nome completo do paciente para confirmar" and the destructive button "Anonimizar definitivamente"; a mismatch shows "O nome digitado não confere." under the field.
+- **Anonymized patient:** the patient page title is the placeholder ("Paciente anonimizado #A1B2C3") with the neutral stamp "Anonimizado", and the form is read-only. An erased document stays in the Documentos tab (shown with "Mostrar arquivados") with the neutral stamp "Apagado" and no actions.
+
 ## 6. Visual details
 
 ### 6.1 Borders and radii

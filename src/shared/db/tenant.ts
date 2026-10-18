@@ -78,6 +78,9 @@ const TENANT_MODELS = new Set<string>([
   "FinancialEntrySeries",
   "FinancialEntry",
   "FinancialEntryPayment",
+  // F14
+  "LgpdRequest",
+  "LgpdExport",
 ]);
 // The organization row itself is scoped by its id.
 const ORGANIZATION_MODEL = "Organization";

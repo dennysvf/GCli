@@ -8,7 +8,11 @@ export type OutboxMessageType =
   | "email.password-reset"
   | "email.storage-quota-alert"
   | "clinical.attachment-process"
-  | "documents.file-process";
+  | "documents.file-process"
+  // F14: deleting the files of erased documents, building an LGPD export and deleting its file.
+  | "documents.file-erase"
+  | "privacy.export-build"
+  | "privacy.export-delete";
 
 type OutboxClient = {
   outboxMessage: { create(args: { data: Prisma.OutboxMessageUncheckedCreateInput }): unknown };
