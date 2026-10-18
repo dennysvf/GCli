@@ -262,6 +262,9 @@
     "about": "Patient data exported to answer an LGPD access request (Law 13.709/2018, article 18). Money values are in the currency's minor units (cents)."
   },
   "validation": {
+    "invalidId": "Invalid record.",
+    "invalidDate": "Enter a valid date.",
+    "groupsInvalid": "Choose each event type only once.",
     "patientRequired": "Select the patient.",
     "typeRequired": "Select the type of request.",
     "requesterRequired": "Select who made the request.",
@@ -288,7 +291,6 @@
     "PRIVACY_EXPORT_EXPIRED": "This export expired on {date}. Generate a new export.",
     "PRIVACY_EXPORT_NOT_FOUND": "Export not found.",
     "PRIVACY_ANONYMIZATION_BLOCKED": "Cancel the future appointments and settle the open charges before anonymizing.",
-    "PRIVACY_NAME_MISMATCH": "The typed name does not match.",
-    "PRIVACY_STALE": "This request was changed by someone else. Reload the page."
+    "PRIVACY_NAME_MISMATCH": "The typed name does not match."
   }
 }

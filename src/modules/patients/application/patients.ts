@@ -206,6 +206,8 @@ export function identityOf(row: PatientRow, today: string) {
           }
         : null,
     active: row.active,
+    // PRD F14: an anonymized patient keeps the placeholder name and can no longer be edited.
+    anonymized: row.anonymizedAt !== null,
   };
 }
 

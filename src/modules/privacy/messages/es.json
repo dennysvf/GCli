@@ -262,6 +262,9 @@
     "about": "Datos del paciente exportados para atender una solicitud de acceso de la LGPD (Ley 13.709/2018, artículo 18). Los importes están en unidades mínimas de la moneda (centavos)."
   },
   "validation": {
+    "invalidId": "Registro no válido.",
+    "invalidDate": "Indique una fecha válida.",
+    "groupsInvalid": "Elija cada tipo de evento una sola vez.",
     "patientRequired": "Seleccione el paciente.",
     "typeRequired": "Seleccione el tipo de solicitud.",
     "requesterRequired": "Seleccione quién hizo la solicitud.",
@@ -288,7 +291,6 @@
     "PRIVACY_EXPORT_EXPIRED": "Esta exportación venció el {date}. Genere una nueva exportación.",
     "PRIVACY_EXPORT_NOT_FOUND": "Exportación no encontrada.",
     "PRIVACY_ANONYMIZATION_BLOCKED": "Cancele las citas futuras y regularice los cobros pendientes antes de anonimizar.",
-    "PRIVACY_NAME_MISMATCH": "El nombre escrito no coincide.",
-    "PRIVACY_STALE": "Otra persona cambió esta solicitud. Vuelva a cargar la página."
+    "PRIVACY_NAME_MISMATCH": "El nombre escrito no coincide."
   }
 }
