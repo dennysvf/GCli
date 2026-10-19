@@ -163,6 +163,7 @@ export interface AnonymizationSteps {
 // Request register and exports (own tables)
 
 export type RequestListFilter = {
+  organizationId: string;
   status: "OPEN" | "ALL" | RequestStatus;
   type: "ALL" | RequestType;
   page: number;

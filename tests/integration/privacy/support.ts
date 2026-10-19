@@ -1,9 +1,12 @@
+import { ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import { billing } from "@/modules/billing";
 import { patients } from "@/modules/patients";
 import { createPrivacy, type TimelineItem, type TimelinePage } from "@/modules/privacy";
 import { db } from "@/shared/db/client";
 import { newId } from "@/shared/kernel/ids";
+import { objectStorage } from "@/shared/storage/object-storage";
 import { DEFAULT_PASSWORD, signedInContext } from "../helpers";
+import { createPatientOrThrow, cpfDoc, VALID_CPF } from "../patients/support";
 import { billingWorld, chargeFor, moveTo, mustReceive } from "../billing/support";
 import { insertNote } from "../clinical-records/support";
 import { insertCategory, insertDocument } from "../documents/support";
@@ -36,7 +39,7 @@ export async function insertTemplate(world: PrivacyWorld) {
     data: {
       id: newId(),
       organizationId: world.organizationId,
-      name: `Atestado ${newId().slice(0, 6)}`,
+      name: `Atestado ${newId().slice(-8)}`,
       type: "CERTIFICATE",
       bodyHtml: "<p>Atesto.</p>",
       bodyText: "Atesto.",
@@ -220,4 +223,195 @@ export async function wholeTimeline(ctx: Ctx, input: Record<string, unknown>): P
 
 export function idOf(item: TimelineItem): string {
   return item.key.slice(item.key.indexOf(":") + 1);
+}
+
+export async function storeObject(
+  key: string,
+  content: string | Uint8Array,
+  contentType = "application/pdf",
+) {
+  await objectStorage().put(
+    key,
+    typeof content === "string" ? new TextEncoder().encode(content) : content,
+    contentType,
+  );
+}
+
+export async function requestOrThrow(
+  ctx: Ctx,
+  input: { patientId: string; type: string; requestedBy?: string; description?: string },
+) {
+  const created = await privacy.createRequest(ctx, {
+    requestedBy: "PATIENT",
+    description: "Paciente pediu cópia dos dados em 14/10.",
+    ...input,
+  });
+  if (!created.ok) throw new Error(`createRequest failed: ${created.error.code}`);
+  return created.value.requestId;
+}
+
+// Sets the creation date of a request (the register tests need requests of past days).
+export async function backdateRequest(requestId: string, createdAt: Date, completedAt?: Date) {
+  await db().lgpdRequest.update({
+    where: { id: requestId },
+    data: {
+      createdAt,
+      ...(completedAt
+        ? { status: "COMPLETED", completedAt, resolution: "Dados corrigidos no cadastro." }
+        : {}),
+    },
+  });
+}
+
+// The export patient of the contract: "Bruna Teixeira" with known identity values, one consent with
+// its signed term, two past appointments, a finalized note with a clinical attachment, a clinical
+// upload, a non-clinical upload, an issued document and a charge with one payment: 5 stored files.
+export async function seedExportPatient(
+  world: PrivacyWorld,
+  options: { before?: Date; cpf?: string | null } = {},
+) {
+  const cpf = options.cpf === undefined ? VALID_CPF : options.cpf;
+  const patientId = await createPatientOrThrow(world.desk, {
+    fullName: "Bruna Teixeira",
+    birthDate: "1990-05-04",
+    document: cpf ? cpfDoc(cpf) : null,
+    mobilePhone: "(11) 97777-1234",
+    email: "bruna.teixeira@exemplo.com.br",
+  });
+  const org = world.organizationId;
+  let terms = await db().privacyTermsVersion.findFirst({ where: { organizationId: org } });
+  terms ??= await db().privacyTermsVersion.create({
+    data: { id: newId(), organizationId: org, version: 1, text: "Termos de privacidade da clínica." },
+  });
+  const consentKey = `org/${org}/patients/${newId()}`;
+  await storeObject(consentKey, "%PDF-1.4 termo assinado");
+  const consent = await db().consentRecord.create({
+    data: {
+      id: newId(),
+      organizationId: org,
+      patientId,
+      termsVersionId: terms.id,
+      method: "PAPER_UPLOADED",
+      recordedById: world.desk.user.id,
+      fileObjectKey: consentKey,
+      fileName: "termo-assinado.pdf",
+      fileSize: 24,
+    },
+  });
+  await insertPastAppointments(world, {
+    patientId,
+    count: 2,
+    before: options.before ?? new Date(Date.now() - 400 * 24 * HOUR),
+  });
+  const appointments = await db().appointment.findMany({
+    where: { patientId },
+    orderBy: { startsAt: "asc" },
+  });
+  const note = await insertNote(world, {
+    patientId,
+    appointmentId: appointments[0]?.id ?? null,
+    html: "<p>Paciente relata melhora após a sessão.</p>",
+  });
+  const attachmentKey = `org/${org}/clinical/${newId()}`;
+  await storeObject(attachmentKey, "imagem do exame", "image/jpeg");
+  const attachment = await db().clinicalAttachment.create({
+    data: {
+      id: newId(),
+      organizationId: org,
+      noteId: note.id,
+      uploadedById: world.pro.user.id,
+      fileName: "raio-x.jpg",
+      sourceContentType: "image/jpeg",
+      sourceObjectKey: attachmentKey,
+      objectKey: attachmentKey,
+      contentType: "image/jpeg",
+      sizeBytes: 15,
+      status: "READY",
+    },
+  });
+  const exam = await insertCategory(world, { name: `Exame ${newId().slice(-4)}`, isClinical: true });
+  const personal = await insertCategory(world, { name: `Documento pessoal ${newId().slice(-4)}` });
+  const template = await insertTemplate(world);
+  const clinicalUpload = await insertDocument(world, {
+    categoryId: exam.id,
+    patientId,
+    isClinical: true,
+    title: "Exame de sangue",
+  });
+  const personalUpload = await insertDocument(world, {
+    categoryId: personal.id,
+    patientId,
+    title: "RG digitalizado",
+  });
+  const generated = await insertDocument(world, {
+    categoryId: personal.id,
+    patientId,
+    kind: "GENERATED",
+    title: "Atestado",
+    templateId: template.id,
+    professionalId: world.professionals.ana,
+    unitId: world.unitId,
+  });
+  for (const document of [clinicalUpload, personalUpload, generated]) {
+    await storeObject(document.sourceObjectKey, `%PDF-1.4 ${document.title}`);
+  }
+  const charge = await billing.createManualCharge(world.desk, {
+    patientId,
+    unitId: world.unitId,
+    description: "Avaliação",
+    grossMinor: 15_000,
+  });
+  if (!charge.ok) throw new Error(`createManualCharge failed: ${charge.error.code}`);
+  const paid = await mustReceive(world, charge.value.id, 15_000, "PIX");
+  return {
+    patientId,
+    consentId: consent.id,
+    appointmentIds: appointments.map((row) => row.id),
+    noteId: note.id,
+    attachmentId: attachment.id,
+    documents: { clinical: clinicalUpload.id, personal: personalUpload.id, generated: generated.id },
+    chargeId: charge.value.id,
+    paymentId: paid.payments[0]?.id ?? "",
+    keys: [
+      consentKey,
+      attachmentKey,
+      clinicalUpload.sourceObjectKey,
+      personalUpload.sourceObjectKey,
+      generated.sourceObjectKey,
+    ],
+  };
+}
+
+export type ExportPatient = Awaited<ReturnType<typeof seedExportPatient>>;
+
+// The worker side of an export: requests it as the administrator and runs the build job.
+export async function exportOf(world: PrivacyWorld, requestId: string, ctx: Ctx = world.admin) {
+  const requested = await privacy.requestExport(ctx, { requestId });
+  if (!requested.ok) throw new Error(`requestExport failed: ${requested.error.code}`);
+  const outcome = await privacy.buildExport({
+    organizationId: world.organizationId,
+    exportId: requested.value.exportId,
+  });
+  const row = await db().lgpdExport.findUniqueOrThrow({ where: { id: requested.value.exportId } });
+  return { exportId: requested.value.exportId, outcome, row };
+}
+
+export async function zipOf(key: string): Promise<Buffer> {
+  const stored = await objectStorage().get(key);
+  if (!stored) throw new Error(`no object ${key}`);
+  return Buffer.from(stored.body);
+}
+
+export async function objectsUnder(prefix: string): Promise<string[]> {
+  const s3 = new S3Client({
+    endpoint: process.env.S3_ENDPOINT,
+    region: process.env.S3_REGION,
+    forcePathStyle: true,
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY_ID ?? "",
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? "",
+    },
+  });
+  const listed = await s3.send(new ListObjectsV2Command({ Bucket: process.env.S3_BUCKET, Prefix: prefix }));
+  return (listed.Contents ?? []).map((item) => item.Key ?? "");
 }
