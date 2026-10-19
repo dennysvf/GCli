@@ -20,10 +20,12 @@ import { buildExportJob, cleanupExpiredExportsJob, deleteExportFileJob } from ".
 import { cleanupPatientUploads } from "./jobs/patients-cleanup";
 import { sendOutboxEmail } from "./jobs/email-send";
 import { startOutboxLoop } from "./outbox-dispatcher";
+import { registerPdfEngineResolution } from "./pdf-engine";
 
 // Worker process (architecture section 2): outbox delivery, email sending, and maintenance crons.
 async function main() {
   const env = getEnv();
+  registerPdfEngineResolution();
   registerModules();
   Sentry.init(sentryOptions(env.SENTRY_DSN, env.NODE_ENV));
   // The pgboss schema is created by migration 0001 (owned by the runtime role), which has no
