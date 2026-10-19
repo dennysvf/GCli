@@ -54,8 +54,9 @@ export function DocumentsTable({
               {format.date(item.createdAt, timeZone)}
             </TableCell>
             <TableCell className="grid gap-1 whitespace-normal">
-              <span className="font-medium">{item.title}</span>
+              <span className="font-medium">{item.erased ? t("ui.erasedTitle") : item.title}</span>
               <span className="flex flex-wrap gap-1">
+                {item.erased ? <Stamp variant="neutral">{t("ui.stampErased")}</Stamp> : null}
                 {item.clinical ? <Stamp variant="info">{t("ui.stampClinical")}</Stamp> : null}
                 {item.kind === "GENERATED" ? <Stamp variant="neutral">{t("ui.stampIssued")}</Stamp> : null}
                 {item.archived ? <Stamp variant="neutral">{t("ui.stampArchived")}</Stamp> : null}
@@ -86,9 +87,11 @@ export function DocumentsTable({
                     {t("ui.view")}
                   </Button>
                 ) : null}
-                <Button asChild variant="ghost" size="sm">
-                  <a href={`/api/documents/${item.id}?disposition=attachment`}>{t("ui.download")}</a>
-                </Button>
+                {item.erased ? null : (
+                  <Button asChild variant="ghost" size="sm">
+                    <a href={`/api/documents/${item.id}?disposition=attachment`}>{t("ui.download")}</a>
+                  </Button>
+                )}
                 {item.canEdit && !item.archived ? (
                   <Button type="button" variant="ghost" size="sm" onClick={() => onEdit(item)}>
                     {t("ui.edit")}

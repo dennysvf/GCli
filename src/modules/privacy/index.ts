@@ -104,3 +104,8 @@ export type { ExportView, RequestDetail, RequestList, RequestListItem } from "./
 export type { BuildOutcome } from "./application/exports";
 export type { AnonymizationPreview, AnonymizationResult } from "./application/anonymization";
 export type { AnonymizationFacts, AnonymizationOutcome } from "./domain/eligibility";
+export { PatientTimeline } from "./ui/patient-timeline";
+export { RequestsView } from "./ui/requests-view";
+export { RequestDetailView } from "./ui/request-detail";
+export type { TimelineActions } from "./ui/timeline-actions";
+export type { RequestActions } from "./ui/request-actions";
