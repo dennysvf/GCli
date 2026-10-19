@@ -1,7 +1,9 @@
 // Public API of the patients module (spec F05 section 5).
 import { getOrganizationProfile, getUserNames } from "@/modules/identity";
 import type { RequestContext } from "@/shared/context/types";
+import type { UnitOfWork } from "@/shared/db/transaction";
 import { definePort } from "@/shared/ports/registry";
+import { anonymizePatientIn } from "./application/anonymize";
 import { getConsentFileUrl, listConsents, recordConsent, storeConsentFile } from "./application/consents";
 import { createListItem, listItems, renameListItem, setListItemActive } from "./application/lists";
 import { createPatient, getPatient, setPatientActive, updatePatient } from "./application/patients";
@@ -61,6 +63,12 @@ export const patients = {
   // Extension point for scheduling (F06); null restores the inert default (ADR-022).
   registerPatientAppointments: (implementation: PatientAppointments | null) =>
     patientAppointments.register(implementation),
+  // F14 anonymization, inside the caller's transaction (ADR-040).
+  anonymizePatientIn: (
+    ctx: RequestContext,
+    uow: UnitOfWork,
+    input: { patientId: string; code: string; placeholder: string },
+  ) => anonymizePatientIn(deps, ctx, uow, input),
 };
 
 export type { PatientAppointments } from "./application/ports";

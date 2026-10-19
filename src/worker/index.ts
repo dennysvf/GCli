@@ -13,7 +13,7 @@ import {
   cleanupClinicalUploads,
   processClinicalAttachment,
 } from "./jobs/clinical-records";
-import { cleanupDocumentUploads, processDocumentFileJob } from "./jobs/documents";
+import { cleanupDocumentUploads, eraseDocumentFileJob, processDocumentFileJob } from "./jobs/documents";
 import { cleanupFinanceUploadsJob, extendRecurrencesJob, flagUnclosedRegistersJob } from "./jobs/cash";
 import { expirePackagesJob } from "./jobs/packages";
 import { buildExportJob, cleanupExpiredExportsJob, deleteExportFileJob } from "./jobs/privacy";
@@ -103,7 +103,10 @@ async function main() {
     if (removed) logger.info({ removed }, "abandoned finance uploads removed");
   });
 
-  // F14: LGPD export builds, export file deletion and the daily cleanup of expired exports.
+  // F14: files of erased documents, LGPD export builds, export file deletion and the daily cleanup.
+  await boss.work<EmailJobData>(QUEUES.documentsFileErase, async (jobs) => {
+    for (const job of jobs) await eraseDocumentFileJob({ payload: job.data.payload });
+  });
   await boss.work<EmailJobData>(QUEUES.privacyExportBuild, async (jobs) => {
     for (const job of jobs) await buildExportJob({ payload: job.data.payload });
   });

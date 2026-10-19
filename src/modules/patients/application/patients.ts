@@ -84,6 +84,8 @@ export type PatientDetails = {
     phone: string;
   } | null;
   active: boolean;
+  // PRD F14: anonymized patients are inactive for good and their form is read-only.
+  anonymized: boolean;
   inactiveReason: InactiveReason | null;
   inactiveNote: string | null;
   consentStatus: ConsentStatus;
@@ -457,6 +459,7 @@ export async function updatePatient(
         include: { tags: { select: { tagId: true } } },
       });
       if (!before) return fail(PatientsErrors.notFound());
+      if (before.anonymizedAt) return fail(PatientsErrors.anonymized());
       if (!before.active) return fail(PatientsErrors.inactive());
       // PRD F05: no silent overwrite; the author and time of the newer save are reported.
       if (before.version !== version) {
@@ -592,6 +595,8 @@ export async function setPatientActive(
   return withTransaction(ctx, async (uow) => {
     const row = await uow.tx.patient.findFirst({ where: { id: patientId } });
     if (!row) return fail(PatientsErrors.notFound());
+    // PRD F14: anonymization is irreversible, so the patient can never be reactivated.
+    if (row.anonymizedAt) return fail(PatientsErrors.anonymized());
     if (row.active === active) return ok({ active });
     await uow.tx.patient.update({
       where: { id: patientId },

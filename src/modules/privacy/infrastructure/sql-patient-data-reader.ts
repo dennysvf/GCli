@@ -325,6 +325,10 @@ export const sqlPatientDataReader: PatientDataReader = {
     return row ? { fullName: row.full_name, anonymized: row.anonymized_at !== null } : null;
   },
 
+  async anonymizationCodeTaken(uow, organizationId, code) {
+    return (await uow.tx.patient.count({ where: { organizationId, anonymizedCode: code } })) > 0;
+  },
+
   async organizationLogo(key) {
     const stored = await objectStorage().get(key);
     return stored ? { data: Buffer.from(stored.body), format: "png" } : null;

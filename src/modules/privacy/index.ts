@@ -12,6 +12,7 @@ import {
   requestExport,
   type ExportsDeps,
 } from "./application/exports";
+import { anonymizePatient, previewAnonymization } from "./application/anonymization";
 import type { PrivacyDeps } from "./application/ports";
 import {
   completeRequest,
@@ -21,7 +22,7 @@ import {
   type RequestsDeps,
 } from "./application/requests";
 import { getPatientTimeline, getTimelineNote, type TimelineDeps } from "./application/timeline";
-import { clinicalGate, patientGate, privacyDirectory } from "./infrastructure/directory";
+import { anonymizationSteps, clinicalGate, patientGate, privacyDirectory } from "./infrastructure/directory";
 import { reactPdfExportSummary } from "./infrastructure/export-pdf";
 import { prismaExportRepository } from "./infrastructure/prisma-export-repository";
 import { prismaRequestRepository } from "./infrastructure/prisma-request-repository";
@@ -29,7 +30,7 @@ import { sqlPatientDataReader } from "./infrastructure/sql-patient-data-reader";
 import { sqlTimelineReader } from "./infrastructure/sql-timeline-reader";
 import { zipExportArchive } from "./infrastructure/zip-archive";
 
-type Deps = Omit<PrivacyDeps, "steps"> & TimelineDeps & RequestsDeps & ExportsDeps;
+type Deps = PrivacyDeps & TimelineDeps & RequestsDeps & ExportsDeps;
 
 // A cryptographic source in [0, 1) for the anonymization code.
 const RANDOM_RANGE = 2 ** 32;
@@ -44,6 +45,7 @@ const baseDeps: Deps = {
   pdf: reactPdfExportSummary,
   patients: patientGate,
   clinical: clinicalGate,
+  steps: anonymizationSteps,
   directory: privacyDirectory,
   clock: () => new Date(),
   random: cryptoRandom,
@@ -66,6 +68,9 @@ export function createPrivacy(adjust?: (base: Deps) => Deps) {
     // Export
     requestExport: (ctx: RequestContext, input: unknown) => requestExport(deps, ctx, input),
     getExportDownload: (ctx: RequestContext, input: unknown) => getExportDownload(deps, ctx, input),
+    // Anonymization
+    previewAnonymization: (ctx: RequestContext, input: unknown) => previewAnonymization(deps, ctx, input),
+    anonymizePatient: (ctx: RequestContext, input: unknown) => anonymizePatient(deps, ctx, input),
     // Worker
     buildExport: (input: { organizationId: string; exportId: string }) => buildExport(deps, input),
     deleteExportFile: (input: { objectKey: string }) => deleteExportFile(deps, input),
@@ -97,3 +102,5 @@ export type { ExportArchive, ExportPdf, PrivacyDeps, TimelineItem } from "./appl
 export type { TimelineNote, TimelinePage } from "./application/timeline";
 export type { ExportView, RequestDetail, RequestList, RequestListItem } from "./application/requests";
 export type { BuildOutcome } from "./application/exports";
+export type { AnonymizationPreview, AnonymizationResult } from "./application/anonymization";
+export type { AnonymizationFacts, AnonymizationOutcome } from "./domain/eligibility";

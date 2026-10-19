@@ -23,6 +23,8 @@ export const DocumentsErrors = {
     }),
   alreadyArchived: () => domainError("DOCUMENT_ALREADY_ARCHIVED", 409),
   notArchived: () => domainError("DOCUMENT_NOT_ARCHIVED", 409),
+  // PRD F14: the file of a document erased by an anonymization no longer exists.
+  erased: () => domainError("DOCUMENT_ERASED", 410),
   templateNotFound: () => domainError("DOCUMENT_TEMPLATE_NOT_FOUND", 404),
   templateLimit: () => domainError("DOCUMENT_TEMPLATE_LIMIT", 409),
   templateNameTaken: () =>

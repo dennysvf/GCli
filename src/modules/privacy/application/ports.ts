@@ -403,6 +403,8 @@ export interface PatientDataReader {
     organizationId: string,
     patientId: string,
   ): Promise<{ fullName: string; anonymized: boolean } | null>;
+  // Whether a placeholder code is already used in the organization (also a partial unique index).
+  anonymizationCodeTaken(uow: UnitOfWork, organizationId: string, code: string): Promise<boolean>;
   organizationLogo(key: string): Promise<{ data: Buffer; format: "png" } | null>;
 }
 

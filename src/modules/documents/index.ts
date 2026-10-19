@@ -1,7 +1,9 @@
 // Public API of the documents module (spec F08 section 5). Use cases are wired here with their
 // infrastructure adapters; callers never import files inside the module.
 import type { RequestContext } from "@/shared/context/types";
+import type { UnitOfWork } from "@/shared/db/transaction";
 import { sanitizeRichText } from "@/shared/rich-text/sanitizer";
+import { eraseDocumentFile, eraseNonClinicalUploadsIn } from "./application/erasure";
 import { sharedImageProcessor } from "@/shared/storage/image-processor";
 import { createCategory, listCategories, setCategoryActive, updateCategory } from "./application/categories";
 import {
@@ -70,6 +72,11 @@ export function createDocuments(adjust?: (base: DocumentsDeps) => DocumentsDeps)
       processDocumentFile(deps, input),
     markDocumentFileFailed: (input: { organizationId: string; documentId: string }) =>
       markDocumentFileFailed(deps, input),
+    // F14 anonymization: erasing the non-clinical uploads inside the caller's transaction (ADR-040)
+    // and, in the worker, deleting their stored files.
+    eraseNonClinicalUploadsIn: (ctx: RequestContext, uow: UnitOfWork, patientId: string) =>
+      eraseNonClinicalUploadsIn(deps, ctx, uow, patientId),
+    eraseDocumentFile: (input: { keys: string[] }) => eraseDocumentFile(deps, input),
   };
 }
 

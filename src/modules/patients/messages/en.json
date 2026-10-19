@@ -5,6 +5,7 @@
     "PATIENTS_GUARDIAN_REQUIRED": "Patients under 18 need a registered guardian.",
     "PATIENTS_STALE_VERSION": "This record was changed by {author} at {time}. Review the changes before saving.",
     "PATIENTS_HAS_FUTURE_APPOINTMENTS": "The patient has {count} future appointments. Cancel them before deactivating.",
+    "PATIENTS_ANONYMIZED": "This patient was anonymized and cannot be changed.",
     "PATIENTS_INACTIVE": "This patient is inactive. Reactivate the record before changing it.",
     "PATIENTS_SEARCH_TOO_SHORT": "Type at least 3 characters to search.",
     "PATIENTS_TAG_LIMIT": "Use at most 10 tags per patient.",
@@ -143,7 +144,8 @@
     "inactiveReasons": {
       "DECEASED": "Deceased",
       "MOVED": "Moved away",
-      "OTHER": "Other reason"
+      "OTHER": "Other reason",
+      "ANONYMIZED": "Anonymized"
     },
     "fieldLabels": {
       "fullName": "Full name",

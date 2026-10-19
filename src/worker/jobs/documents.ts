@@ -29,6 +29,14 @@ export async function processDocumentFileJob(job: DocumentFileJob): Promise<void
   }
 }
 
+// PRD F14: the stored files of a document erased by an anonymization are deleted after commit.
+export async function eraseDocumentFileJob(job: Pick<EmailJobData, "payload">): Promise<void> {
+  const keys = Array.isArray(job.payload.keys)
+    ? job.payload.keys.filter((key): key is string => typeof key === "string" && key.length > 0)
+    : [];
+  if (keys.length > 0) await documents.eraseDocumentFile({ keys });
+}
+
 // Upload intents that were never confirmed (the browser closed, the file was refused) are removed
 // after their 24 hours, with their objects. Confirmed intents stay.
 export async function cleanupDocumentUploads(now = new Date()): Promise<number> {
