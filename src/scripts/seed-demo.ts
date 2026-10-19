@@ -6,6 +6,7 @@ import { cash } from "@/modules/cash";
 import { documents } from "@/modules/documents";
 import { packages } from "@/modules/packages";
 import { patients } from "@/modules/patients";
+import { privacy } from "@/modules/privacy";
 import { professionals } from "@/modules/professionals";
 import { scheduling } from "@/modules/scheduling";
 import { services } from "@/modules/services";
@@ -896,6 +897,132 @@ async function main(): Promise<number> {
     });
   }
 
+  // F14: the first patient shows every kind of timeline event (consent, appointments, a finalized
+  // note with an addendum, uploaded and issued documents, a charge with a payment and a refund), and
+  // the LGPD register has a request in every status. The note is inserted directly because the
+  // clinical use cases need the professional's own session.
+  const timelinePatient = patientIds[0];
+  let requestCount = 0;
+  if (timelinePatient) {
+    if (!(await db().privacyTermsVersion.findFirst({ where: { organizationId: admin.organizationId } }))) {
+      must(
+        await patients.publishTermsVersion(ctx, {
+          text: "Termos de privacidade da Clínica Demonstração: os dados são usados apenas para o atendimento.",
+        }),
+        "publishTermsVersion",
+      );
+    }
+    must(
+      await patients.recordConsent(ctx, { patientId: timelinePatient, method: "VERBAL" }),
+      "recordConsent",
+    );
+    const noteAt = new Date(Date.now() - 3 * 86_400_000);
+    const noteText = "Paciente relata melhora das lesões após o tratamento.";
+    const note = await db().clinicalNote.create({
+      data: {
+        id: newId(),
+        organizationId: admin.organizationId,
+        patientId: timelinePatient,
+        kind: "STANDALONE",
+        professionalId: beatriz,
+        authorUserId:
+          (await db().professional.findUniqueOrThrow({ where: { id: beatriz } })).linkedUserId ?? admin.id,
+        status: "FINALIZED",
+        contentHtml: `<p>${noteText}</p>`,
+        contentText: noteText,
+        characters: noteText.length,
+        createdAt: noteAt,
+        draftSavedAt: noteAt,
+        locksAt: new Date(noteAt.getTime() + 86_400_000),
+        finalizedAt: noteAt,
+      },
+    });
+    await db().clinicalNoteAddendum.create({
+      data: {
+        id: newId(),
+        organizationId: admin.organizationId,
+        noteId: note.id,
+        authorUserId: note.authorUserId,
+        professionalId: beatriz,
+        contentHtml: "<p>Retorno em 30 dias.</p>",
+        contentText: "Retorno em 30 dias.",
+        characters: 19,
+        createdAt: new Date(noteAt.getTime() + 2 * 86_400_000),
+      },
+    });
+    if (manual.ok) {
+      const detail = must(await billing.getCharge(ctx, { chargeId: manual.value.id }), "getCharge");
+      const payment = detail.charge.payments.find((item) => item.kind === "PAYMENT");
+      if (payment) {
+        await billing.refundPayment(ctx, {
+          chargeId: manual.value.id,
+          paymentId: payment.id,
+          amountMinor: 990,
+          reason: "Brinde devolvido",
+          unitId: main.id,
+        });
+      }
+    }
+
+    const request = async (patientId: string, type: string, description: string) =>
+      must(
+        await privacy.createRequest(ctx, { patientId, type, requestedBy: "PATIENT", description }),
+        "createRequest",
+      ).requestId;
+    // Pending for more than 15 days: highlighted in the register.
+    const overdue = await request(timelinePatient, "ACCESS", "Paciente pediu cópia dos dados por e-mail.");
+    await db().lgpdRequest.update({
+      where: { id: overdue },
+      data: { createdAt: new Date(Date.now() - 18 * 86_400_000) },
+    });
+    // Generating: the worker builds the export when it runs.
+    const access = await request(timelinePatient, "ACCESS", "Paciente pediu os dados no balcão da recepção.");
+    must(await privacy.requestExport(ctx, { requestId: access }), "requestExport");
+    // Completed: a correction made in the patient form.
+    const correction = await request(
+      timelinePatient,
+      "CORRECTION",
+      "Paciente informou o telefone errado no cadastro.",
+    );
+    must(
+      await privacy.completeRequest(ctx, {
+        requestId: correction,
+        resolution: "Telefone corrigido no cadastro.",
+      }),
+      "completeRequest",
+    );
+    // Legal retention: the patient has a clinical note.
+    const retention = await request(
+      timelinePatient,
+      "ANONYMIZATION",
+      "Paciente pediu a exclusão dos dados pessoais.",
+    );
+    must(
+      await privacy.anonymizePatient(ctx, { requestId: retention, typedName: "", version: 1 }),
+      "anonymizePatient",
+    );
+    // Generation failed: inserted directly, since a failure needs a stored file to go missing.
+    const failed = await request(
+      patientIds[1] ?? timelinePatient,
+      "ACCESS",
+      "Responsável pediu cópia dos dados.",
+    );
+    await db().lgpdRequest.update({ where: { id: failed }, data: { status: "FAILED" } });
+    await db().lgpdExport.create({
+      data: {
+        id: newId(),
+        organizationId: admin.organizationId,
+        requestId: failed,
+        status: "FAILED",
+        locale: "pt-BR",
+        errorCode: "FILE_MISSING",
+        requestedById: admin.id,
+        failedAt: new Date(),
+      },
+    });
+    requestCount = 5;
+  }
+
   console.log("Dados de demonstração criados:");
   console.log(
     `- 5 serviços, 4 profissionais, ${patientIds.length} pacientes, ${booked} agendamentos avulsos`,
@@ -918,6 +1045,10 @@ async function main(): Promise<number> {
   // F13: the reports use the appointments, cancellations, payments, refund and the aged charges above.
   console.log(
     "- relatórios (/reports): Contas a receber (cobranças com 12 a 120 dias), Cancelamentos e faltas, Receitas e Produtividade",
+  );
+  // F14: the timeline tab of the first patient and the LGPD register.
+  console.log(
+    `- linha do tempo completa em ${PATIENTS[0].fullName} (aba "Linha do tempo") e ${requestCount} solicitações LGPD em todos os status (/lgpd/requests)`,
   );
   console.log(
     `- usuários (senha ${PASSWORD}): rita@clinicademo.com.br (Recepção), beatriz@clinicademo.com.br (Profissional), marcos@clinicademo.com.br (Gestor, PIN de aprovação ${MANAGER_PIN})`,

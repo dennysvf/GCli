@@ -1,10 +1,10 @@
 # Build log — how GCli was built
 
-This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F13 and F16). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
+This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F14 and F16). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
 
 The work was done as a pair: a product owner and an AI coding assistant. The product owner answered questions, made the business decisions and approved each stage; the assistant ran the interviews, wrote documents and code, ran the tests and recorded what it found along the way.
 
-> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations → F08 → F09 → F10 → F11 → F12 → F13.
+> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations → F08 → F09 → F10 → F11 → F12 → F13 → F14.
 
 Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 
@@ -34,9 +34,10 @@ Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 20. [Eleventh feature: F11 — Cash Register and Expenses](#20-eleventh-feature-f11--cash-register-and-expenses)
 21. [Twelfth feature: F12 — Management Dashboard](#21-twelfth-feature-f12--management-dashboard)
 22. [Thirteenth feature: F13 — Reports and Export](#22-thirteenth-feature-f13--reports-and-export)
-23. [Problems found and how they were solved](#23-problems-found-and-how-they-were-solved)
-24. [Reproducing the environment from scratch](#24-reproducing-the-environment-from-scratch)
-25. [Lessons learned](#25-lessons-learned)
+23. [Fourteenth feature: F14 — Patient Timeline and LGPD Data Requests](#23-fourteenth-feature-f14--patient-timeline-and-lgpd-data-requests)
+24. [Problems found and how they were solved](#24-problems-found-and-how-they-were-solved)
+25. [Reproducing the environment from scratch](#25-reproducing-the-environment-from-scratch)
+26. [Lessons learned](#26-lessons-learned)
 
 ---
 
@@ -1012,7 +1013,65 @@ The decisions became **ADR-038** and section 5.18 of the design system. The spec
 
 ---
 
-## 23. Problems found and how they were solved
+## 23. Fourteenth feature: F14 — Patient Timeline and LGPD Data Requests
+
+F14 puts the patient's whole history in one tab and answers the LGPD rights of access, correction and erasure. The central questions of the specification were **how to merge five modules' records into one list without copying them and without ever sending a hidden item to the browser**, and **how to erase a patient's identity when the rules forbid hard deletes and clinical records must be kept for 20 years**.
+
+### 23.1 Decisions made in the interview
+
+| Decision | Result |
+|---|---|
+| Scope | Core and Full Scope, with the request register (the PRD lists it under Capabilities without a scope) |
+| Order | Newest first; an appointment is one event with its status history one click away |
+| Who sees what | The F07 records policy for clinical items, `billing:operate` for financial ones, own appointments for professionals; Administrators and Managers see clinical events only when linked to a professional who passes the F07 rule |
+| Clinical content | Never in the list; "Ver registro" calls the audited F07 read every time, and a page that lists clinical items is one audited read of the patient |
+| Export | Built by the worker into a ZIP (`dados.json`, `resumo.pdf`, every stored file), uploaded in parts, available for 7 days; an Administrator's export includes clinical notes as the LGPD right of access, audited with their ids |
+| Anonymization | Done by the modules that own the data, in one transaction; erased documents keep their row; a trigger keeps the identity unchangeable; any clinical record registers legal retention |
+| Residual data | Earlier audit events and consent or issued PDFs keep personal data as legal evidence (ADR-040) |
+
+The decisions became **ADR-040** and sections 5.20 and 5.21 of the design system. The specification, plan and contract are in [F14-patient-timeline-and-lgpd-data-requests/](F14-patient-timeline-and-lgpd-data-requests/).
+
+### 23.2 How the timeline stays fast and safe
+
+- **Read in two steps:** one `UNION ALL` reads only (kind, id, time) from each source, each branch narrowed by the patient index, the allowed kinds, the period and the keyset cursor and cut to 51 rows; then the details of the 50 rows of the page are read by id. Heavy columns are never computed for rows that do not make the page.
+- **Hidden kinds are removed in SQL:** the pure rule `visibleKinds` turns the viewer's access into the kinds the query may read; clinical documents are filtered in the same query. The browser never receives what it may not show.
+- **Measured:** a patient with 10,000 events in an organization with 54,000 appointments answers the first and a deep page well under the 2-second p95, for the three roles.
+
+### 23.3 Implementation in 7 stages
+
+| Stage | What went in |
+|---|---|
+| 1 — Documentation and base | PRD clarifications, ADR-040, design system 5.20 and 5.21, migration `0016_privacy`, streamed storage, queues and the LGPD menu |
+| 2 — Domain | Event kinds and visibility, the cursor, the request and export state machines, the overdue rule, eligibility and the name comparison |
+| 3 — Timeline | The read model, the gates over patients, clinical records and identity, and the audited use cases |
+| 4 — Register and export | Requests, the export request, the worker build with a streamed ZIP, the audited download and the daily cleanup |
+| 5 — Anonymization | The transactional functions of patients, documents and scheduling, and the anonymization with legal retention |
+| 6 — Screens | The timeline tab, the register, the request page, the export block and the two-step dialog |
+| 7 — Finishing | Demo data, E2E journeys with SQL fixtures, the design review and this log |
+
+### 23.4 Problems found in F14
+
+| Problem | Cause | Solution |
+|---|---|---|
+| Test names collided in a unique index | UUIDv7 ids start with the timestamp, so their first characters repeat within a test | Test names use the end of the id |
+| An export test failed with `FILE_MISSING` | The fixture inserted an issued document without storing its file | The export was right to fail; the fixture stores every file |
+| Lint refused loading the first page in `useEffect` | Synchronous `setState` inside the effect | The page is read in the promise callback, as the other screens do |
+| A ZIP error between two entries could crash the worker | `archiver` emits `error` events with no listener attached at that moment | Permanent listeners keep the process alive; each entry is awaited with its own error handling, and any failure aborts the multipart upload |
+| Docker Desktop stopped during the run | Outside the project | The suites were run again after restarting it |
+| Port 5432 was taken on the development machine | Another project's PostgreSQL | The E2E run used the Compose PostgreSQL on another port through a local, uncommitted override |
+| **Every export failed with `RENDER_ERROR`** (found in the browser check) | The worker is the first process to render a PDF outside Next.js; under `tsx` the `@react-pdf` packages load through `require()`, and `@react-pdf/hyphenate` publishes its files only for `import` | The worker registers a Node resolve hook that adds the `import` condition for that one package |
+| The legal retention message vanished from the anonymization dialog | Registering the retention refreshed the page at once, and the refreshed page no longer renders the dialog of a pending request | The page is refreshed when the dialog is closed |
+| After one "Carregar mais eventos" the timeline kept loading to the end | A new `IntersectionObserver` after each page reports the visible sentinel at once, so the reads chained | One observer for the life of the tab; while the button has focus the keyboard is in charge |
+
+### 23.5 What F14 leaves ready
+
+- **A read model pattern** (keys first, details by id) for any cross-module list that must stay fast and filtered on the server.
+- **Transactional functions** in patients, documents and scheduling (`...In(uow)`), reusable by later data-protection work.
+- **Streamed multipart uploads** in `ObjectStorage` for any large generated file.
+
+---
+
+## 24. Problems found and how they were solved
 
 This may be the most useful section for anyone reproducing the project. All of these problems showed up because **each stage was actually executed**, not just written.
 
@@ -1035,7 +1094,7 @@ This may be the most useful section for anyone reproducing the project. All of t
 
 ---
 
-## 24. Reproducing the environment from scratch
+## 25. Reproducing the environment from scratch
 
 ### Prerequisites
 
@@ -1110,7 +1169,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 25. Lessons learned
+## 26. Lessons learned
 
 1. **Interview before document.** One question at a time, always with a recommendation, settles more than a long document written in the dark.
 2. **End-to-end IDs** (F01 → story → criterion → test → commit) make the project traceable at no extra cost.

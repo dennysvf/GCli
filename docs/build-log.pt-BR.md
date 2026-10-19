@@ -1,10 +1,10 @@
 # Diário de bordo — como o GCli foi construído
 
-Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F13 e F16). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
+Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F14 e F16). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
 
 O trabalho foi feito em dupla: uma pessoa responsável pelo produto e um assistente de programação com IA. A pessoa respondeu perguntas, tomou as decisões de negócio e aprovou cada etapa; o assistente conduziu entrevistas, escreveu documentos e código, rodou os testes e registrou o que encontrou pelo caminho.
 
-> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação → F08 → F09 → F10 → F11 → F12 → F13.
+> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação → F08 → F09 → F10 → F11 → F12 → F13 → F14.
 
 English version: [build-log.en.md](build-log.en.md).
 
@@ -34,9 +34,10 @@ English version: [build-log.en.md](build-log.en.md).
 20. [Décima primeira funcionalidade: F11 — Caixa e Despesas](#20-décima-primeira-funcionalidade-f11--caixa-e-despesas)
 21. [Décima segunda funcionalidade: F12 — Painel de Gestão](#21-décima-segunda-funcionalidade-f12--painel-de-gestão)
 22. [Décima terceira funcionalidade: F13 — Relatórios e Exportação](#22-décima-terceira-funcionalidade-f13--relatórios-e-exportação)
-23. [Problemas encontrados e como foram resolvidos](#23-problemas-encontrados-e-como-foram-resolvidos)
-24. [Como reproduzir o ambiente do zero](#24-como-reproduzir-o-ambiente-do-zero)
-25. [Lições aprendidas](#25-lições-aprendidas)
+23. [Décima quarta funcionalidade: F14 — Linha do Tempo do Paciente e Solicitações LGPD](#23-décima-quarta-funcionalidade-f14--linha-do-tempo-do-paciente-e-solicitações-lgpd)
+24. [Problemas encontrados e como foram resolvidos](#24-problemas-encontrados-e-como-foram-resolvidos)
+25. [Como reproduzir o ambiente do zero](#25-como-reproduzir-o-ambiente-do-zero)
+26. [Lições aprendidas](#26-lições-aprendidas)
 
 ---
 
@@ -1012,7 +1013,65 @@ As decisões viraram o **ADR-038** e a seção 5.18 do design system. A especifi
 
 ---
 
-## 23. Problemas encontrados e como foram resolvidos
+## 23. Décima quarta funcionalidade: F14 — Linha do Tempo do Paciente e Solicitações LGPD
+
+A F14 coloca toda a história do paciente numa aba e atende os direitos de acesso, correção e eliminação da LGPD. As perguntas centrais da especificação foram **como juntar os registros de cinco módulos numa lista só, sem copiá-los e sem nunca mandar ao navegador um item oculto**, e **como apagar a identidade de um paciente quando as regras proíbem exclusão física e os registros clínicos precisam ser guardados por 20 anos**.
+
+### 23.1 Decisões tomadas na entrevista
+
+| Decisão | Resultado |
+|---|---|
+| Escopo | Essencial e Completo, com o registro de solicitações (o PRD o lista em Capacidades sem indicar o escopo) |
+| Ordem | Do mais recente para o mais antigo; um agendamento é um evento, com o histórico de status a um clique |
+| Quem vê o quê | A política de prontuário da F07 para itens clínicos, `billing:operate` para os financeiros, os próprios agendamentos para profissionais; Administradores e Gestores veem eventos clínicos só quando vinculados a um profissional que passa na regra da F07 |
+| Conteúdo clínico | Nunca na lista; "Ver registro" chama a leitura auditada da F07 a cada vez, e uma página que lista itens clínicos é uma leitura auditada do paciente |
+| Exportação | Gerada pelo worker num ZIP (`dados.json`, `resumo.pdf`, todos os arquivos armazenados), enviado em partes, disponível por 7 dias; a exportação feita por um Administrador inclui as notas clínicas como direito de acesso da LGPD, auditada com os seus ids |
+| Anonimização | Feita pelos módulos donos dos dados, numa transação; documentos apagados mantêm a linha; um gatilho mantém a identidade imutável; qualquer registro clínico registra retenção legal |
+| Dados residuais | Eventos de auditoria anteriores e PDFs de consentimento ou emitidos mantêm dados pessoais como prova legal (ADR-040) |
+
+As decisões viraram o **ADR-040** e as seções 5.20 e 5.21 do design system. A especificação, o plano e o contrato estão em [F14-patient-timeline-and-lgpd-data-requests/](F14-patient-timeline-and-lgpd-data-requests/).
+
+### 23.2 Como a linha do tempo se mantém rápida e segura
+
+- **Leitura em dois passos:** um `UNION ALL` lê só (tipo, id, data) de cada origem, cada ramo estreitado pelo índice do paciente, pelos tipos permitidos, pelo período e pelo cursor por chave e cortado em 51 linhas; depois os detalhes das 50 linhas da página são lidos pelo id. Colunas pesadas nunca são calculadas para linhas que não entram na página.
+- **Tipos ocultos saem no SQL:** a regra pura `visibleKinds` transforma o acesso de quem lê nos tipos que a consulta pode ler; documentos clínicos são filtrados na mesma consulta. O navegador nunca recebe o que não pode mostrar.
+- **Medido:** um paciente com 10.000 eventos, numa organização com 54.000 agendamentos, responde a primeira página e uma página profunda bem abaixo do p95 de 2 segundos, nos três perfis.
+
+### 23.3 Implementação em 7 etapas
+
+| Etapa | O que entrou |
+|---|---|
+| 1 — Documentação e base | Esclarecimentos do PRD, ADR-040, design system 5.20 e 5.21, migração `0016_privacy`, armazenamento em streaming, filas e o menu LGPD |
+| 2 — Domínio | Tipos de evento e visibilidade, o cursor, as máquinas de estado da solicitação e da exportação, a regra de atraso, a elegibilidade e a comparação do nome |
+| 3 — Linha do tempo | O modelo de leitura, as portas sobre pacientes, prontuário e identidade, e os casos de uso auditados |
+| 4 — Registro e exportação | Solicitações, o pedido de exportação, a geração no worker com ZIP em streaming, o download auditado e a limpeza diária |
+| 5 — Anonimização | As funções transacionais de pacientes, documentos e agenda, e a anonimização com retenção legal |
+| 6 — Telas | A aba da linha do tempo, o registro, a página da solicitação, o bloco de exportação e o diálogo em duas etapas |
+| 7 — Acabamento | Dados de demonstração, jornadas E2E com dados criados por SQL, a revisão de design e este diário |
+
+### 23.4 Problemas encontrados na F14
+
+| Problema | Causa | Solução |
+|---|---|---|
+| Nomes de teste colidiam num índice único | Ids UUIDv7 começam pelo instante, então os primeiros caracteres se repetem num mesmo teste | Os nomes de teste usam o fim do id |
+| Um teste de exportação falhou com `FILE_MISSING` | O cenário inseria um documento emitido sem guardar o arquivo | A exportação estava certa em falhar; o cenário guarda todos os arquivos |
+| O lint recusou carregar a primeira página no `useEffect` | `setState` síncrono dentro do efeito | A página é lida no retorno da promessa, como as outras telas fazem |
+| Um erro do ZIP entre duas entradas podia derrubar o worker | O `archiver` emite eventos `error` sem ouvinte naquele momento | Ouvintes permanentes mantêm o processo de pé; cada entrada é aguardada com o próprio tratamento de erro, e qualquer falha aborta o envio em partes |
+| O Docker Desktop parou durante a execução | Fora do projeto | As suítes rodaram de novo depois de reiniciá-lo |
+| A porta 5432 estava ocupada na máquina de desenvolvimento | O PostgreSQL de outro projeto | A execução E2E usou o PostgreSQL do Compose em outra porta, por um ajuste local que não foi versionado |
+| **Toda exportação falhava com `RENDER_ERROR`** (achado na verificação no navegador) | O worker é o primeiro processo a gerar um PDF fora do Next.js; com `tsx` os pacotes do `@react-pdf` carregam por `require()`, e o `@react-pdf/hyphenate` publica seus arquivos só para `import` | O worker registra um gancho de resolução do Node que acrescenta a condição `import` só para esse pacote |
+| A mensagem de retenção legal sumia do diálogo de anonimização | Registrar a retenção atualizava a página na hora, e a página atualizada não mostra mais o diálogo de uma solicitação pendente | A página é atualizada quando o diálogo é fechado |
+| Depois de um "Carregar mais eventos" a linha do tempo seguia carregando até o fim | Um novo `IntersectionObserver` a cada página informa na hora a sentinela visível, e as leituras se encadeavam | Um único observador enquanto a aba existe; com o botão em foco, quem comanda é o teclado |
+
+### 23.5 O que a F14 deixou pronto
+
+- **Um padrão de modelo de leitura** (chaves primeiro, detalhes pelo id) para qualquer lista entre módulos que precise ser rápida e filtrada no servidor.
+- **Funções transacionais** em pacientes, documentos e agenda (`...In(uow)`), reaproveitáveis em trabalhos futuros de proteção de dados.
+- **Envio em partes por streaming** no `ObjectStorage`, para qualquer arquivo grande gerado.
+
+---
+
+## 24. Problemas encontrados e como foram resolvidos
 
 Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos esses problemas apareceram porque **cada etapa foi executada de verdade**, e não só escrita.
 
@@ -1035,7 +1094,7 @@ Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos es
 
 ---
 
-## 24. Como reproduzir o ambiente do zero
+## 25. Como reproduzir o ambiente do zero
 
 ### Pré-requisitos
 
@@ -1110,7 +1169,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 25. Lições aprendidas
+## 26. Lições aprendidas
 
 1. **Entrevista antes de documento.** Uma pergunta por vez, sempre com uma recomendação, resolve mais do que um documento longo escrito no escuro.
 2. **IDs de ponta a ponta** (F01 → história → critério → teste → commit) tornam o projeto rastreável sem esforço extra.
