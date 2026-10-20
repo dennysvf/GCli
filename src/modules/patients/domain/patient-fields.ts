@@ -8,7 +8,8 @@ export const GUARDIAN_RELATIONSHIPS = ["MOTHER", "FATHER", "GRANDPARENT", "LEGAL
 export type GuardianRelationship = (typeof GUARDIAN_RELATIONSHIPS)[number];
 
 export const INACTIVE_REASONS = ["DECEASED", "MOVED", "OTHER"] as const;
-export type InactiveReason = (typeof INACTIVE_REASONS)[number];
+// PRD F14: ANONYMIZED is set only by the anonymization, never chosen in the deactivation form.
+export type InactiveReason = (typeof INACTIVE_REASONS)[number] | "ANONYMIZED";
 
 // The national numbers of both phones (stored as E.164), separated by a space: the phone search
 // column, which "last 8 digits" searches match anywhere (spec F05 section 6, PRD F16).

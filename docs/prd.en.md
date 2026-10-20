@@ -724,6 +724,12 @@ The differentiator is configurability without complexity: the same product serve
 - LGPD data export (Administrator): generates a ZIP with a JSON file of all patient data, a human-readable PDF summary, and all documents and attachments; available for download for 7 days through a link on the request screen; generation ≤ 5 minutes for a patient with up to 500 files. Each export is logged with requester and reason.
 - Anonymization (Administrator): replaces name, social name, CPF, RG, phones, email, address, and guardian data with irreversible placeholders ("Paciente anonimizado #A1B2C3"), deletes non-clinical uploaded documents, and keeps appointment and financial records with the anonymized identity for statistics and accounting. If the patient has any clinical note or clinical document, anonymization is blocked because Brazilian law requires clinical records to be kept for at least 20 years (Law 13.787/2018); the request is registered as "Solicitação registrada — retenção legal".
 - Data request register: every LGPD request (access, correction, anonymization) is recorded with date, requester, type, status, and completion date; requests pending for more than 15 days are highlighted.
+- Clarifications (F14 specification):
+  - The data request register belongs to the Full Scope, with the export and the anonymization, because it records the requests that workflow answers. A correction request is recorded and closed by hand with its resolution; the correction itself is made in the patient form (F05).
+  - The timeline lists events newest first. An appointment is one event at its start time that carries its current status and its status history. Draft notes never appear, and the list never shows note text: expanding a clinical item opens the full note as an audited read.
+  - Administrators and Managers see the administrative and financial events, and the clinical events only when they are linked to a professional who passes the F07 records policy. Professionals see only their own appointments, and the finalized notes of every professional of the patient.
+  - The export ZIP holds `dados.json`, `resumo.pdf` (in the language of the requesting user) and the stored files under `arquivos/` (documents, clinical attachments and consent files). As the LGPD right of access, an Administrator's export includes the clinical notes and attachments, and the generation is audited with their ids. Package data (F10) is not part of the export.
+  - Anonymization keeps each non-clinical uploaded document as a row marked erased and deletes only its stored file, because referenced records are never hard-deleted. Birth date, sex, tags, consent records and their files, generated documents, charge descriptions and earlier audit events are kept; appointment notes are cleared. A clinical alert also counts as a clinical record. The personal data left in the audit log and in consent and generated PDFs is kept as legal evidence (ADR-040).
 
 **Experience:**
 - Patient page "Linha do tempo" tab: vertical timeline with icons per event type, date, author, and summary; clinical items expand to show the full note (read is audited).
@@ -740,10 +746,11 @@ The differentiator is configurability without complexity: the same product serve
 
 **Consumes:**
 - F01: audit event records (actor, action, entity type, entity id, timestamp, IP address, before/after values)
+- F05, F06, F09: patient, appointment and charge pages that host the "Ver auditoria" shortcut links
 
 **Capabilities:**
 - Access: Administrator only.
-- Filters: period (max 366 days per query), user, action (create, update, delete, read clinical record, login, login failure, permission denied, export), entity type (patient, appointment, clinical note, charge, payment, cash register, user, settings, etc.), entity id (e.g., opened from a patient's page "Ver auditoria").
+- Filters: period (max 366 days per query), user, action (create, update, delete, read sensitive data — clinical notes, documents and consents, login, login failure, permission denied, export), entity type (patient, appointment, clinical note, charge, payment, cash register, user, settings, etc.), entity id (e.g., opened from a patient's page "Ver auditoria").
 - Result table: date/time, user, action, entity, summary; paginated 100 per page; p95 ≤ 3 seconds for 1 million records.
 - Detail view: field-level diff (before → after) for updates; sensitive clinical text is not shown in the diff — only "conteúdo clínico alterado" with character counts.
 - CSV export up to 100,000 rows (same CSV format as F13); the export itself is audited.
@@ -874,7 +881,7 @@ The differentiator is configurability without complexity: the same product serve
 | F12 | Management Dashboard | 2 | F05, F06, F09, F11 |
 | F13 | Reports and Export | 2 | F01, F06, F09 |
 | F14 | Patient Timeline and LGPD Data Requests | 2 | F05, F06, F07, F08, F09 |
-| F15 | Audit Log Viewer | 2 | F01 |
+| F15 | Audit Log Viewer | 2 | F01, F05, F06, F09 |
 | F16 | Internationalization and Country Profiles | 1 | F01, F02, F03, F04, F05, F06 |
 
 ### Foundation Features
@@ -887,12 +894,12 @@ Features within the same wave can be built in parallel. A wave starts only after
 **Note:** Foundation features (see "Foundation Features" above) cannot run in parallel in a greenfield project even if they appear together in a wave — they share scaffolding files and must be implemented sequentially until the base is in place.
 
 - **Wave 1**: F01
-- **Wave 2**: F02, F03, F05, F15
+- **Wave 2**: F02, F03, F05
 - **Wave 3**: F04
 - **Wave 4**: F06
 - **Wave 5**: F16
 - **Wave 6**: F07, F08, F09
-- **Wave 7**: F10, F11, F13, F14
+- **Wave 7**: F10, F11, F13, F14, F15
 - **Wave 8**: F12
 
 ### Priority levels
@@ -938,6 +945,9 @@ graph TD
   F08 --> F14
   F09 --> F14
   F01 --> F15[F15 Audit Viewer]
+  F05 --> F15
+  F06 --> F15
+  F09 --> F15
   F02 --> F16[F16 Internationalization]
   F03 --> F16
   F04 --> F16

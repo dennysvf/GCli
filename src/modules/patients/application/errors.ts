@@ -21,6 +21,8 @@ export const PatientsErrors = {
   hasFutureAppointments: (count: number) =>
     domainError("PATIENTS_HAS_FUTURE_APPOINTMENTS", 409, undefined, { count }),
   inactive: () => domainError("PATIENTS_INACTIVE", 409),
+  // PRD F14: an anonymized patient can never be edited or reactivated.
+  anonymized: () => domainError("PATIENTS_ANONYMIZED", 409),
   searchTooShort: () => domainError("PATIENTS_SEARCH_TOO_SHORT", 400),
   tagLimit: () => domainError("PATIENTS_TAG_LIMIT", 400, { tagIds: "patients.errors.PATIENTS_TAG_LIMIT" }),
   invalidOption: (field: "referralSourceId" | "tagIds") =>

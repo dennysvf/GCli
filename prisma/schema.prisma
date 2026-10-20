@@ -71,6 +71,8 @@ model Organization {
   financialEntrySeries   FinancialEntrySeries[]
   financialEntries       FinancialEntry[]
   financialEntryPayments FinancialEntryPayment[]
+  lgpdRequests           LgpdRequest[]
+  lgpdExports            LgpdExport[]
 
   @@map("organization")
 }
@@ -126,6 +128,9 @@ model User {
   financialEntriesDeleted   FinancialEntry[]        @relation("FinancialEntryDeletedBy")
   financialPaymentsRecorded FinancialEntryPayment[] @relation("FinancialPaymentRecordedBy")
   financialPaymentsReversed FinancialEntryPayment[] @relation("FinancialPaymentReversedBy")
+  lgpdRequestsCreated       LgpdRequest[]           @relation("LgpdRequestCreatedBy")
+  lgpdRequestsCompleted     LgpdRequest[]           @relation("LgpdRequestCompletedBy")
+  lgpdExportsRequested      LgpdExport[]            @relation("LgpdExportRequestedBy")
 
   @@index([organizationId, status, role], map: "ix_app_user_org_status_role")
   @@map("app_user")
@@ -639,6 +644,9 @@ model Patient {
   inactiveReason         String?   @map("inactive_reason") @db.VarChar(12)
   inactiveNote           String?   @map("inactive_note") @db.VarChar(200)
   deactivatedAt          DateTime? @map("deactivated_at") @db.Timestamptz(6)
+  // F14: anonymization marks; the trigger of migration 0016 keeps the identity unchangeable afterwards.
+  anonymizedAt           DateTime? @map("anonymized_at") @db.Timestamptz(6)
+  anonymizedCode         String?   @map("anonymized_code") @db.Char(6)
   version                Int       @default(1)
   createdById            String?   @map("created_by_id") @db.Uuid
   updatedById            String?   @map("updated_by_id") @db.Uuid
@@ -655,6 +663,7 @@ model Patient {
   documents       PatientDocument[]
   charges         Charge[]
   patientPackages PatientPackage[]
+  lgpdRequests    LgpdRequest[]
 
   @@index([organizationId, normalizedName, birthDate], map: "ix_patient_org_identity")
   @@index([organizationId, createdAt], map: "ix_patient_org_created")
@@ -1130,6 +1139,9 @@ model PatientDocument {
   archivedAt        DateTime? @map("archived_at") @db.Timestamptz(6)
   archivedById      String?   @map("archived_by_id") @db.Uuid
   archiveReason     String?   @map("archive_reason") @db.VarChar(500)
+  // F14: a non-clinical upload erased by an anonymization keeps its row; only its file is deleted.
+  erasedAt          DateTime? @map("erased_at") @db.Timestamptz(6)
+  erasedById        String?   @map("erased_by_id") @db.Uuid
   version           Int       @default(1)
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -1689,4 +1701,61 @@ model FinancialEntryPayment {
 
   @@index([organizationId, paidOn], map: "ix_financial_payment_paid_on")
   @@map("financial_entry_payment")
+}
+
+// ---------------------------------------------------------------------------------------------
+// F14 Patient Timeline and LGPD Data Requests (spec docs/F14-patient-timeline-and-lgpd-data-requests/spec.md,
+// section 6). The CHECKs, the partial unique indexes, the patient irreversibility trigger and the
+// grants without DELETE are hand-written in migration 0016.
+
+model LgpdRequest {
+  id             String    @id @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  patientId      String    @map("patient_id") @db.Uuid
+  type           String    @db.VarChar(16)
+  requestedBy    String    @map("requested_by") @db.VarChar(16)
+  description    String    @db.VarChar(2000)
+  status         String    @default("PENDING") @db.VarChar(20)
+  resolution     String?   @db.VarChar(2000)
+  createdById    String    @map("created_by_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt    DateTime? @map("completed_at") @db.Timestamptz(6)
+  completedById  String?   @map("completed_by_id") @db.Uuid
+  version        Int       @default(1)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_lgpd_request_org")
+  patient      Patient      @relation(fields: [patientId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_lgpd_request_patient")
+  createdBy    User         @relation("LgpdRequestCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_lgpd_request_created_by")
+  completedBy  User?        @relation("LgpdRequestCompletedBy", fields: [completedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_lgpd_request_completed_by")
+  exports      LgpdExport[]
+
+  @@index([organizationId, status, createdAt], map: "ix_lgpd_request_org_status_created")
+  @@index([organizationId, patientId, createdAt(sort: Desc)], map: "ix_lgpd_request_org_patient")
+  @@map("lgpd_request")
+}
+
+model LgpdExport {
+  id             String    @id @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  requestId      String    @map("request_id") @db.Uuid
+  status         String    @default("PROCESSING") @db.VarChar(12)
+  locale         String    @db.VarChar(5)
+  objectKey      String?   @map("object_key") @db.VarChar(200)
+  sizeBytes      BigInt?   @map("size_bytes")
+  fileCount      Int?      @map("file_count")
+  errorCode      String?   @map("error_code") @db.VarChar(30)
+  requestedById  String    @map("requested_by_id") @db.Uuid
+  requestedAt    DateTime  @default(now()) @map("requested_at") @db.Timestamptz(6)
+  readyAt        DateTime? @map("ready_at") @db.Timestamptz(6)
+  expiresAt      DateTime? @map("expires_at") @db.Timestamptz(6)
+  failedAt       DateTime? @map("failed_at") @db.Timestamptz(6)
+  expiredAt      DateTime? @map("expired_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], map: "fk_lgpd_export_org")
+  request      LgpdRequest  @relation(fields: [requestId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_lgpd_export_request")
+  requestedBy  User         @relation("LgpdExportRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_lgpd_export_requested_by")
+
+  @@index([organizationId, requestId, requestedAt(sort: Desc)], map: "ix_lgpd_export_request")
+  @@map("lgpd_export")
 }

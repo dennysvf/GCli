@@ -724,6 +724,12 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 - Exportação de dados LGPD (Administrador): gera um ZIP com um arquivo JSON de todos os dados do paciente, um resumo em PDF legível por humanos, e todos os documentos e anexos; disponível para download por 7 dias por meio de um link na tela de solicitações; geração ≤ 5 minutos para um paciente com até 500 arquivos. Toda exportação é registrada com solicitante e motivo.
 - Anonimização (Administrador): substitui nome, nome social, CPF, RG, telefones, e-mail, endereço e dados do responsável por marcadores irreversíveis ("Paciente anonimizado #A1B2C3"), exclui documentos não clínicos enviados, e mantém os registros de agendamento e financeiros com a identidade anonimizada para fins de estatística e contabilidade. Se o paciente tiver qualquer nota clínica ou documento clínico, a anonimização é bloqueada porque a legislação brasileira exige a guarda de registros clínicos por no mínimo 20 anos (Lei 13.787/2018); a solicitação é registrada como "Solicitação registrada — retenção legal".
 - Registro de solicitação LGPD: toda solicitação LGPD (acesso, correção, anonimização) é registrada com data, solicitante, tipo, status e data de conclusão; solicitações pendentes há mais de 15 dias são destacadas.
+- Esclarecimentos (especificação da F14):
+  - O registro de solicitações pertence ao Escopo Completo, junto com a exportação e a anonimização, porque registra as solicitações que esse fluxo atende. Uma solicitação de correção é registrada e concluída manualmente com a sua resolução; a correção em si é feita no formulário do paciente (F05).
+  - A linha do tempo lista os eventos do mais recente para o mais antigo. Um agendamento é um evento no seu horário de início, com o status atual e o histórico de status. Notas em rascunho nunca aparecem, e a lista nunca mostra o texto da nota: expandir um item clínico abre a nota completa como leitura auditada.
+  - Administradores e Gestores veem os eventos administrativos e financeiros, e os eventos clínicos apenas quando vinculados a um profissional que passa na política de acesso ao prontuário da F07. Profissionais veem apenas os próprios agendamentos, e as notas finalizadas de todos os profissionais do paciente.
+  - O ZIP da exportação contém `dados.json`, `resumo.pdf` (no idioma do usuário que solicitou) e os arquivos armazenados em `arquivos/` (documentos, anexos clínicos e arquivos de consentimento). Como direito de acesso da LGPD, a exportação feita por um Administrador inclui as notas e os anexos clínicos, e a geração é auditada com os seus ids. Os dados de pacotes (F10) não fazem parte da exportação.
+  - A anonimização mantém cada documento não clínico enviado como uma linha marcada como apagada e exclui apenas o arquivo armazenado, porque registros referenciados nunca são excluídos fisicamente. Data de nascimento, sexo, etiquetas, registros de consentimento e seus arquivos, documentos emitidos, descrições de cobranças e eventos de auditoria anteriores são mantidos; as observações dos agendamentos são apagadas. Um alerta clínico também conta como registro clínico. Os dados pessoais que restam no log de auditoria e nos PDFs de consentimento e emitidos são mantidos como prova legal (ADR-040).
 
 **Experiência:**
 - Aba "Linha do tempo" da página do paciente: linha do tempo vertical com ícones por tipo de evento, data, autor e resumo; itens clínicos se expandem para mostrar a nota completa (a leitura é auditada).
@@ -740,10 +746,11 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 
 **Consome:**
 - F01: registros de eventos de auditoria (ator, ação, tipo de entidade, id da entidade, data/hora, endereço IP, valores antes/depois)
+- F05, F06, F09: páginas de paciente, agendamento e cobrança que recebem os links de atalho "Ver auditoria"
 
 **Capacidades:**
 - Acesso: apenas Administrador.
-- Filtros: período (máx. 366 dias por consulta), usuário, ação (criação, atualização, exclusão, leitura de registro clínico, login, falha de login, permissão negada, exportação), tipo de entidade (paciente, agendamento, nota clínica, cobrança, pagamento, caixa, usuário, configurações, etc.), id da entidade (ex.: aberto a partir da página do paciente "Ver auditoria").
+- Filtros: período (máx. 366 dias por consulta), usuário, ação (criação, atualização, exclusão, leitura de dado sensível — notas clínicas, documentos e consentimentos, login, falha de login, permissão negada, exportação), tipo de entidade (paciente, agendamento, nota clínica, cobrança, pagamento, caixa, usuário, configurações, etc.), id da entidade (ex.: aberto a partir da página do paciente "Ver auditoria").
 - Tabela de resultados: data/hora, usuário, ação, entidade, resumo; paginada em 100 por página; p95 ≤ 3 segundos para 1 milhão de registros.
 - Visão de detalhe: diferença campo a campo (antes → depois) para atualizações; texto clínico sensível não é exibido na diferença — apenas "conteúdo clínico alterado" com contagem de caracteres.
 - Exportação em CSV de até 100.000 linhas (mesmo formato de CSV de F13); a própria exportação é auditada.
@@ -874,7 +881,7 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 | F12 | Painel de Gestão | 2 | F05, F06, F09, F11 |
 | F13 | Relatórios e Exportação | 2 | F01, F06, F09 |
 | F14 | Linha do Tempo do Paciente e Solicitações LGPD | 2 | F05, F06, F07, F08, F09 |
-| F15 | Visualizador do Log de Auditoria | 2 | F01 |
+| F15 | Visualizador do Log de Auditoria | 2 | F01, F05, F06, F09 |
 | F16 | Internacionalização e Perfis de País | 1 | F01, F02, F03, F04, F05, F06 |
 
 ### Funcionalidades de Fundação
@@ -887,12 +894,12 @@ Funcionalidades da mesma onda podem ser construídas em paralelo. Uma onda só c
 **Nota:** Funcionalidades de fundação (ver "Funcionalidades de Fundação" acima) não podem ser executadas em paralelo entre si em um projeto novo (greenfield), mesmo que apareçam juntas em uma onda — elas compartilham arquivos de estrutura básica e precisam ser implementadas sequencialmente até que a base esteja pronta.
 
 - **Onda 1**: F01
-- **Onda 2**: F02, F03, F05, F15
+- **Onda 2**: F02, F03, F05
 - **Onda 3**: F04
 - **Onda 4**: F06
 - **Onda 5**: F16
 - **Onda 6**: F07, F08, F09
-- **Onda 7**: F10, F11, F13, F14
+- **Onda 7**: F10, F11, F13, F14, F15
 - **Onda 8**: F12
 
 ### Níveis de prioridade
@@ -938,6 +945,9 @@ graph TD
   F08 --> F14
   F09 --> F14
   F01 --> F15[F15 Visualizador de Auditoria]
+  F05 --> F15
+  F06 --> F15
+  F09 --> F15
   F02 --> F16[F16 Internacionalização]
   F03 --> F16
   F04 --> F16

@@ -5,6 +5,7 @@
     "PATIENTS_GUARDIAN_REQUIRED": "Los pacientes menores de 18 años necesitan un responsable registrado.",
     "PATIENTS_STALE_VERSION": "Este registro fue modificado por {author} a las {time}. Revise los cambios antes de guardar.",
     "PATIENTS_HAS_FUTURE_APPOINTMENTS": "El paciente tiene {count} citas futuras. Cancélelas antes de inactivar.",
+    "PATIENTS_ANONYMIZED": "Este paciente fue anonimizado y no se puede modificar.",
     "PATIENTS_INACTIVE": "Este paciente está inactivo. Reactive el registro antes de modificarlo.",
     "PATIENTS_SEARCH_TOO_SHORT": "Escriba al menos 3 caracteres para buscar.",
     "PATIENTS_TAG_LIMIT": "Use como máximo 10 etiquetas por paciente.",
@@ -143,7 +144,8 @@
     "inactiveReasons": {
       "DECEASED": "Fallecimiento",
       "MOVED": "Mudanza",
-      "OTHER": "Otro motivo"
+      "OTHER": "Otro motivo",
+      "ANONYMIZED": "Anonimizado"
     },
     "fieldLabels": {
       "fullName": "Nombre completo",

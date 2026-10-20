@@ -40,6 +40,8 @@ export type DocumentItem = {
   createdAt: string;
   authorName: string;
   archived: { at: string; reason: string; byName: string } | null;
+  // PRD F14: erased by an anonymization; the row stays, its file no longer exists.
+  erased: boolean;
   version: number;
   previewable: boolean;
   canEdit: boolean;
@@ -122,6 +124,7 @@ export async function listPatientDocuments(
   const names = await deps.directory.userNames(ctx, userIds);
   const items = rows.map((row): DocumentItem => {
     const own = row.authorUserId === ctx.user.id;
+    const erased = row.erasedAt !== null;
     return {
       id: row.id,
       kind: row.kind as DocumentItem["kind"],
@@ -134,18 +137,20 @@ export async function listPatientDocuments(
       sizeBytes: row.sizeBytes,
       createdAt: row.createdAt.toISOString(),
       authorName: names.get(row.authorUserId) ?? "",
-      archived: row.archivedAt
-        ? {
-            at: row.archivedAt.toISOString(),
-            reason: row.archiveReason ?? "",
-            byName: row.archivedById ? (names.get(row.archivedById) ?? "") : "",
-          }
-        : null,
+      archived:
+        row.archivedAt && !erased
+          ? {
+              at: row.archivedAt.toISOString(),
+              reason: row.archiveReason ?? "",
+              byName: row.archivedById ? (names.get(row.archivedById) ?? "") : "",
+            }
+          : null,
+      erased,
       version: row.version,
-      previewable: row.status === "READY" && isPreviewable(row.contentType),
-      canEdit: row.kind === "UPLOADED" && (own || manages),
-      canArchive: manages && !row.archivedAt,
-      canRestore: manages && !!row.archivedAt,
+      previewable: !erased && row.status === "READY" && isPreviewable(row.contentType),
+      canEdit: !erased && row.kind === "UPLOADED" && (own || manages),
+      canArchive: !erased && manages && !row.archivedAt,
+      canRestore: !erased && manages && !!row.archivedAt,
     };
   });
   const last = rows[rows.length - 1];
@@ -178,6 +183,7 @@ export async function openDocument(
   if (!document) return fail(DocumentsErrors.notFound());
   const access = await requireDocumentAccess(deps, ctx, document, "document:read");
   if (!access.ok) return access;
+  if (document.erasedAt) return fail(DocumentsErrors.erased());
 
   // A HEIC that is still being converted is served as the original.
   const key = wantsOriginal ? document.sourceObjectKey : (document.objectKey ?? document.sourceObjectKey);
@@ -225,6 +231,7 @@ export async function updateDocument(
   if (!document) return fail(DocumentsErrors.notFound());
   const access = await requireDocumentAccess(deps, ctx, document, "document:read");
   if (!access.ok) return access;
+  if (document.erasedAt) return fail(DocumentsErrors.erased());
   if (document.kind === "GENERATED") return fail(DocumentsErrors.generatedReadOnly());
   if (document.authorUserId !== ctx.user.id && !canManageDocuments(ctx)) {
     await recordDenial(ctx, "document:read", document.id);
@@ -287,6 +294,7 @@ export async function archiveDocument(
   if (!document) return fail(DocumentsErrors.notFound());
   const access = await requireDocumentAccess(deps, ctx, document, "document:archive");
   if (!access.ok) return access;
+  if (document.erasedAt) return fail(DocumentsErrors.erased());
   if (document.archivedAt) return fail(DocumentsErrors.alreadyArchived());
   const now = deps.clock();
   return withTransaction(ctx, async (uow) => {
@@ -335,6 +343,7 @@ export async function restoreDocument(
   if (!document) return fail(DocumentsErrors.notFound());
   const access = await requireDocumentAccess(deps, ctx, document, "document:archive");
   if (!access.ok) return access;
+  if (document.erasedAt) return fail(DocumentsErrors.erased());
   if (!document.archivedAt) return fail(DocumentsErrors.notArchived());
   const now = deps.clock();
   return withTransaction(ctx, async (uow) => {

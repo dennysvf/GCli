@@ -51,6 +51,11 @@ export const NAVIGATION: NavGroup[] = [
       { href: "/financial/statement", labelKey: "statement", icon: "statement", anyOf: ["finance:manage"] },
     ],
   },
+  // F14: the LGPD request register, for Administrators only.
+  {
+    labelKey: "lgpd",
+    items: [{ href: "/lgpd/requests", labelKey: "lgpdRequests", icon: "shield", anyOf: ["lgpd:manage"] }],
+  },
   {
     labelKey: "settings",
     items: [

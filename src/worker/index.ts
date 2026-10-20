@@ -4,7 +4,7 @@ import { registerModules } from "@/composition";
 import { ensureAuditPartitions } from "@/modules/audit";
 import { getEnv } from "@/shared/config/env";
 import { createSmtpEmailSender } from "@/shared/email/email-sender";
-import { QUEUES, type EmailJobData } from "@/shared/jobs/queues";
+import { EXPORT_JOB_EXPIRE_SECONDS, QUEUES, type EmailJobData } from "@/shared/jobs/queues";
 import { logger } from "@/shared/logging/logger";
 import { sentryOptions } from "@/shared/observability/sentry";
 import { cleanupIdentityData } from "./jobs/identity-cleanup";
@@ -13,16 +13,19 @@ import {
   cleanupClinicalUploads,
   processClinicalAttachment,
 } from "./jobs/clinical-records";
-import { cleanupDocumentUploads, processDocumentFileJob } from "./jobs/documents";
+import { cleanupDocumentUploads, eraseDocumentFileJob, processDocumentFileJob } from "./jobs/documents";
 import { cleanupFinanceUploadsJob, extendRecurrencesJob, flagUnclosedRegistersJob } from "./jobs/cash";
 import { expirePackagesJob } from "./jobs/packages";
+import { buildExportJob, cleanupExpiredExportsJob, deleteExportFileJob } from "./jobs/privacy";
 import { cleanupPatientUploads } from "./jobs/patients-cleanup";
 import { sendOutboxEmail } from "./jobs/email-send";
 import { startOutboxLoop } from "./outbox-dispatcher";
+import { registerPdfEngineResolution } from "./pdf-engine";
 
 // Worker process (architecture section 2): outbox delivery, email sending, and maintenance crons.
 async function main() {
   const env = getEnv();
+  registerPdfEngineResolution();
   registerModules();
   Sentry.init(sentryOptions(env.SENTRY_DSN, env.NODE_ENV));
   // The pgboss schema is created by migration 0001 (owned by the runtime role), which has no
@@ -34,7 +37,14 @@ async function main() {
   });
   await boss.start();
 
-  for (const queue of Object.values(QUEUES)) await boss.createQueue(queue);
+  for (const queue of Object.values(QUEUES)) {
+    // F14: an export build has its own 5-minute budget; the queue never retries it.
+    if (queue === QUEUES.privacyExportBuild) {
+      await boss.createQueue(queue, { retryLimit: 0, expireInSeconds: EXPORT_JOB_EXPIRE_SECONDS });
+    } else {
+      await boss.createQueue(queue);
+    }
+  }
 
   const sender = createSmtpEmailSender();
   await boss.work<EmailJobData>(QUEUES.emailSend, async (jobs) => {
@@ -95,6 +105,21 @@ async function main() {
     if (removed) logger.info({ removed }, "abandoned finance uploads removed");
   });
 
+  // F14: files of erased documents, LGPD export builds, export file deletion and the daily cleanup.
+  await boss.work<EmailJobData>(QUEUES.documentsFileErase, async (jobs) => {
+    for (const job of jobs) await eraseDocumentFileJob({ payload: job.data.payload });
+  });
+  await boss.work<EmailJobData>(QUEUES.privacyExportBuild, async (jobs) => {
+    for (const job of jobs) await buildExportJob({ payload: job.data.payload });
+  });
+  await boss.work<EmailJobData>(QUEUES.privacyExportDelete, async (jobs) => {
+    for (const job of jobs) await deleteExportFileJob({ payload: job.data.payload });
+  });
+  await boss.work(QUEUES.privacyExportsCleanup, async () => {
+    const expired = await cleanupExpiredExportsJob();
+    if (expired) logger.info({ expired }, "expired LGPD exports removed");
+  });
+
   // Monthly on day 1 at 03:00, and daily at 03:30 (server time).
   await boss.schedule(QUEUES.auditEnsurePartitions, "0 3 1 * *");
   await boss.schedule(QUEUES.identityCleanup, "30 3 * * *");
@@ -111,6 +136,8 @@ async function main() {
   await boss.schedule(QUEUES.cashFlagUnclosed, "*/15 * * * *");
   await boss.schedule(QUEUES.financeRecurrence, "10 3 * * *");
   await boss.schedule(QUEUES.financeUploadsCleanup, "30 4 * * *");
+  // F14: daily at 04:45, expired LGPD export files are deleted.
+  await boss.schedule(QUEUES.privacyExportsCleanup, "45 4 * * *");
   await boss.send(QUEUES.auditEnsurePartitions, {}, { singletonKey: "startup" });
 
   const stopOutbox = startOutboxLoop(boss);

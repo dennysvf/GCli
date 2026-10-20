@@ -16,6 +16,7 @@ import {
   PatientHeaderMeta,
   patients,
 } from "@/modules/patients";
+import { PatientTimeline, type TimelineActions } from "@/modules/privacy";
 import { AppointmentsTable, scheduling } from "@/modules/scheduling";
 import { can } from "@/shared/authz/permissions";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
@@ -36,6 +37,7 @@ import {
 import { billingActions } from "../../financial/billing-actions";
 import { packagesActions } from "../../packages/package-actions";
 import { PackagesPanel } from "./packages-panel";
+import { listTimelineAction, openTimelineNoteAction } from "./timeline/actions";
 import {
   openConsentFileAction,
   recordConsentAction,
@@ -44,6 +46,12 @@ import {
   setPatientActiveAction,
 } from "../actions";
 import { getTranslations } from "next-intl/server";
+
+// The Server Actions of the timeline tab (the module's UI never imports `app/`).
+const timelineActions = {
+  list: listTimelineAction,
+  openNote: openTimelineNoteAction,
+} as unknown as TimelineActions;
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations();
@@ -100,7 +108,13 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
     <div className="grid gap-6">
       <PageHeader
         title={details.displayName}
-        titleAddon={details.active ? null : <Stamp variant="neutral">{t("common.inactive")}</Stamp>}
+        titleAddon={
+          details.anonymized ? (
+            <Stamp variant="neutral">{t("privacy.anonymization.stamp")}</Stamp>
+          ) : details.active ? null : (
+            <Stamp variant="neutral">{t("common.inactive")}</Stamp>
+          )
+        }
         meta={<PatientHeaderMeta patient={details} />}
         breadcrumb={
           <Link href="/patients" className="underline-offset-4 hover:underline">
@@ -114,7 +128,7 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
                 <Link href={`/patients/${patientId}/records`}>{t("clinicalRecords.ui.openRecord")}</Link>
               </Button>
             ) : null}
-            {canManage ? (
+            {canManage && !details.anonymized ? (
               <PatientActiveControl
                 patientId={patientId}
                 active={details.active}
@@ -128,8 +142,7 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
       {patientPackages?.ok && patientPackages.value.hasOpenBalance ? (
         <Alert variant="warning">{t("packages.ui.openBalanceNotice")}</Alert>
       ) : null}
-      {/* PRD F05: the other tabs (Documentos, Financeiro, Linha do tempo) arrive with the features
-          that fill them; F06 adds Agendamentos. */}
+      {/* PRD F05 tabs, filled by F06 (Agendamentos), F07, F08, F09 and F14 (Linha do tempo). */}
       <Tabs defaultValue="data">
         <TabsList>
           <TabsTrigger value="data">{t("common.data")}</TabsTrigger>
@@ -137,6 +150,8 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
           {notes ? <TabsTrigger value="records">{t("clinicalRecords.ui.tab")}</TabsTrigger> : null}
           {documentsPage?.ok ? <TabsTrigger value="documents">{t("documents.ui.tab")}</TabsTrigger> : null}
           {charges?.ok ? <TabsTrigger value="billing">{t("billing.ui.tab")}</TabsTrigger> : null}
+          {/* PRD F14: every user who can read the patient has the timeline; the server filters it. */}
+          <TabsTrigger value="timeline">{t("privacy.ui.tab")}</TabsTrigger>
         </TabsList>
         <TabsContent value="data" className="grid gap-8 pt-4">
           <PatientForm
@@ -237,6 +252,10 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
             ) : null}
           </TabsContent>
         ) : null}
+        {/* Mounted when the tab opens, so opening the patient page reads no clinical metadata. */}
+        <TabsContent value="timeline" className="grid gap-4 pt-4">
+          <PatientTimeline patientId={patientId} actions={timelineActions} />
+        </TabsContent>
       </Tabs>
     </div>
   );

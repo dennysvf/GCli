@@ -34,7 +34,8 @@ export async function resetDatabase(): Promise<void> {
     package_template, package_template_price, patient_package, package_appointment, package_movement,
     package_settings, package_expiration_run,
     financial_category, cash_register, cash_register_closing, cash_register_reopening, cash_movement,
-    financial_attachment, financial_entry_series, financial_entry, financial_entry_payment CASCADE`);
+    financial_attachment, financial_entry_series, financial_entry, financial_entry_payment,
+    lgpd_request, lgpd_export CASCADE`);
 }
 
 export async function closeHelpers(): Promise<void> {

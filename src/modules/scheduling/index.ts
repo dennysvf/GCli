@@ -4,8 +4,10 @@ import { professionals } from "@/modules/professionals";
 import { services } from "@/modules/services";
 import { units } from "@/modules/units";
 import type { RequestContext } from "@/shared/context/types";
+import type { UnitOfWork } from "@/shared/db/transaction";
 import { definePort } from "@/shared/ports/registry";
 import { exportDailyAgenda } from "./application/agenda-pdf";
+import { clearPatientNotesIn } from "./application/clear-notes";
 import { bookAppointment } from "./application/book-appointment";
 import { getBookingOptions } from "./application/booking-options";
 import { cancelAppointment } from "./application/cancel-appointment";
@@ -94,6 +96,10 @@ export const scheduling = {
   renameCancellationReason: (ctx: RequestContext, input: unknown) => renameCancellationReason(ctx, input),
   setCancellationReasonActive: (ctx: RequestContext, input: unknown) =>
     setCancellationReasonActive(ctx, input),
+  // F14 anonymization: the free texts of the patient's appointments, inside the caller's
+  // transaction (ADR-040).
+  clearPatientNotesIn: (ctx: RequestContext, uow: UnitOfWork, patientId: string) =>
+    clearPatientNotesIn(ctx, uow, patientId),
 };
 
 // Appointment ports of F02, F03, F04 and F05, registered once per process by src/composition.ts.
