@@ -747,6 +747,7 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 **Consome:**
 - F01: registros de eventos de auditoria (ator, ação, tipo de entidade, id da entidade, data/hora, endereço IP, valores antes/depois)
 - F05, F06, F09: páginas de paciente, agendamento e cobrança que recebem os links de atalho "Ver auditoria"
+- F14: estado de anonimização do paciente (`anonymized_at`), usado para mascarar dados pessoais no visualizador e no CSV
 
 **Capacidades:**
 - Acesso: apenas Administrador.
@@ -881,7 +882,7 @@ O diferencial é a configurabilidade sem complexidade: o mesmo produto atende ta
 | F12 | Painel de Gestão | 2 | F05, F06, F09, F11 |
 | F13 | Relatórios e Exportação | 2 | F01, F06, F09 |
 | F14 | Linha do Tempo do Paciente e Solicitações LGPD | 2 | F05, F06, F07, F08, F09 |
-| F15 | Visualizador do Log de Auditoria | 2 | F01, F05, F06, F09 |
+| F15 | Visualizador do Log de Auditoria | 2 | F01, F05, F06, F09, F14 |
 | F16 | Internacionalização e Perfis de País | 1 | F01, F02, F03, F04, F05, F06 |
 
 ### Funcionalidades de Fundação
@@ -899,8 +900,8 @@ Funcionalidades da mesma onda podem ser construídas em paralelo. Uma onda só c
 - **Onda 4**: F06
 - **Onda 5**: F16
 - **Onda 6**: F07, F08, F09
-- **Onda 7**: F10, F11, F13, F14, F15
-- **Onda 8**: F12
+- **Onda 7**: F10, F11, F13, F14
+- **Onda 8**: F12, F15
 
 ### Níveis de prioridade
 - **1** = Essencial — o produto não funciona sem isso
@@ -948,6 +949,7 @@ graph TD
   F05 --> F15
   F06 --> F15
   F09 --> F15
+  F14 --> F15
   F02 --> F16[F16 Internacionalização]
   F03 --> F16
   F04 --> F16
