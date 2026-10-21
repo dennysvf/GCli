@@ -208,7 +208,8 @@
       "expenses": "Expenses",
       "revenues": "Revenues",
       "statement": "Statement",
-      "lgpdRequests": "Requests"
+      "lgpdRequests": "Requests",
+      "audit": "Audit log"
     },
     "roles": {
       "ADMINISTRATOR": "Administrator",

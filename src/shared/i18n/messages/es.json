@@ -208,7 +208,8 @@
       "expenses": "Gastos",
       "revenues": "Ingresos",
       "statement": "Extracto",
-      "lgpdRequests": "Solicitudes"
+      "lgpdRequests": "Solicitudes",
+      "audit": "Auditoría"
     },
     "roles": {
       "ADMINISTRATOR": "Administrador",

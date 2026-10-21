@@ -32,10 +32,24 @@ function resolve(value: Date | string, timeZone: string | undefined): { date: Da
   return { date: typeof value === "string" ? new Date(value) : value, ...(timeZone ? { timeZone } : {}) };
 }
 
+// Building an Intl.DateTimeFormat costs far more than formatting with it, and exports format
+// hundreds of thousands of instants (F13, F15), so each locale, zone and shape is built once.
+const dateTimeFormats = new Map<string, Intl.DateTimeFormat>();
+
+function dateTimeFormat(locale: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let format = dateTimeFormats.get(key);
+  if (!format) {
+    format = new Intl.DateTimeFormat(locale, options);
+    dateTimeFormats.set(key, format);
+  }
+  return format;
+}
+
 export function formatDate(value: Date | string, locale: string, timeZone?: string): string {
   const resolved = resolve(value, timeZone);
   return plain(
-    new Intl.DateTimeFormat(locale, {
+    dateTimeFormat(locale, {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -44,19 +58,31 @@ export function formatDate(value: Date | string, locale: string, timeZone?: stri
   );
 }
 
-export function formatTime(value: Date | string, locale: string, timeZone?: string): string {
+// `seconds` is for instants that must be told apart within a minute (the audit log, F15).
+export function formatTime(
+  value: Date | string,
+  locale: string,
+  timeZone?: string,
+  options: { seconds?: boolean } = {},
+): string {
   const resolved = resolve(value, timeZone);
   return plain(
-    new Intl.DateTimeFormat(locale, {
+    dateTimeFormat(locale, {
       hour: "2-digit",
       minute: "2-digit",
+      ...(options.seconds ? { second: "2-digit" as const } : {}),
       ...(resolved.timeZone ? { timeZone: resolved.timeZone } : {}),
     }).format(resolved.date),
   );
 }
 
-export function formatDateTime(value: Date | string, locale: string, timeZone?: string): string {
-  return `${formatDate(value, locale, timeZone)} ${formatTime(value, locale, timeZone)}`;
+export function formatDateTime(
+  value: Date | string,
+  locale: string,
+  timeZone?: string,
+  options: { seconds?: boolean } = {},
+): string {
+  return `${formatDate(value, locale, timeZone)} ${formatTime(value, locale, timeZone, options)}`;
 }
 
 export function formatNumber(value: number, locale: string, options?: Intl.NumberFormatOptions): string {
