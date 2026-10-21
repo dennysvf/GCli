@@ -290,8 +290,12 @@ test("F14: the timeline filters by event type and period", async ({ browser }) =
 
   // UI-FILTER-03: a period ending before it starts keeps the list.
   const listed = await events(page).count();
-  await page.getByLabel("De", { exact: true }).fill("2026-03-10");
-  await page.getByLabel("Até", { exact: true }).fill("2026-03-01");
+  // The fixture dates are relative to "now", so the inverted period is built from the day already
+  // in "Até": moving "De" one day past it is invalid at once, with no valid in-between range that
+  // would reload the list.
+  const dayAfter = new Date(`${day}T12:00:00Z`);
+  dayAfter.setUTCDate(dayAfter.getUTCDate() + 1);
+  await page.getByLabel("De", { exact: true }).fill(dayAfter.toISOString().slice(0, 10));
   await expect(page.getByText("A data final deve ser igual ou posterior à data inicial.")).toBeVisible();
   await expect(events(page)).toHaveCount(listed);
 
