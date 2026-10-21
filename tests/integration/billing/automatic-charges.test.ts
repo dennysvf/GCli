@@ -3,7 +3,7 @@ import { billing } from "@/modules/billing";
 import { scheduling } from "@/modules/scheduling";
 import { services } from "@/modules/services";
 import { db } from "@/shared/db/client";
-import { closeHelpers, resetDatabase } from "../helpers";
+import { auditEvents, closeHelpers, errorText, resetDatabase } from "../helpers";
 import {
   appointmentAt,
   billingWorld,
@@ -207,5 +207,54 @@ describe("manual charges", () => {
       grossMinor: 1000,
     });
     expect(!professional.ok && professional.error.code).toBe("AUTHZ_FORBIDDEN");
+  });
+
+  it("F09: only active services can be charged manually; an inactive one is refused and nothing is written", async () => {
+    const deactivated = await services.setServiceActive(world.admin, {
+      serviceId: world.services.retorno,
+      active: false,
+    });
+    expect(deactivated.ok && deactivated.value.active).toBe(false);
+
+    const charges = () => db().charge.count({});
+    const audits = () => db().auditEvent.count({ where: { entityType: "charge" } });
+    const outbox = () => db().outboxMessage.count({});
+    const before = { charges: await charges(), audits: await audits(), outbox: await outbox() };
+
+    const refused = await billing.createManualCharge(world.desk, {
+      patientId: world.patients.maria,
+      unitId: world.unitId,
+      serviceId: world.services.retorno,
+      grossMinor: 12_000,
+    });
+    expect(refused.ok).toBe(false);
+    if (refused.ok) return;
+    expect(refused.error).toMatchObject({ code: "BILLING_SERVICE_INVALID", httpStatus: 400 });
+    // The error carries the code only; the boundary writes the catalog message (ADR-028).
+    expect(errorText("billing", refused.error)).toBe("Escolha um serviço e um profissional ativos.");
+    expect(errorText("billing", refused.error, "en")).toBe("Choose an active service and professional.");
+    expect(errorText("billing", refused.error, "es")).toBe("Elija un servicio y un profesional activos.");
+    expect({ charges: await charges(), audits: await audits(), outbox: await outbox() }).toEqual(before);
+
+    // The active service of the same clinic is still charged, with its audit entry.
+    const accepted = await billing.createManualCharge(world.desk, {
+      patientId: world.patients.maria,
+      unitId: world.unitId,
+      serviceId: world.services.consulta,
+      grossMinor: 25_000,
+    });
+    expect(accepted.ok && accepted.value).toMatchObject({
+      origin: "MANUAL",
+      status: "OPEN",
+      currency: "BRL",
+      grossMinor: 25_000,
+    });
+    if (!accepted.ok) return;
+    const row = await db().charge.findUniqueOrThrow({ where: { id: accepted.value.id } });
+    expect(row.serviceId).toBe(world.services.consulta);
+    expect(await charges()).toBe(before.charges + 1);
+    expect(await auditEvents({ entityId: accepted.value.id })).toEqual([
+      expect.objectContaining({ action: "CREATE", entityType: "charge" }),
+    ]);
   });
 });
