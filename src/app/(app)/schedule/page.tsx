@@ -151,6 +151,7 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
         canRegisterPatient: can(ctx, "patient:manage"),
         linkedProfessionalId: ctx.linkedProfessionalId,
         ownOnly,
+        canViewAudit: can(ctx, "audit:read"),
       }}
       list={list?.ok ? list.value : null}
       openAppointment={

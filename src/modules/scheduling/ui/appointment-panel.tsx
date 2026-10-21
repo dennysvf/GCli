@@ -1,5 +1,6 @@
 "use client";
 
+import { AuditLink } from "@/modules/audit/client";
 import Link from "next/link";
 import { useCallback, useEffect, useState, useTransition, type ComponentType } from "react";
 import { toast } from "sonner";
@@ -62,6 +63,8 @@ export type Permissions = {
   canManage: boolean;
   canRevertAnyTime: boolean;
   linkedProfessionalId: string | null;
+  // PRD F15: the "Ver auditoria" link, for those who may read the audit log.
+  canViewAudit?: boolean;
 };
 
 // PRD F07: the clinical record opens from an appointment the patient has arrived for.
@@ -350,6 +353,9 @@ export function AppointmentPanel({
                   >
                     {t("scheduling.ui.openPatient")}
                   </Link>
+                  {permissions.canViewAudit ? (
+                    <AuditLink entityType="appointment" entityId={details.id} variant="ghost" size="sm" />
+                  ) : null}
 
                   <section className="grid gap-2">
                     <h3 className="section-title">{t("scheduling.ui.history")}</h3>

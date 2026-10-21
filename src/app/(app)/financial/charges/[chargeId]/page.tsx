@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { AuditLink } from "@/modules/audit/client";
 import { billing, ChargeDetailView } from "@/modules/billing";
 import { getOrganizationProfile } from "@/modules/identity";
 import { requirePermission } from "@/modules/identity/next";
@@ -39,6 +40,10 @@ export default async function ChargePage({ params }: PageProps<"/financial/charg
           <Link href="/financial/charges" className="underline-offset-4 hover:underline">
             {t("billing.ui.chargesTitle")}
           </Link>
+        }
+        actions={
+          // PRD F15: "Ver auditoria", for those who may read the audit log.
+          can(ctx, "audit:read") ? <AuditLink entityType="charge" entityId={chargeId} /> : null
         }
       />
       <ChargeDetailView

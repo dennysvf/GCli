@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { forbidden, notFound } from "next/navigation";
+import { AuditLink } from "@/modules/audit/client";
 import { BillingTab, billing } from "@/modules/billing";
 import { packages } from "@/modules/packages";
 import { Alert } from "@/shared/ui/components/alert";
@@ -128,6 +129,8 @@ export default async function PatientPage({ params }: PageProps<"/patients/[pati
                 <Link href={`/patients/${patientId}/records`}>{t("clinicalRecords.ui.openRecord")}</Link>
               </Button>
             ) : null}
+            {/* PRD F15: "Ver auditoria", for those who may read the audit log. */}
+            {can(ctx, "audit:read") ? <AuditLink entityType="patient" entityId={patientId} /> : null}
             {canManage && !details.anonymized ? (
               <PatientActiveControl
                 patientId={patientId}

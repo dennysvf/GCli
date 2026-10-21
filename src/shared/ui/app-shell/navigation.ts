@@ -23,7 +23,8 @@ export type NavIcon =
   | "revenue"
   | "statement"
   | "report"
-  | "shield";
+  | "shield"
+  | "history";
 
 export const NAVIGATION: NavGroup[] = [
   {
@@ -91,6 +92,8 @@ export const NAVIGATION: NavGroup[] = [
         anyOf: ["lgpd:manage"],
       },
       { href: "/settings/users", labelKey: "users", icon: "users", anyOf: ["user:read"] },
+      // F15: the audit log viewer, for Administrators only.
+      { href: "/settings/audit", labelKey: "audit", icon: "history", anyOf: ["audit:read"] },
     ],
   },
 ];
