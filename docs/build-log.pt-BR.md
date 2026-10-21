@@ -1,10 +1,10 @@
 # Diário de bordo — como o GCli foi construído
 
-Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F14 e F16). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
+Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura do briefing até a implementação das primeiras funcionalidades (F01 a F16). A ideia é que qualquer pessoa consiga **entender as decisões** e **repetir o processo** em outro projeto.
 
 O trabalho foi feito em dupla: uma pessoa responsável pelo produto e um assistente de programação com IA. A pessoa respondeu perguntas, tomou as decisões de negócio e aprovou cada etapa; o assistente conduziu entrevistas, escreveu documentos e código, rodou os testes e registrou o que encontrou pelo caminho.
 
-> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação → F08 → F09 → F10 → F11 → F12 → F13 → F14.
+> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação → F08 → F09 → F10 → F11 → F12 → F13 → F14 → F15.
 
 English version: [build-log.en.md](build-log.en.md).
 
@@ -35,9 +35,10 @@ English version: [build-log.en.md](build-log.en.md).
 21. [Décima segunda funcionalidade: F12 — Painel de Gestão](#21-décima-segunda-funcionalidade-f12--painel-de-gestão)
 22. [Décima terceira funcionalidade: F13 — Relatórios e Exportação](#22-décima-terceira-funcionalidade-f13--relatórios-e-exportação)
 23. [Décima quarta funcionalidade: F14 — Linha do Tempo do Paciente e Solicitações LGPD](#23-décima-quarta-funcionalidade-f14--linha-do-tempo-do-paciente-e-solicitações-lgpd)
-24. [Problemas encontrados e como foram resolvidos](#24-problemas-encontrados-e-como-foram-resolvidos)
-25. [Como reproduzir o ambiente do zero](#25-como-reproduzir-o-ambiente-do-zero)
-26. [Lições aprendidas](#26-lições-aprendidas)
+24. [Décima quinta funcionalidade: F15 — Visualizador do Log de Auditoria](#24-décima-quinta-funcionalidade-f15--visualizador-do-log-de-auditoria)
+25. [Problemas encontrados e como foram resolvidos](#25-problemas-encontrados-e-como-foram-resolvidos)
+26. [Como reproduzir o ambiente do zero](#26-como-reproduzir-o-ambiente-do-zero)
+27. [Lições aprendidas](#27-lições-aprendidas)
 
 ---
 
@@ -1071,7 +1072,59 @@ As decisões viraram o **ADR-040** e as seções 5.20 e 5.21 do design system. A
 
 ---
 
-## 24. Problemas encontrados e como foram resolvidos
+## 24. Décima quinta funcionalidade: F15 — Visualizador do Log de Auditoria
+
+A F15 é o lado de leitura do log de auditoria que a F01 grava desde o primeiro commit. As perguntas centrais da especificação foram **como manter qualquer filtro abaixo de 3 segundos com um milhão de eventos numa tabela particionada** e **o que o visualizador pode mostrar de um paciente anonimizado cujos eventos antigos ainda guardam os dados pessoais**.
+
+### 24.1 Decisões
+
+| Decisão | Resultado |
+|---|---|
+| Acesso | `audit:read` (Administrador) primeiro em cada caso de uso; o item do menu e os links "Ver auditoria" só aparecem com ela |
+| Paginação | Keyset em `(occurred_at, id)`, 100 por página, um cursor opaco com os microssegundos do banco; uma contagem limitada a 100.001 |
+| Período | Datas no fuso da organização, no máximo 366 dias; 30 dias por padrão, 366 quando aberto por "Ver auditoria" |
+| Leituras | Route Handlers GET (canceláveis e paralelas); buscas e detalhes não são auditados, só a exportação |
+| Diferenças | Apresentação pura: alterações clínicas apenas como "conteúdo clínico alterado" com as contagens de caracteres, chaves com cara de segredo ocultas mesmo quando gravadas |
+| Pacientes anonimizados (responsável pelo produto) | As linhas armazenadas nunca mudam; o detalhe e o CSV mostram os campos pessoais de um paciente com `anonymized_at` como "dado anonimizado", qualquer que seja a data do evento |
+| Registros (responsável pelo produto) | Os 11 valores de `AuditAction` (RETIME e SKIP são resoluções de série, não ações) e todo tipo de entidade que os módulos gravam, conferido por um teste unitário que varre o código |
+| Critérios de qualidade (responsável pelo produto) | Lint, verificação de tipos, formatação, testes unitários e de integração e a checagem de divergência do Prisma; E2E e a imagem Docker ficam no CI |
+
+As decisões viraram o **ADR-039** e a seção 5.19 do design system. A especificação, o plano e o contrato estão em [F15-audit-log-viewer/](F15-audit-log-viewer/).
+
+### 24.2 Como o visualizador se mantém rápido e fiel
+
+- **Leituras limitadas:** toda consulta filtra a organização explicitamente e a janela UTC do período, então o planejador poda as partições mensais; dois índices compostos atendem aos filtros de ação e de tipo de entidade ao lado dos índices da F01.
+- **Páginas profundas tão rápidas quanto a primeira:** o cursor soma um limite simples `occurred_at <=` à comparação de linhas, então o índice começa no cursor em vez de pular as linhas mais novas.
+- **Mascaramento na apresentação:** um `LEFT JOIN patient` pela chave primária, depois do `LIMIT`, diz ao detalhe e à exportação se o titular está anonimizado; a consulta da página nunca paga por isso.
+- **Medido:** com 1.000.000 de eventos em 12 meses, o p95 das sete combinações de filtro ficou entre 46 e 430 ms; um CSV de 100.000 linhas é transmitido em cerca de 5 segundos.
+
+### 24.3 Implementação em 4 etapas
+
+| Etapa | O que entrou |
+|---|---|
+| 1 — Documentação e banco | ADR-039, design system 5.19, seção 8 e o grafo de módulos, migração `0017_audit_viewer` |
+| 2 — Lado de leitura | Limites, registros, período, cursor, regras de apresentação e mascaramento, consultas de leitura, os quatro casos de uso, os catálogos |
+| 3 — Endpoints e telas | Três Route Handlers, a página do visualizador, o item do menu e os links "Ver auditoria" em quatro telas |
+| 4 — Acabamento | A verificação de carga com 1 milhão de eventos, a verificação no navegador e este diário |
+
+### 24.4 Problemas encontrados na F15
+
+| Problema | Causa | Solução |
+|---|---|---|
+| Um CSV de 100.000 linhas levava mais de 30 segundos | Cada célula de data e hora criava um novo `Intl.DateTimeFormat` | Os formatadores compartilhados guardam uma instância por idioma, fuso e formato; os rótulos da exportação são buscados uma vez |
+| As alterações saíam numa ordem diferente da gravada | O JSONB guarda as chaves ordenadas por tamanho, não pela ordem de inserção | A apresentação ordena os campos pelo nome, então o painel e o CSV ficam estáveis |
+| Eventos do mesmo milissegundo podiam se repetir entre páginas | `timestamptz` guarda microssegundos e o `Date` do JavaScript não | O cursor carrega o instante como texto com microssegundos |
+| O PostgreSQL do E2E não subia na porta 55432 | Depois de reiniciar o Docker, o Windows reservou a faixa 55365–55464 | A verificação no navegador rodou contra um build de produção e um PostgreSQL temporário em outra porta; as jornadas E2E rodam no CI |
+| Uma verificação no navegador digitou uma data antes da hidratação da página | O campo ainda não tinha tratador, então nenhuma requisição saiu | As verificações esperam a rede assentar depois de navegar |
+
+### 24.5 O que a F15 deixa pronto
+
+- **Um contrato de URL** (`/settings/audit?entityType=…&entityId=…`) e o `AuditLink` para qualquer tela futura que queira um atalho "Ver auditoria".
+- **Formatadores de data em cache** em `src/shared/i18n/format.ts`, que também aceleram as outras exportações.
+
+---
+
+## 25. Problemas encontrados e como foram resolvidos
 
 Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos esses problemas apareceram porque **cada etapa foi executada de verdade**, e não só escrita.
 
@@ -1094,7 +1147,7 @@ Esta seção é talvez a mais útil para quem for reproduzir o projeto. Todos es
 
 ---
 
-## 25. Como reproduzir o ambiente do zero
+## 26. Como reproduzir o ambiente do zero
 
 ### Pré-requisitos
 
@@ -1169,7 +1222,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 26. Lições aprendidas
+## 27. Lições aprendidas
 
 1. **Entrevista antes de documento.** Uma pergunta por vez, sempre com uma recomendação, resolve mais do que um documento longo escrito no escuro.
 2. **IDs de ponta a ponta** (F01 → história → critério → teste → commit) tornam o projeto rastreável sem esforço extra.

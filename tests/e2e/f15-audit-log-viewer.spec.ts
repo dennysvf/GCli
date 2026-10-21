@@ -97,6 +97,7 @@ test("F15: administrator filters the audit log, opens an update diff and exports
 
   // Edit the patient's mobile phone on the F05 page.
   await page.goto(`/patients/${patientId}`);
+  await page.waitForLoadState("networkidle");
   await page.getByLabel("Celular").fill("11966663333");
   await page.getByRole("button", { name: "Salvar alterações" }).click();
   await expect(page.getByRole("button", { name: "Salvar alterações" })).toBeEnabled();
@@ -155,6 +156,7 @@ test('F15: "Ver auditoria" on a patient page opens the viewer filtered by that p
 }) => {
   const page = await signedIn(browser, "admin");
   await page.goto(`/patients/${patientId}`);
+  await page.waitForLoadState("networkidle");
   await page.getByRole("link", { name: "Ver auditoria" }).click();
   await expect(page).toHaveURL(new RegExp(`/settings/audit\\?.*entityType=patient.*entityId=${patientId}`));
   await expect(page.getByRole("combobox", { name: "Tipo de entidade" })).toHaveText("Paciente");
@@ -171,6 +173,7 @@ test("F15: front desk does not see Auditoria and gets the 403 page at /settings/
   const page = await signedIn(browser, "desk");
   await expect(page.getByRole("link", { name: "Auditoria", exact: true })).toHaveCount(0);
   await page.goto(`/patients/${patientId}`);
+  await page.waitForLoadState("networkidle");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.getByRole("link", { name: "Ver auditoria" })).toHaveCount(0);
   const response = await page.goto("/settings/audit");
