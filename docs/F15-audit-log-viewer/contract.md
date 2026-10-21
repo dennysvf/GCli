@@ -18,7 +18,7 @@ execution until it is restored.
 
 **Persistent state:**
 - organization `org-A` ("Clínica Auditoria") exists with time zone `America/Sao_Paulo` and default language pt-BR. Used by every item that names `org-A` or one of its users.
-- `admin-a` exists in `org-A`: Administrator, name "Ana Admin", interface language pt-BR, active, with a known password. Used by API-ACCESS-01, API-SEARCH-01..12, API-PAGE-01, API-DETAIL-01..05, API-F01-01..02, API-EXPORT-01, API-EXPORT-05, UI-ACCESS-01, UI-SEARCH-01..06, UI-PAGE-01, UI-DETAIL-01..02, UI-EXPORT-01, E2E-INVESTIGATE-01, E2E-LINK-01.
+- `admin-a` exists in `org-A`: Administrator, name "Ana Admin", interface language pt-BR, active, with a known password. Used by API-ACCESS-01, API-SEARCH-01..12, API-PAGE-01, API-DETAIL-01..05, API-F01-01..02, API-EXPORT-01, API-EXPORT-05, API-ANON-01..05, UI-ACCESS-01, UI-SEARCH-01..06, UI-PAGE-01, UI-DETAIL-01..02, UI-ANON-01, UI-EXPORT-01, E2E-INVESTIGATE-01, E2E-LINK-01.
 - `admin-en` exists in `org-A`: Administrator, name "Erin Admin", interface language en, active. Used by API-EXPORT-02.
 - `manager-a` exists in `org-A`: Manager, active. Used by API-ACCESS-02.
 - `desk-a` exists in `org-A`: Front Desk, name "Carla Recepção", active. Used by API-ACCESS-02, API-SEARCH-03, UI-ACCESS-02, E2E-LINK-02.
@@ -37,6 +37,12 @@ execution until it is restored.
   - `ev-system`: `UPDATE`, entity `cash_register` / `register-r1-id`, system actor.
   - `ev-bruno`: `CREATE`, entity `appointment` / `appt-a1-id`, actor `bruno-a`.
   - `ev-old`: `CREATE`, entity `patient` / `patient-p1-id`, actor `admin-a`, occurred 400 days ago.
+- `patient-anon` exists in `org-A` as an anonymized patient record (id `patient-anon-id`): `anonymized_at` set to two days ago, `anonymized_code` "A1B2C3", name "Paciente anonimizado #A1B2C3", inactive, mobile phone empty. Used by API-ANON-01..05, UI-ANON-01.
+- the `audit-anon` events exist in `org-A` for `patient-anon`, each at its own distinct instant. Used by API-ANON-01..05, UI-ANON-01:
+  - `ev-anon-create`: `CREATE`, entity `patient` / `patient-anon-id`, actor `desk-a`, ten days ago.
+  - `ev-anon-update`: `UPDATE`, entity `patient` / `patient-anon-id`, actor `admin-a`, ten days ago (after `ev-anon-create`), summary "Cadastro do paciente alterado", IP `203.0.113.10`, changes `fullName` "Joana Prado" → "Joana Prado Lima", `mobilePhone` "+5511955550000" → "+5511944440000" and `sex` "NOT_INFORMED" → "FEMALE".
+  - `ev-anon-final`: `UPDATE`, entity `patient` / `patient-anon-id`, actor `admin-a`, two days ago, summary "Paciente anonimizado", changes `anonymized` false → true and `active` true → false, metadata `anonymizedCode` "A1B2C3".
+  - `ev-anon-lgpd`: `UPDATE`, entity `lgpd_request` / `lgpd-request-q1-id`, actor `admin-a`, two days ago, changes `status` "PROCESSING" → "COMPLETED", metadata `patientId` `patient-anon-id`.
 - `audit-page-set` exists in `org-A`: 250 `LOGOUT` events by `admin-a`, each at a distinct instant on the day five days ago. Used by API-PAGE-01, UI-PAGE-01.
 - organization `org-B` exists with Administrator `admin-b` and event `ev-b-update` (`UPDATE`, entity `patient`, actor `admin-b`, within the last 30 days). Used by API-SEARCH-08, API-SEARCH-12, API-DETAIL-04.
 - organization `org-load` exists with time zone `America/Sao_Paulo` and Administrator `admin-load` (pt-BR). Used by API-PERF-01, API-EXPORT-03, API-EXPORT-04, UI-EXPORT-02.
@@ -57,16 +63,16 @@ Each gate must pass for the feature to be considered ready.
 - **Format** — `npm run format:check` — Prettier reports every file formatted
 - **Unit tests** — `npm test` — every Vitest unit test passes, including catalog parity across pt-BR, en and es
 - **Integration tests** — `npm run test:integration` — every Testcontainers integration test passes against real PostgreSQL
-- **E2E tests** — `npm run test:e2e` — every Playwright journey passes against the built application
+- **Schema drift** — `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` — after the migrations are applied, the database matches `prisma/schema.prisma` with no difference
 
 ## Coverage Manifest
 
 | PRD Acceptance Criterion | Covered by |
 |---|---|
 | Only Administrator can access the audit log. | API-ACCESS-01, API-ACCESS-02, API-ACCESS-03, UI-ACCESS-01, UI-ACCESS-02, E2E-LINK-02 |
-| Filters by period, user, action, entity type, and entity id return correct results in ≤ 3 seconds (p95) with 1 million records. | API-SEARCH-01, API-SEARCH-02, API-SEARCH-03, API-SEARCH-04, API-SEARCH-05, API-SEARCH-06, API-SEARCH-07, API-SEARCH-08, API-SEARCH-09, API-SEARCH-10, API-SEARCH-11, API-SEARCH-12, API-PAGE-01, API-PERF-01, UI-SEARCH-01, UI-SEARCH-02, UI-SEARCH-03, UI-SEARCH-04, UI-SEARCH-06, UI-PAGE-01 |
-| Update events show field-level before/after values; clinical text changes show only "conteúdo clínico alterado" with character counts. | API-DETAIL-01, API-DETAIL-02, API-DETAIL-05, UI-DETAIL-01, UI-DETAIL-02, API-EXPORT-01, E2E-INVESTIGATE-01 |
-| CSV export of up to 100,000 rows works and is itself audited. | API-EXPORT-01, API-EXPORT-02, API-EXPORT-03, API-EXPORT-04, API-EXPORT-05, UI-EXPORT-01, UI-EXPORT-02, E2E-INVESTIGATE-01 |
+| Filters by period, user, action, entity type, and entity id return correct results in ≤ 3 seconds (p95) with 1 million records. | API-SEARCH-01, API-SEARCH-02, API-SEARCH-03, API-SEARCH-04, API-SEARCH-05, API-SEARCH-06, API-SEARCH-07, API-SEARCH-08, API-SEARCH-09, API-SEARCH-10, API-SEARCH-11, API-SEARCH-12, API-PAGE-01, API-PERF-01, API-ANON-04, UI-SEARCH-01, UI-SEARCH-02, UI-SEARCH-03, UI-SEARCH-04, UI-SEARCH-06, UI-PAGE-01 |
+| Update events show field-level before/after values; clinical text changes show only "conteúdo clínico alterado" with character counts. | API-DETAIL-01, API-DETAIL-02, API-DETAIL-05, UI-DETAIL-01, UI-DETAIL-02, API-EXPORT-01, API-ANON-01, API-ANON-02, API-ANON-03, UI-ANON-01, E2E-INVESTIGATE-01 |
+| CSV export of up to 100,000 rows works and is itself audited. | API-EXPORT-01, API-EXPORT-02, API-EXPORT-03, API-EXPORT-04, API-EXPORT-05, API-ANON-05, UI-EXPORT-01, UI-EXPORT-02, E2E-INVESTIGATE-01 |
 | "Ver auditoria" link on a patient page opens the viewer filtered by that patient. | UI-SEARCH-05, E2E-LINK-01, E2E-LINK-02 |
 | Audit events recorded by F01 are searchable in the audit log viewer (F15) with before/after values. | API-F01-01, API-F01-02, E2E-INVESTIGATE-01 |
 
@@ -164,7 +170,7 @@ Each gate must pass for the feature to be considered ready.
 
 #### `API-SEARCH-09` — filters intersect
 - given: (default)
-- when: GET /api/audit/events?user={id of admin-a}&action=UPDATE&entityType=patient
+- when: GET /api/audit/events?user={id of admin-a}&action=UPDATE&entityType=patient&entityId=patient-p1-id
 - then:
   - exactly `ev-patient-update` is returned
 
@@ -315,6 +321,52 @@ Each gate must pass for the feature to be considered ready.
   - its metadata holds format "csv", the exported row count, and the filters { from, to, user: "ALL", action: "UPDATE", entityType: "ALL" }
   - a following GET /api/audit/events?action=EXPORT returns that event
 
+### Anonymized patients
+
+**Common given:** `admin-a` is signed in; `patient-anon` and `audit-anon` exist.
+
+#### `API-ANON-01` — personal fields of earlier events are masked
+- given: (default)
+- when: GET /api/audit/events/{id of ev-anon-update}
+- then:
+  - 200 with action "UPDATE", ipAddress "203.0.113.10" and actor name "Ana Admin"
+  - `changes` holds an entry for `fullName` with kind "anonymized" and before null and after null
+  - `changes` holds an entry for `mobilePhone` with kind "anonymized" and before null and after null
+  - `changes` holds a `value` entry for `sex` with before "NOT_INFORMED" and after "FEMALE"
+  - the response body contains neither "Joana" nor "5511955550000" nor "5511944440000"
+
+#### `API-ANON-02` — the anonymization event stays readable
+- given: (default)
+- when: GET /api/audit/events/{id of ev-anon-final}
+- then:
+  - `changes` holds a `value` entry for `anonymized` with before "Não" and after "Sim"
+  - `changes` holds a `value` entry for `active` with before "Sim" and after "Não"
+  - `metadata` holds { key: "anonymizedCode", value: "A1B2C3" }
+
+#### `API-ANON-03` — an event that only references the patient is not masked
+- given: (default)
+- when: GET /api/audit/events/{id of ev-anon-lgpd}
+- then:
+  - `changes` holds a `value` entry for `status` with before "PROCESSING" and after "COMPLETED"
+  - `changes` holds no entry with kind "anonymized"
+
+#### `API-ANON-04` — the events stay searchable with their summaries
+- given: (default)
+- when: GET /api/audit/events?entityType=patient&entityId=patient-anon-id
+- then:
+  - exactly `ev-anon-final`, `ev-anon-update` and `ev-anon-create` are returned, newest first
+  - `ev-anon-update` shows summary "Cadastro do paciente alterado" and hasChanges true
+  - `ev-anon-update` shows actor name "Ana Admin"
+
+#### `API-ANON-05` — the CSV masks personal fields and the stored events are unchanged
+- given: (default)
+- when: GET /api/audit/export?entityType=patient&entityId=patient-anon-id
+- then:
+  - 200 with X-Report-Rows "3"
+  - the row of `ev-anon-update` has the "Alterações" cell "fullName: dado anonimizado | mobilePhone: dado anonimizado | sex: NOT_INFORMED → FEMALE"
+  - the body contains neither "Joana" nor "5511955550000" nor "5511944440000"
+  - the stored row of `ev-anon-update` still holds the original before and after values of `fullName` and `mobilePhone`
+
 ## UI
 
 **Verification mode:** Render the surface, drive it with user-like inputs (clicks, typing, keyboard); assert observable surface state (DOM, accessibility tree, visible text, navigation).
@@ -420,6 +472,19 @@ Each gate must pass for the feature to be considered ready.
   - the panel shows "conteúdo clínico alterado (120 → 154 caracteres)"
   - the panel shows no Antes or Depois value for that field
   - closing the panel with Esc returns focus to the row
+
+### Anonymized patients
+
+**Common given:** `admin-a` is signed in on /settings/audit?entityType=patient&entityId=patient-anon-id; `patient-anon` and `audit-anon` exist.
+
+#### `UI-ANON-01` — masked fields in the side panel
+- given: (default)
+- when: click the row of `ev-anon-update`
+- then:
+  - the diff row for the name field shows "dado anonimizado" under Antes and under Depois
+  - the diff row for the mobile phone field shows "dado anonimizado" under Antes and under Depois
+  - the diff row for the sex field shows its before and after values
+  - the panel text contains neither "Joana" nor "5511955550000"
 
 ### Export
 

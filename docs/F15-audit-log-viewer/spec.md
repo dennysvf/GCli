@@ -8,6 +8,7 @@
 - **Viewer page** at `/settings/audit` ("Configurações > Auditoria"), Administrator only: a filter bar, a result table of 100 events per page with keyset pagination, and a side panel with the event detail and the field-level diff.
 - **Filters**: period (at most 366 days), user (including inactive users and "Sistema"), action, entity type, and entity id (together with an entity type).
 - **Detail and diff**: before → after per changed field for updates; clinical text is never shown, only "conteúdo clínico alterado" with the character counts already recorded by F07 (`{ changed, beforeLength, afterLength }`).
+- **Anonymized patients**: the stored rows never change (legal evidence, ADR-040), but the detail panel and the CSV show the personal fields of a patient whose `anonymized_at` is set as "dado anonimizado" (decision D14).
 - **CSV export** of the current filters, up to 100,000 rows, in the F13 CSV format (UTF-8 with BOM, separators of the user's language), streamed in keyset batches. The export records its own `EXPORT` audit event before the first byte.
 - **"Ver auditoria" shortcuts** on the patient, appointment, charge and user screens, shown only to Administrators, that open the viewer pre-filtered by that entity.
 
@@ -15,7 +16,7 @@
 - **Keyset pagination on `(occurred_at, id)`**, never `OFFSET` (architecture section 8, append-only data). Every query is bounded by the organization and the period's UTC window, so partition pruning limits the scan to the months of the period.
 - **Two new composite indexes** for the selective filters the existing indexes do not serve (action, entity type alone). User and entity id filters use the F01 indexes `ix_audit_actor` and `ix_audit_entity`.
 - **Read-only raw SQL with an explicit `organization_id`**, because `AuditEvent` is not a tenant model in `forTenant` (its `organization_id` is nullable for anonymous login failures, and adding it to the tenant extension would overwrite the writer's explicit organization). This follows the precedent of ADR-037.
-- **Presentation rules are pure functions** (diff presentation, masking, cursor encoding, period window) with unit tests; the queries only feed them.
+- **Presentation rules are pure functions** (diff presentation, clinical masking, anonymized-patient masking, cursor encoding, period window) with unit tests; the queries only feed them.
 
 **How it fits the codebase.**
 - **Reused as is:**
@@ -39,6 +40,7 @@
   - Filters by period (≤ 366 days), user, action, entity type and entity id.
   - Result table (date/time, user, action, entity, summary), 100 per page, p95 ≤ 3 s with 1 million rows.
   - Detail side panel with the field-level diff; clinical text masked with character counts.
+  - Personal fields of anonymized patients masked as "dado anonimizado" in the detail and in the CSV (D14); stored rows untouched.
   - CSV export up to 100,000 rows, itself audited.
   - "Ver auditoria" links on the patient, appointment (agenda side panel), charge and user screens.
 - Integrated from cross-cutting concerns:
@@ -53,9 +55,11 @@
 - Archiving partitions older than 5 years (architecture 5.3; F01 deferred it until the first partitions reach that age).
 - Following related entities (for example the appointments and clinical notes of a patient) when filtering by an entity. The PRD filter is the entity itself (decision D6).
 - Exports in PDF (the PRD asks for CSV only).
+- Redacting or rewriting the stored audit rows of an anonymized patient. The rows stay as legal evidence (ADR-040); only the presentation masks them (D14).
 
 **Input contracts (Consumes):**
 - **F01:** `audit_event` rows (`id`, `occurred_at`, `organization_id`, `actor_type`, `actor_user_id`, `action`, `entity_type`, `entity_id`, `summary`, `changes`, `metadata`, `ip_address`, `request_id`), the `FieldChange` shape, `app_user` (`id`, `name`, `status`) for actor names, and the organization time zone (`getOrganizationProfile`).
+- **F05 (read only):** `patient` (`id`, `organization_id`, `anonymized_at`) to know whether the subject of an event is anonymized (D14). The `anonymized_at` column is added to the `patient` table by migration `0016_privacy`; F15 only reads it and uses no F14 use case or screen.
 
 **Output contracts (Provides):**
 - **URL contract** `/settings/audit?from=YYYY-MM-DD&to=YYYY-MM-DD&user=…&action=…&entityType=…&entityId=…`, used by the "Ver auditoria" links and by any future feature that wants to deep-link into the viewer.
@@ -70,6 +74,7 @@
 | Capabilities: filters, 366 days | Section 5 (filters), decisions D4, D6 |
 | Capabilities: table, 100 per page, p95 ≤ 3 s | Decisions D2, D3; section 6 (indexes) |
 | Capabilities: detail and clinical masking | Decision D7; section 5 (detail) |
+| Not in the PRD: anonymized patients (ADR-040 trade-off: earlier audit rows keep personal data) | Decision D14; section 5 (detail, export) |
 | Capabilities: CSV export, audited | Decision D8; section 5 (export) |
 | Experience: Configurações > Auditoria, side panel | Section 4 (frontend), decision D9 |
 | Experience: "Ver auditoria" shortcuts | Section 4 (host screens), decision D10 |
@@ -110,19 +115,19 @@ graph TD
   UC4 --> Z
   UC1 --> Q["Keyset query (org, UTC window, filters)"]
   UC3 --> Q
-  UC2 --> D["presentChanges (masking)"]
+  UC2 --> D["presentChanges (clinical and anonymized masking)"]
   UC3 --> D
-  Q --> DB[("audit_event partitions + app_user")]
+  Q --> DB[("audit_event partitions + app_user + patient.anonymized_at")]
   UC3 --> AU["audit EXPORT (before the first byte)"]
   UC3 --> CSV["toCsv per batch (ReadableStream)"]
 ```
 
-- The `audit` module reads `audit_event` and the user names in `app_user` with read-only SQL (architecture section 3: `audit` reads across modules through dedicated read queries). The only write is the `EXPORT` event.
+- The `audit` module reads `audit_event`, the user names in `app_user` and the `anonymized_at` mark of `patient` with read-only SQL (architecture section 3: `audit` reads across modules through dedicated read queries). The only write is the `EXPORT` event.
 - The host screens import only `@/modules/audit/client` (client-safe) or `@/modules/audit` (server pages).
 
 ## 3. Technical Decisions
 
-Batch mode: every decision below is the spec-writer recommendation, auto-accepted, and may be reviewed (see Assumptions).
+Decisions D1–D13 are spec-writer recommendations auto-accepted in batch mode and may be reviewed. Decisions D14–D17 were confirmed by the product owner in the refresh after F14 was merged: they are decisions, not assumptions, and change only with the product owner's agreement.
 
 | Decision | Chosen Approach | Alternative Considered | Trade-off |
 |---|---|---|---|
@@ -139,6 +144,10 @@ Batch mode: every decision below is the spec-writer recommendation, auto-accepte
 | D11. Not audited reads | Searching and opening a detail are not audited; only the export is (PRD F15). Denials are audited by `authorize` as everywhere | Auditing every search | Avoids the viewer filling its own log; the audit log contains no clinical text to protect, and Administrators already have full access to administrative data |
 | D12. Indexes | Migration `0017_audit_viewer` adds `ix_audit_org_action_time (organization_id, action, occurred_at DESC)` and `ix_audit_org_entity_type_time (organization_id, entity_type, occurred_at DESC)` on the partitioned parent (inherited by every partition), mirrored as `@@index` in `schema.prisma` so `prisma migrate diff` stays clean | No new index | Rare actions (permission denied) and broad entity types otherwise scan the whole period; two more index writes per event are cheap at this volume |
 | D13. Tenancy | Raw SQL with `organization_id = $ctx.organizationId` on every query; `AuditEvent` stays out of `TENANT_MODELS`. Events without an organization (unknown-email login failures, F01 decision) are never shown | Adding `AuditEvent` to the tenant extension | The extension would overwrite the writer's explicit `organizationId` (null for anonymous flows). An integration test with two organizations guards the filter |
+| D14. Anonymized patients (product owner) | The stored `audit_event` rows never change (legal evidence, ADR-040 trade-off). The detail (`GetAuditEvent`) and the CSV (`ExportAuditEvents`) mask personal data when the subject patient has `anonymized_at` set, whatever the event date (events recorded before the anonymization are masked too).<br>**Covered events:** (1) `entity_type = 'patient'` with `entity_id` equal to the anonymized patient; (2) any other event whose `metadata.patientId` is an anonymized patient (consent, LGPD request and export events, F14 decision 17), but only for change keys of the personal list below. The anonymized mark is read by a `LEFT JOIN patient` on the same `organization_id`, in the detail query and the export batch query only (the page query shows no diff and is unchanged).<br>**Personal fields (keys of `changes`):** `fullName`, `socialName`, `documentCountry`, `documentType`, `documentNumber`, `rg`, `mobilePhone`, `secondaryPhone`, `email`, `addressCountry`, `postalCode`, `street`, `number`, `complement`, `district`, `city`, `region`, `occupation`, `observations`, `guardianName`, `guardianDocumentType`, `guardianDocumentNumber`, `guardianRelationship`, `guardianPhone`, `inactiveNote`. This is the identifying set the patients module records (`auditView` in `patients.ts`) and clears on anonymization (`ANONYMIZED_FIELDS` in `anonymize.ts`). Kept visible because they are kept for statistics (PRD F14): `birthDate`, `sex`, `tagIds`, `referralSourceId`, `active`, `inactiveReason`, `anonymized`.<br>**Presentation:** a masked change has `kind: "anonymized"`, keeps its field label, and shows "dado anonimizado" (en "anonymized data", es "dato anonimizado") in place of both Antes and Depois, even when one side was null. In the CSV the cell reads `<field>: dado anonimizado`. The summary and the metadata are shown as recorded: modules never write personal data in them (CLAUDE.md), the LGPD metadata holds ids, enums and counts only, and the `anonymizedCode` is not personal. The actor name, the IP address and the event ids are the staff's, not the patient's, and stay. Events of other patients are unaffected | Masking only events of the patient entity; rewriting the stored rows | The viewer stops reproducing identity that the anonymization erased from the live record, while the append-only evidence stays intact. Rule (2) is defensive: today no recorded diff of a related entity carries a personal key. A patient row is read per event by primary key |
+| D15. Quality gates (product owner) | The contract's gates are only: `npm run lint`, `npm run typecheck`, `npm run format:check`, `npm test`, `npm run test:integration` and the Prisma drift check `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` (the command of `.github/workflows/ci.yml`, run after `prisma migrate deploy`). `npm run test:e2e` and the Docker image build are not contract gates | Keeping E2E and Docker as gates | The local machine cannot run the heavy suites; CI runs E2E and the Docker image. The E2E items stay in the contract as behavior to verify, and the E2E specs are still written (section 7) |
+| D16. Action labels (product owner) | The filter and the labels cover every value of the `AuditAction` union: the eight PRD actions and Logout, Redefinição de senha solicitada and Senha redefinida (pt-BR labels in assumption 4). `READ_SENSITIVE` is recorded for clinical note, sensitive document and consent reads (F05, F07, F08, F14), and the PRD label "Leitura de dado sensível" covers all of them; the entity column tells them apart. `RETIME` and `SKIP` found in `src/modules` are not audit actions: they are the per-occurrence resolutions of a series conflict (`resolution.action` in `scheduling/application/schemas.ts` and `series-conflicts.tsx`), never written to `audit_event.action`, so they are not offered | Offering `RETIME` and `SKIP` | `AuditAction` (`audit-writer.ts`) has 11 values and every `audit.record()` call uses one of them. A label for an action that never exists would be a filter option that always returns nothing |
+| D17. Entity types (product owner) | `AUDIT_ENTITY_TYPES` lists every `entityType` recorded in `src/modules` (re-scanned after F14) plus `audit_log`, in the groups of the list below. Types added since the first draft: `lgpd_request` and `lgpd_export` (new group "Privacidade (LGPD)") and `referral_source` and `tag` (the patient lists, group "Pacientes"). Groups: Pacientes (patient, consent_record, privacy_terms_version, referral_source, tag), Privacidade (LGPD) (lgpd_request, lgpd_export), Agenda (appointment, appointment_series, cancellation_reason), Registros clínicos (clinical_note, clinical_note_version, clinical_note_addendum, clinical_attachment, clinical_alert), Documentos (patient_document, document_template, document_category, document_storage_usage), Financeiro (charge, payment, payment_method, patient_package, package_template, package_settings, cash_register, cash_movement, financial_entry, financial_entry_series, financial_category, financial_attachment), Cadastros (unit, unit_closure, room, service, service_category, professional, professional_schedule, professional_time_off), Acesso e configurações (user, invitation, organization, report, audit_log). The PRD "configurações" maps to `organization`. A type found in a row but missing from the constant is shown by its raw key. A unit test compares the constant with the types found by scanning the sources, so a new module cannot record a type that the viewer lacks | A hand-kept list without a check | The viewer is the only place where a missing type hides records from the administrator |
 
 ### Assumptions
 
@@ -146,18 +155,19 @@ Each item is a default applied where the PRD is silent (Batch Mode Auto-Accept P
 
 1. **Scope**: the PRD has no Core/Full split for F15, so the full scope is specified (policy row "Scope").
 2. **Surfaces**: the contract emits HTTP API, UI and E2E surfaces, because the PRD has signals for all three (export, screen, cross-screen link) (policy row "Contract surface set ambiguous").
-3. **Quality gates** auto-included from `package.json` and `.github/workflows/ci.yml`: `npm run lint`, `npm run typecheck`, `npm run format:check`, `npm test`, `npm run test:integration`, `npm run test:e2e` (policy row "Quality gates — detected gates"). There is no wrapper script that runs them all.
-4. **Action labels** (pt-BR from the PRD action list): Criação (`CREATE`), Atualização (`UPDATE`), Exclusão (`DELETE`), Leitura de dado sensível (`READ_SENSITIVE`), Login (`LOGIN`), Falha de login (`LOGIN_FAILED`), Permissão negada (`PERMISSION_DENIED`), Exportação (`EXPORT`). The actions F01 also records but the PRD does not list are offered too: Logout (`LOGOUT`), Redefinição de senha solicitada (`PASSWORD_RESET_REQUESTED`), Senha redefinida (`PASSWORD_RESET`). `READ_SENSITIVE` is recorded for clinical note, sensitive document and consent reads (F05, F07, F08); the PRD label "leitura de dado sensível" covers all three, and the entity column tells them apart.
-5. **Entity types**: the filter lists the entity types recorded by the implemented modules (`AUDIT_ENTITY_TYPES` constant in `audit/application/entity-types.ts`), grouped as: Pacientes (patient, consent_record, privacy_terms_version), Agenda (appointment, appointment_series, cancellation_reason), Registros clínicos (clinical_note, clinical_note_version, clinical_note_addendum, clinical_attachment, clinical_alert), Documentos (patient_document, document_template, document_category, document_storage_usage), Financeiro (charge, payment, payment_method, patient_package, package_template, package_settings, cash_register, cash_movement, financial_entry, financial_entry_series, financial_category, financial_attachment), Cadastros (unit, unit_closure, room, service, service_category, professional, professional_schedule, professional_time_off), Acesso e configurações (user, invitation, organization, report, audit_log). The PRD "configurações" maps to `organization`. A type found in a row but missing from the constant is shown by its raw key.
+3. **Quality gates**: decided by the product owner, not assumed (decision D15). The local machine cannot run the heavy suites, so `npm run test:e2e` and the Docker image build are left to CI and are not contract gates.
+4. **Action labels** (pt-BR, `audit.actions.*`): Criação (`CREATE`), Atualização (`UPDATE`), Exclusão (`DELETE`), Leitura de dado sensível (`READ_SENSITIVE`), Login (`LOGIN`), Falha de login (`LOGIN_FAILED`), Permissão negada (`PERMISSION_DENIED`), Exportação (`EXPORT`) from the PRD list, and Logout (`LOGOUT`), Redefinição de senha solicitada (`PASSWORD_RESET_REQUESTED`), Senha redefinida (`PASSWORD_RESET`) for the actions the PRD does not list. The set and the handling of `RETIME` and `SKIP` are confirmed in decision D16.
+5. **Entity types**: the complete list and its groups are confirmed in decision D17 (`AUDIT_ENTITY_TYPES` in `audit/application/entity-types.ts`).
 6. **User filter**: "Todos", "Sistema" (`actor_type = 'SYSTEM'`) and every user of the organization, active and inactive, sorted by name, inactive ones marked "(inativo)". Anonymous events with an organization (login failure of a known email) show "Anônimo" in the user column and are matched by "Todos" only.
 7. **Summary column**: the `summary` recorded by the module, as written. When it is empty, the catalog composes "{ação} · {tipo de entidade}".
-8. **Personal data in the diff**: before/after values of administrative records (for example a patient's name or phone) are shown unmasked, because Administrators have full access to them (PRD F01 matrix). Clinical text is never present in the log (architecture 5.3). The IP address is shown in the detail and in the CSV.
+8. **Personal data in the diff**: before/after values of administrative records (for example the name or phone of an active patient) are shown unmasked, because Administrators have full access to them (PRD F01 matrix). The exception is the personal data of an anonymized patient (decision D14). Clinical text is never present in the log (architecture 5.3). The IP address is shown in the detail and in the CSV.
 9. **Entity column**: the entity type label and, in `meta`, the first 8 characters of the id; the full id is in the detail panel with a "Filtrar por esta entidade" ghost link. Entity names are not resolved (no joins into other modules per type).
 10. **Time display**: instants are shown in the organization's time zone and the user's language format (`formatDateTime`), with seconds in the detail panel.
 11. **CSV file name**: `auditoria-<from>-<to>.csv`, with the slug from the catalog (`audit-log` in en, `auditoria` in es and pt-BR), without personal data.
 12. **Patient page link and the dependency graph**: PRD Section 8 lists F01, F05, F06 and F09 as dependencies of F15 (resolved with the product owner: the "Ver auditoria" links live on the patient, appointment and charge screens). F15 mounts the links there; the contract item for the patient link runs on the real patient page.
 13. **Cross-feature criterion** "Audit events recorded by F01 are searchable in the audit log viewer (F15) with before/after values" is verified in this feature, because F01's spec delegates the consumer side to F15.
 14. **Test data conventions** follow the project: integration fixtures write directly to the database (`tests/integration/helpers.ts`, per-module `support.ts`); E2E journeys run in alphabetical order on one database and reuse the clinic built by the earlier journeys (`tests/e2e/global-setup.ts`, `support.ts` with `sql()`); there are no static fixture files for this feature; the integration environment comes from Testcontainers (`tests/integration/global-setup.ts`), the E2E environment from `tests/e2e/env.ts`.
+16. **Anonymized patient state and the dependency closure**: PRD Section 8 does not list F14 as a dependency of F15, so no item or prerequisite uses an F14 screen or use case. An anonymized patient is persisted state: a `patient` row with `anonymized_at` (and `anonymized_code`) set, plus the earlier audit events of that patient, written directly by the test fixtures. The column belongs to the `patient` table and exists in the schema since migration `0016_privacy`, which is why the viewer can read it.
 15. **Load test partitions**: the 1-million-row test creates the monthly partitions of the past 12 months as the owner role before seeding, so the plan matches production (where past months always have their partition) instead of the default partition.
 
 ## 4. Component Overview
@@ -186,18 +196,19 @@ Each item is a default applied where the PRD is silent (Batch Mode Auto-Accept P
 |---|---|---|---|
 | `src/modules/audit/index.ts` | Modified | Public API | `audit` (bound use cases), `createAudit(adjust?)` for tests, `auditCatalog`, types; keeps `ensureAuditPartitions` |
 | `src/modules/audit/application/limits.ts` | New | Named constants | `AUDIT_PAGE_SIZE = 100`, `AUDIT_MAX_PERIOD_DAYS = 366`, `AUDIT_CSV_MAX_ROWS = 100_000`, `AUDIT_EXPORT_BATCH_SIZE = 2_000`, `AUDIT_DEFAULT_PERIOD_DAYS = 30`, each with its PRD reference |
-| `src/modules/audit/application/entity-types.ts` | New | Registry | `AUDIT_ACTIONS`, `AUDIT_ENTITY_TYPES` with their groups |
+| `src/modules/audit/application/entity-types.ts` | New | Registry | `AUDIT_ACTIONS` (the 11 values of `AuditAction`, D16), `AUDIT_ENTITY_TYPES` with their groups (D17, including the "Privacidade (LGPD)" group) |
+| `src/modules/audit/application/mask-anonymized.ts` | New | Pure | `PATIENT_PERSONAL_FIELDS` (D14), `isCoveredBySubject(event, anonymizedPatientIds)` (rules 1 and 2 of D14) and `maskAnonymizedChanges(changes)` → changes with `kind: "anonymized"`; no I/O, called by `presentChanges` |
 | `src/modules/audit/application/schemas.ts` | New | Zod input | Filters (dates, `user`, `action`, `entityType`, `entityId` uuid, `cursor`); messages are `audit.validation.*` keys |
 | `src/modules/audit/application/period.ts` | New | Pure | `resolveAuditPeriod(input, today, timeZone)` → dates and UTC window; span and order checks |
 | `src/modules/audit/application/cursor.ts` | New | Pure | `encodeCursor`, `decodeCursor` (invalid → validation error) |
-| `src/modules/audit/application/present-changes.ts` | New | Pure | `presentChanges`, `changesText` (CSV cell), secret denylist |
+| `src/modules/audit/application/present-changes.ts` | New | Pure | `presentChanges(entityType, changes, { subjectAnonymized })`, `changesText` (CSV cell), secret denylist; delegates the anonymized-patient masking to `mask-anonymized.ts` |
 | `src/modules/audit/application/errors.ts` | New | Errors | `AuditErrors`: `periodTooLong`, `periodInvalid`, `entityTypeRequired`, `eventNotFound`, `exportTooLarge(count)` |
-| `src/modules/audit/application/queries.ts` | New | Read SQL | `pageQuery`, `cappedCount`, `batchQuery`, `eventById`, `actorOptions`; explicit `organization_id`, UTC window, `LEFT JOIN app_user` |
+| `src/modules/audit/application/queries.ts` | New | Read SQL | `pageQuery`, `cappedCount`, `batchQuery`, `eventById`, `actorOptions`; explicit `organization_id`, UTC window, `LEFT JOIN app_user`; `eventById` and `batchQuery` also `LEFT JOIN patient` (same `organization_id`) on `entity_id` for entity type `patient` and on `metadata->>'patientId'` to return `subjectAnonymized` (D14) |
 | `src/modules/audit/application/search-events.ts` | New | Use case `SearchAuditEvents` | Authorize → parse → period (org zone) → page + capped count → `AuditPage` |
-| `src/modules/audit/application/get-event.ts` | New | Use case `GetAuditEvent` | Authorize → load by id within the organization → present changes and metadata |
-| `src/modules/audit/application/export-events.ts` | New | Use case `ExportAuditEvents` | Authorize → parse → capped count vs. limit → record `EXPORT` → stream of CSV batches |
+| `src/modules/audit/application/get-event.ts` | New | Use case `GetAuditEvent` | Authorize → load by id within the organization → present changes (clinical and anonymized masking) and metadata |
+| `src/modules/audit/application/export-events.ts` | New | Use case `ExportAuditEvents` | Authorize → parse → capped count vs. limit → record `EXPORT` → stream of CSV batches with the same masking as the detail |
 | `src/modules/audit/application/list-filter-options.ts` | New | Use case `ListAuditFilterOptions` | Authorize → users (active and inactive), actions, entity types |
-| `src/modules/audit/messages/{pt-BR,en,es}.json`, `messages/catalog.ts` | New | Catalogs | `audit.*`: title, filters, columns, actions, entity types, fields, values, panel, export, empty state, errors, CSV header and file slug |
+| `src/modules/audit/messages/{pt-BR,en,es}.json`, `messages/catalog.ts` | New | Catalogs | `audit.*`: title, filters, columns, actions, entity types and their groups, fields, values (including `audit.values.anonymized`: "dado anonimizado" / "anonymized data" / "dato anonimizado"), panel, export, empty state, errors, CSV header and file slug |
 | `src/app/api/audit/events/route.ts` | New | Route Handler | GET search → JSON or `{ code, message }` with the error status (401 without session) |
 | `src/app/api/audit/events/[eventId]/route.ts` | New | Route Handler | GET detail → JSON |
 | `src/app/api/audit/export/route.ts` | New | Route Handler | GET export → streamed CSV, as `/api/reports/[report]/export` |
@@ -303,7 +314,7 @@ GET /api/audit/events?from=2026-09-19&to=2026-10-18&user=ALL&action=UPDATE&entit
 | `id`, `occurredAt`, `actor`, `action`, `entityType`, `entityId`, `summary` | as in search | |
 | `ipAddress` | string \| null | |
 | `requestId` | string \| null | |
-| `changes[]` | `{ field, label, kind: "value" \| "sensitive" \| "hidden", before, after, beforeLength, afterLength }` | Display-ready; `before`/`after` are formatted strings for `value`, null otherwise |
+| `changes[]` | `{ field, label, kind: "value" \| "sensitive" \| "hidden" \| "anonymized", before, after, beforeLength, afterLength }` | Display-ready; `before`/`after` are formatted strings for `value`, null otherwise. `anonymized` marks a personal field of an anonymized patient (D14): the values are never sent, and the client shows the catalog text "dado anonimizado" |
 | `metadata[]` | `{ key, value }` | Flattened metadata (for example `permission`, `target`, `format`, `rows`) as display strings |
 
 ```json
@@ -326,6 +337,8 @@ GET /api/audit/events?from=2026-09-19&to=2026-10-18&user=ALL&action=UPDATE&entit
 
 The panel renders the sensitive change as "conteúdo clínico alterado (120 → 154 caracteres)".
 
+For an event of an anonymized patient (D14) the personal fields come as `{ "field": "fullName", "label": "Nome completo", "kind": "anonymized", "before": null, "after": null }`, and the panel writes "dado anonimizado" under both Antes and Depois; non-personal fields of the same event (for example `sex`) keep `kind: "value"`.
+
 ### Endpoint: Export CSV
 
 - **Method:** GET
@@ -341,6 +354,8 @@ The panel renders the sensitive change as "conteúdo clínico alterado (120 → 
 | `Content-Disposition` | `attachment; filename="auditoria-2026-09-19-2026-10-18.csv"` |
 | `X-Report-Rows` | Row count |
 | `Cache-Control` | `private, no-store` |
+
+Masking in the file follows decision D14: for an anonymized patient the changes cell reads `fullName: dado anonimizado | mobilePhone: dado anonimizado`, in the language of the user (`anonymized data`, `dato anonimizado`).
 
 Body (pt-BR):
 
@@ -413,7 +428,7 @@ CREATE INDEX "ix_audit_org_entity_type_time" ON "audit_event"("organization_id",
 - **Page:** `SELECT e.*, u.name, u.status FROM audit_event e LEFT JOIN app_user u ON u.id = e.actor_user_id WHERE e.organization_id = $org AND e.occurred_at >= $start AND e.occurred_at < $end [AND filters] [AND (e.occurred_at, e.id) < ($cursorAt, $cursorId)] ORDER BY e.occurred_at DESC, e.id DESC LIMIT 101` (the 101st row only tells whether a next page exists).
 - **Capped count:** `SELECT count(*) FROM (SELECT 1 FROM audit_event WHERE … LIMIT 100001) s`.
 - **Batches:** the page query with `LIMIT 2000` and the previous batch's last key.
-- **Detail:** `WHERE organization_id = $org AND id = $id` (the primary key `(id, occurred_at)` is searched per partition).
+- **Detail:** `WHERE organization_id = $org AND id = $id` (the primary key `(id, occurred_at)` is searched per partition), with `LEFT JOIN patient p ON p.organization_id = e.organization_id AND p.id = CASE WHEN e.entity_type = 'patient' THEN e.entity_id ELSE (e.metadata->>'patientId')::uuid END` and the column `(p.anonymized_at IS NOT NULL) AS subject_anonymized` (D14; the `metadata` value is validated as a uuid before the cast). The export batch query carries the same join, by primary key of `patient`; the page query and the capped count do not.
 - `EXPLAIN ANALYZE` of the page query for each filter combination, on the 1-million-row dataset, is attached to the pull request (architecture section 8).
 
 ## 7. Testing Strategy
@@ -425,8 +440,11 @@ CREATE INDEX "ix_audit_org_entity_type_time" ON "audit_event"("organization_id",
 | `src/modules/audit/application/present-changes.test.ts` | Vitest unit |
 | `src/modules/audit/application/period.test.ts` | Vitest unit |
 | `src/modules/audit/application/cursor.test.ts` | Vitest unit |
+| `src/modules/audit/application/mask-anonymized.test.ts` | Vitest unit |
+| `src/modules/audit/application/entity-types.test.ts` | Vitest unit: the registries against the sources |
+| `tests/integration/audit/anonymized.test.ts` | Integration (Testcontainers): masking in detail and export |
 | `src/modules/audit/messages/catalog.test.ts` (or the existing catalog parity test) | Vitest unit: keys and placeholders equal in the three languages |
-| `tests/integration/audit/support.ts` | Fixtures: two organizations, users of the four roles plus an inactive user, a known event set (updates with changes, clinical update with lengths, sensitive read, login failure, denial, export, system event, an event older than 366 days), helpers to seed N events with `generate_series` and to create past monthly partitions as the owner |
+| `tests/integration/audit/support.ts` | Fixtures: two organizations, users of the four roles plus an inactive user, a known event set (updates with changes, clinical update with lengths, sensitive read, login failure, denial, export, system event, an event older than 366 days), an anonymized patient (`anonymized_at` and `anonymized_code` set directly on the row, as the database would hold it after F14) with earlier `CREATE` and `UPDATE` events carrying name and phone, the anonymization `UPDATE` event and an LGPD request event with `metadata.patientId`, helpers to seed N events with `generate_series` and to create past monthly partitions as the owner |
 | `tests/integration/audit/search.test.ts` | Integration (Testcontainers) |
 | `tests/integration/audit/detail.test.ts` | Integration |
 | `tests/integration/audit/export.test.ts` | Integration: use case and Route Handler |
@@ -443,6 +461,12 @@ CREATE INDEX "ix_audit_org_entity_type_time" ON "audit_event"("organization_id",
 - `F15: the period window uses the organization's time zone and includes the end date`.
 - `F15: a period of 367 days or ending before it starts is rejected`.
 - `F15: a cursor round-trips and an invalid cursor is rejected`.
+- `F15: personal fields of an anonymized patient are masked in both the before and the after value`.
+- `F15: non-personal fields of an anonymized patient stay visible`.
+- `F15: events of a patient that is not anonymized are never masked`.
+- `F15: an event that only references an anonymized patient in its metadata masks personal keys and nothing else`.
+- `F15: the CSV changes cell writes dado anonimizado for masked fields in pt-BR, en and es`.
+- `F15: every entity type recorded in the sources and every audit action is in the registries`.
 
 ### Integration tests
 
@@ -450,6 +474,7 @@ CREATE INDEX "ix_audit_org_entity_type_time" ON "audit_event"("organization_id",
 - **Filters:** `F15: period filter returns only events inside the local dates`; `F15: user filter returns events of that user, including an inactive user`; `F15: SYSTEM user filter returns system events`; `F15: action filter returns only that action`; `F15: entity type filter returns only that type`; `F15: entity type and id filter returns only that entity`; `F15: entity id without a type is rejected`; `F15: combined filters intersect`.
 - **Pagination:** `F15: pages hold 100 events newest first and the cursor returns every event exactly once`; `F15: the capped count reports more than 100,000`.
 - **Detail:** `F15: update events show field-level before and after values`; `F15: clinical note changes show only clinical content changed with character counts`; `F15: metadata of denials and exports is listed`; `F15: an event of another organization is not found`.
+- **Anonymized patients:** `F15: the detail of an event of an anonymized patient masks name and phone`; `F15: the anonymization event and non-personal fields stay readable`; `F15: an LGPD event of an anonymized patient stays readable`; `F15: the CSV of an anonymized patient masks personal fields and the stored rows are unchanged`; `F15: the personal data of a patient that is not anonymized is still shown`; `F15: an anonymized patient of another organization does not mask events of this one`.
 - **F01 consumer:** `F15: events recorded by F01 use cases are searchable with their before and after values` (updates the organization settings and a user role through `identity`, then searches and opens the details).
 - **Tenancy:** `F15: events of another organization and events without an organization never appear`.
 - **Export:** `F15: CSV export follows the F13 format in pt-BR and en`; `F15: CSV export of 100,000 rows streams every row`; `F15: CSV export above 100,000 rows is refused before streaming`; `F15: every export is recorded as an EXPORT audit event with filters and row count`; `F15: the export endpoint returns 401 without a session and 403 for Manager`.
