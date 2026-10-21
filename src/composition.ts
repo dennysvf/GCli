@@ -1,4 +1,5 @@
 import { analyticsCatalog } from "@/modules/analytics";
+import { auditCatalog } from "@/modules/audit";
 import { billingCatalog, registerBillingPorts, subscribeBillingEvents } from "@/modules/billing";
 import { cashCatalog, registerCashPorts } from "@/modules/cash";
 import { packagesCatalog, registerPackagesPorts, subscribePackagesEvents } from "@/modules/packages";
@@ -36,6 +37,7 @@ export function registerModules(): void {
   registerCatalog("cash", cashCatalog);
   registerCatalog("analytics", analyticsCatalog);
   registerCatalog("privacy", privacyCatalog);
+  registerCatalog("audit", auditCatalog);
   subscribeServicesEvents(eventBus);
   registerServicesPorts();
   // F04: linked professionals for identity (F01) and professional counts for services (F03).

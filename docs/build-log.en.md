@@ -1,10 +1,10 @@
 # Build log — how GCli was built
 
-This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F14 and F16). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
+This log records, in order, everything done on the project from reading the briefing to implementing the first features (F01 to F16). The goal is for anyone to **understand the decisions** and **repeat the process** on another project.
 
 The work was done as a pair: a product owner and an AI coding assistant. The product owner answered questions, made the business decisions and approved each stage; the assistant ran the interviews, wrote documents and code, ran the tests and recorded what it found along the way.
 
-> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations → F08 → F09 → F10 → F11 → F12 → F13 → F14.
+> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations → F08 → F09 → F10 → F11 → F12 → F13 → F14 → F15.
 
 Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 
@@ -35,9 +35,10 @@ Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 21. [Twelfth feature: F12 — Management Dashboard](#21-twelfth-feature-f12--management-dashboard)
 22. [Thirteenth feature: F13 — Reports and Export](#22-thirteenth-feature-f13--reports-and-export)
 23. [Fourteenth feature: F14 — Patient Timeline and LGPD Data Requests](#23-fourteenth-feature-f14--patient-timeline-and-lgpd-data-requests)
-24. [Problems found and how they were solved](#24-problems-found-and-how-they-were-solved)
-25. [Reproducing the environment from scratch](#25-reproducing-the-environment-from-scratch)
-26. [Lessons learned](#26-lessons-learned)
+24. [Fifteenth feature: F15 — Audit Log Viewer](#24-fifteenth-feature-f15--audit-log-viewer)
+25. [Problems found and how they were solved](#25-problems-found-and-how-they-were-solved)
+26. [Reproducing the environment from scratch](#26-reproducing-the-environment-from-scratch)
+27. [Lessons learned](#27-lessons-learned)
 
 ---
 
@@ -1071,7 +1072,59 @@ The decisions became **ADR-040** and sections 5.20 and 5.21 of the design system
 
 ---
 
-## 24. Problems found and how they were solved
+## 24. Fifteenth feature: F15 — Audit Log Viewer
+
+F15 is the read side of the audit log that F01 has been writing since the first commit. The central questions of the specification were **how to keep any filter under 3 seconds with a million events in a partitioned table**, and **what the viewer may show of an anonymized patient whose earlier audit rows still hold the personal data**.
+
+### 24.1 Decisions
+
+| Decision | Result |
+|---|---|
+| Access | `audit:read` (Administrator) first in every use case; the sidebar item and the "Ver auditoria" links appear only with it |
+| Pagination | Keyset on `(occurred_at, id)`, 100 per page, an opaque cursor with the database's microseconds; a count capped at 100,001 |
+| Period | Dates in the organization's time zone, at most 366 days; 30 days by default, 366 when opened from "Ver auditoria" |
+| Reads | GET Route Handlers (cancellable, parallel); searches and details are not audited, only the export is |
+| Diff | Pure presenter: clinical changes only as "conteúdo clínico alterado" with the character counts, secret-like keys hidden even when recorded |
+| Anonymized patients (product owner) | The stored rows never change; the detail and the CSV show the personal fields of a patient with `anonymized_at` as "dado anonimizado", whatever the date of the event |
+| Registries (product owner) | The 11 values of `AuditAction` (RETIME and SKIP are series resolutions, not actions) and every entity type the modules record, checked by a unit test that scans the sources |
+| Quality gates (product owner) | Lint, typecheck, format, unit and integration tests and the Prisma drift check; E2E and the Docker image stay in CI |
+
+The decisions became **ADR-039** and section 5.19 of the design system. The specification, plan and contract are in [F15-audit-log-viewer/](F15-audit-log-viewer/).
+
+### 24.2 How the viewer stays fast and honest
+
+- **Bounded reads:** every query filters the organization explicitly and the UTC window of the period, so the planner prunes the monthly partitions; two composite indexes serve the action and entity type filters next to the F01 indexes.
+- **Deep pages as fast as the first:** the cursor adds a plain `occurred_at <=` bound next to the row comparison, so the index starts at the cursor instead of skipping the newer rows.
+- **Masking at presentation:** a `LEFT JOIN patient` by primary key, after the `LIMIT`, tells the detail and the export whether the subject is anonymized; the page query never pays for it.
+- **Measured:** with 1,000,000 events over 12 months, the p95 of the seven filter combinations stayed between 46 and 430 ms; a 100,000-row CSV streams in about 5 seconds.
+
+### 24.3 Implementation in 4 stages
+
+| Stage | What went in |
+|---|---|
+| 1 — Documentation and database | ADR-039, design system 5.19, section 8 and the module graph, migration `0017_audit_viewer` |
+| 2 — Read side | Limits, registries, period, cursor, presenter and masking rules, read queries, the four use cases, the catalogs |
+| 3 — Endpoints and screens | Three Route Handlers, the viewer page, the sidebar item and the "Ver auditoria" links on four screens |
+| 4 — Finishing | The 1-million-event load check, the browser check and this log |
+
+### 24.4 Problems found in F15
+
+| Problem | Cause | Solution |
+|---|---|---|
+| A 100,000-row CSV took more than 30 seconds | Each date and time cell built a new `Intl.DateTimeFormat` | The shared formatters keep one instance per locale, zone and shape; the export labels are looked up once |
+| Changes came out in a different order than recorded | JSONB keeps its keys sorted by length, not in insertion order | The presenter sorts the fields by name, so the panel and the CSV are stable |
+| Events of the same millisecond could repeat across pages | `timestamptz` keeps microseconds and a JavaScript `Date` does not | The cursor carries the instant as text with microseconds |
+| The E2E PostgreSQL could not start on port 55432 | After a Docker restart Windows reserved the range 55365–55464 | The browser check ran against a production build and a temporary PostgreSQL on another port; the E2E journeys run in CI |
+| A browser check typed a date before the page hydrated | The field had no handler yet, so no request was made | The checks wait for the network to settle after navigating |
+
+### 24.5 What F15 leaves ready
+
+- **A URL contract** (`/settings/audit?entityType=…&entityId=…`) and `AuditLink` for any later screen that wants a "Ver auditoria" shortcut.
+- **Cached date formatters** in `src/shared/i18n/format.ts`, which also speed up every other export.
+
+---
+
+## 25. Problems found and how they were solved
 
 This may be the most useful section for anyone reproducing the project. All of these problems showed up because **each stage was actually executed**, not just written.
 
@@ -1094,7 +1147,7 @@ This may be the most useful section for anyone reproducing the project. All of t
 
 ---
 
-## 25. Reproducing the environment from scratch
+## 26. Reproducing the environment from scratch
 
 ### Prerequisites
 
@@ -1169,7 +1222,7 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 
 ---
 
-## 26. Lessons learned
+## 27. Lessons learned
 
 1. **Interview before document.** One question at a time, always with a recommendation, settles more than a long document written in the dark.
 2. **End-to-end IDs** (F01 → story → criterion → test → commit) make the project traceable at no extra cost.

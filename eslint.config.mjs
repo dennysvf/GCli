@@ -72,6 +72,7 @@ const TECHNICAL_ATTRIBUTES = [
   "status",
   "icon",
   "field",
+  "entityType",
   "placement",
   "viewBox",
   "fill",

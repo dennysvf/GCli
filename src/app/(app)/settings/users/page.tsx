@@ -57,6 +57,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/settings/u
       <UsersTable
         items={list.items}
         canManage={canManage}
+        canViewAudit={can(ctx, "audit:read")}
         currentUserId={ctx.user.id}
         actions={{
           changeRole: changeUserRoleAction,

@@ -29,6 +29,9 @@ export function useFormatters() {
     // A time of day (minutes from midnight, 1440 = end of the day) as the language writes it.
     minute: (minute: number) => formatTime(new Date(Date.UTC(2024, 0, 1, 0, minute)), intl, "UTC"),
     time: (value: Date | string, timeZone?: string) => formatTime(value, intl, timeZone),
+    // Instants that must be told apart within a minute (the audit log, F15).
+    timeWithSeconds: (value: Date | string, timeZone?: string) =>
+      formatTime(value, intl, timeZone, { seconds: true }),
     dateTime: (value: Date | string, timeZone?: string) => formatDateTime(value, intl, timeZone),
     number: (value: number, options?: Intl.NumberFormatOptions) => formatNumber(value, intl, options),
     money: (value: MoneyLike) => formatMoney(value, intl),

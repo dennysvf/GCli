@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import type { z } from "zod";
+import { AuditLink } from "@/modules/audit/client";
 import { LOCALE_NAMES, SUPPORTED_LOCALES, type Locale } from "@/shared/i18n/locales";
 import type { ActionResult } from "@/shared/kernel/action-result";
 import type { Role } from "@/shared/kernel/roles";
@@ -218,11 +219,14 @@ function ChangeRoleDialog({
 export function UsersTable({
   items,
   canManage,
+  canViewAudit = false,
   currentUserId,
   actions,
 }: {
   items: UserListItem[];
   canManage: boolean;
+  // PRD F15: the "Ver auditoria" row action, for those who may read the audit log.
+  canViewAudit?: boolean;
   currentUserId: string;
   actions: UserActions;
 }) {
@@ -254,6 +258,7 @@ export function UsersTable({
               <TableHead>{t("identity.ui.linkedProfessional")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
               <TableHead>{t("identity.ui.lastAccess")}</TableHead>
+              {canViewAudit ? <TableHead className="w-40" /> : null}
               {canManage ? <TableHead className="w-12" /> : null}
             </TableRow>
           </TableHeader>
@@ -287,6 +292,13 @@ export function UsersTable({
                     ? dateTime(item.lastLoginAt)
                     : t("identity.ui.expiresAt", { date: dateTime(item.expiresAt) })}
                 </TableCell>
+                {canViewAudit ? (
+                  <TableCell>
+                    {item.kind === "user" ? (
+                      <AuditLink entityType="user" entityId={item.id} variant="ghost" size="sm" />
+                    ) : null}
+                  </TableCell>
+                ) : null}
                 {canManage ? (
                   <TableCell>
                     <DropdownMenu>

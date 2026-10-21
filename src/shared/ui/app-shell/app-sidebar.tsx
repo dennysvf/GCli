@@ -7,6 +7,7 @@ import {
   Contact,
   FileText,
   HandCoins,
+  History,
   ChartColumn,
   ListChecks,
   ShieldCheck,
@@ -56,6 +57,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   revenue: HandCoins,
   statement: ScrollText,
   report: ChartColumn,
+  history: History,
 };
 
 // Receives only the groups and items the signed-in role may see (filtered on the server).
