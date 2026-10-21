@@ -1,10 +1,13 @@
+import sharp from "sharp";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createDocuments, documents, type DocumentPdfInput } from "@/modules/documents";
+import { identity } from "@/modules/identity";
 import { units } from "@/modules/units";
 import { db } from "@/shared/db/client";
 import { formatLongDate } from "@/shared/i18n/calendar-names";
 import { dateInTimeZone } from "@/shared/kernel/time-zones";
 import { objectStorage } from "@/shared/storage/object-storage";
+import { readPdf } from "../../pdf-reader";
 import { auditEvents, closeHelpers, resetDatabase } from "../helpers";
 import { appointmentFor } from "../clinical-records/support";
 import { documentsWorld, type DocumentsWorld } from "./support";
@@ -491,6 +494,44 @@ describe("data of other features in generated documents", () => {
     const pdf = await capture(world.pro, created.value.templateId);
     expect(pdf?.clinicName).toBe("Clínica Aurora");
     expect(pdf?.bodyHtml).toBe("<p>Clínica Aurora — 11.222.333/0001-81</p>");
+  });
+
+  it("F08: the stored PDF has the organization logo in its header and the page number in its footer", async () => {
+    const created = await documents.createTemplate(world.manager, {
+      name: "Com logo",
+      type: "OTHER",
+      clinical: false,
+      bodyHtml: "<p>{{clinica.nome}}</p>",
+    });
+    if (!created.ok) throw new Error("create failed");
+    const storedPdf = async () => {
+      const generated = await generate(issue(world.pro, created.value.templateId, { fields: {} }));
+      if (!generated.ok) throw new Error(`generate failed: ${generated.error.code}`);
+      const row = await db().patientDocument.findUniqueOrThrow({ where: { id: generated.value.documentId } });
+      const stored = await objectStorage().get(row.objectKey ?? "");
+      return readPdf(Buffer.from(stored?.body ?? []));
+    };
+
+    // Without a logo the header paints no image, so the image found below is the logo.
+    const before = await storedPdf();
+    expect(before.flatMap((page) => page.images)).toEqual([]);
+
+    const logoPng = await sharp({ create: { width: 240, height: 96, channels: 3, background: "#336699" } })
+      .png()
+      .toBuffer();
+    const uploaded = await identity.uploadOrganizationLogo(world.admin, {
+      bytes: new Uint8Array(logoPng),
+      type: "image/png",
+    });
+    if (!uploaded.ok) throw new Error(`uploadOrganizationLogo failed: ${uploaded.error.code}`);
+    const logo = await identity.getOrganizationLogo(world.admin);
+    if (!logo.ok || !logo.value) throw new Error("logo missing");
+    const size = await sharp(Buffer.from(logo.value.body)).metadata();
+
+    const pages = await storedPdf();
+    expect(pages).toHaveLength(1);
+    expect(pages[0]?.images).toEqual([expect.objectContaining({ width: size.width, height: size.height })]);
+    expect(pages[0]?.text.split("\n")).toContain("Página 1 de 1");
   });
 
   it("F02 → F08: unit name, address and phone are substituted into templates and the footer", async () => {
