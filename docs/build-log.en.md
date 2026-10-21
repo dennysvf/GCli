@@ -4,7 +4,7 @@ This log records, in order, everything done on the project from reading the brie
 
 The work was done as a pair: a product owner and an AI coding assistant. The product owner answered questions, made the business decisions and approved each stage; the assistant ran the interviews, wrote documents and code, ran the tests and recorded what it found along the way.
 
-> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations → F08 → F09 → F10 → F11 → F12 → F13 → F14 → F15.
+> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations → F08 → F09 → F10 → F11 → F12 → F13 → F14 → F15 → V1 acceptance audit.
 
 Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 
@@ -39,6 +39,7 @@ Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 25. [Problems found and how they were solved](#25-problems-found-and-how-they-were-solved)
 26. [Reproducing the environment from scratch](#26-reproducing-the-environment-from-scratch)
 27. [Lessons learned](#27-lessons-learned)
+28. [V1 acceptance audit](#28-v1-acceptance-audit)
 
 ---
 
@@ -1244,3 +1245,59 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 18. **Share what two features use before copying it.** Direct upload, HEIC conversion, the sanitizer and the editor were born in the clinical record; F08 moved them to `src/shared` in its first stage, and the clinical record kept passing the same tests. Copying would have let the two versions drift.
 19. **A rule about sensitive data becomes a database rule.** The clinical flag that never turns off and the race-free quota live in a trigger and a row lock, not only in code: an application bug cannot break them.
 20. **A dashboard figure must reconcile with a screen the user already trusts.** The F12 "Resultado" is checked in a test against the F11 statement for the same unit and period; when two screens show the same money, a test keeps them equal.
+
+---
+
+## 28. V1 acceptance audit
+
+With F01 to F16 merged, one question was left before calling V1 done: **does every acceptance criterion in Section 9 of the PRD have a test whose body proves it?** A test named with the feature ID is not enough; what counts is what the test asserts.
+
+### 28.1 Method
+
+- **155 criteria:** 132 per feature (F01 to F16; F06 has 13) and 23 cross-feature.
+- The titles of every test were extracted (1,159 `it` and `describe` lines), and then the **bodies were read** for every criterion with any doubt. The performance tests were checked for the volume the PRD asks for (100,000 patients, 1 million audit events, and so on).
+- Each criterion got one verdict: **covered**, **partial** (a test exists but asserts less than the criterion says) or **without a test**.
+- No `.skip`, `.todo`, `.only`, `test.fixme` or conditional skips were found.
+
+### 28.2 Result
+
+| Verdict | Criteria |
+|---|---|
+| Covered | 144 |
+| Partial | 11 (F07: 1, F13: 1, F16: 5, cross-feature: 4) |
+| Without a test | 0 |
+
+### 28.3 Gaps closed on this branch
+
+Four groups of new tests close five of the partial criteria (the F13 PDF and the cross-feature logo criterion share one check). Only test code changed: every new test passed against the existing code, so no product bug was found.
+
+| Criterion | What was missing | What the new test proves |
+|---|---|---|
+| F07: 403 on note and attachment URLs | For attachments only Front Desk was asserted | `clinical-records/attachment-access.test.ts`: the download Route Handler and the use case answer 403 `AUTHZ_FORBIDDEN` to a professional with no appointment with the patient, to an Administrator and a Manager without a professional link, and to Front Desk. Each attempt records one `PERMISSION_DENIED` and no `READ_SENSITIVE`; the professional with an appointment gets the 302 to the 5-minute URL |
+| F16: "09:00 stays 09:00" across DST | Only the pure conversion; only Madrid asserted 09:00 on both sides | `scheduling/daylight-saving.test.ts`: for Madrid, Santiago and New York, the next two real clock changes are found in the time-zone database when the test runs (one forward, one back). A 09:00–10:00 working interval, single 09:00 appointments and a weekly series at 09:30 are saved through the use cases on both sides. The local time stays the same, the stored UTC instant moves by the offset difference, and the working-hours check opens at 09:00 and closes at 10:00 local before, on and after the day of the change |
+| F13: PDF with logo and page numbering; cross-feature: logo in F08 documents and F13 headers | The header was checked on a captured document model; the real PDF only for `%PDF` and landscape; the logo nowhere | `tests/pdf-reader.ts` reads a PDF with `node:zlib` only (no new dependency): pages in order, text decoded through the ToUnicode maps of the fonts, and the images each page paints. A multi-page report shows the logo in the header of every page (and no image before the upload) and "Página i de N" ("Page i of N" in English); the stored F08 PDF shows the same logo and "Página 1 de 1" |
+| Cross-feature: only active services in F09 manual charges | The refusal had no test | `billing/automatic-charges.test.ts`: an inactive service is refused with `BILLING_SERVICE_INVALID` (400) and its catalog message in the three languages, and no charge, audit event or outbox message is written; the active service is still charged and audited |
+
+The new integration files ran one at a time locally (`npx vitest run --project integration --maxWorkers=1 <file>`), because the development machine is short on memory; the full integration and E2E suites run in CI.
+
+### 28.4 Remaining known gaps
+
+Six partial criteria remain. They are recorded here so they are not mistaken for covered ones.
+
+| Criterion | What is missing |
+|---|---|
+| F16 #1: every screen in the chosen language | The E2E journey checks only the sidebar and the services list in English and Spanish. Catalog parity and the lint rule guard against missing keys, but "a missing key fails the build" is a unit test and a lint rule, not a build step |
+| Cross-feature: the F16 language applies to F01 screens and the F06 agenda | Emails, F08 documents, F09 receipts, F13 reports and the agenda PDF are covered; no test renders the agenda screen or the F01 screens in English or Spanish |
+| F16 #2: the login page follows the browser language | Only the pure `negotiateLocale` is tested; no journey opens the login page with a browser language other than pt-BR |
+| F16 #4: council types per country, and the country lock | Council types are checked only as static profile data (`countryProfile` lookups); no professional use case test asserts the list of each country. The country lock for appointments uses a fake port (the locks for charges and cash registers are real) |
+| Cross-feature: the country profile drives F04 councils and F05 address and phone | F04 councils as above; F05 address and phone per country are checked only at the schema and kernel level, not through the patient use case |
+| F16 #5: guardian documents | Patient documents per type are covered; guardian document validation, uniqueness and masking have no use case test |
+
+### 28.5 Weak tests worth strengthening
+
+These count as covered, but their bodies assert less than their titles or the criterion suggest:
+
+- `i18n/countries.test.ts:267` "country profiles drive the patient address and the councils of each country": three static `countryProfile()` lookups; no patient or professional is created.
+- `analytics/dashboard.test.ts:301` "KPIs match the totals from appointments, charges and payments, and expenses": the body compares appointments, completed and billed; received and expenses are compared only in other tests (against the F11 statement).
+- Units outside Brazil apply the Brazilian legal rules: `i18n/countries.test.ts:90` asserts only the `legalRulesValidated` flag (the administrator warning is checked in E2E); applying the rules themselves is not asserted.
+- Dates in Spanish (Mexico): the es-MX date and time string ("06/10/2026 14:30") is not asserted; the formatter tests cover pt-BR, en-US and pt-PT dates and es-MX money.
