@@ -259,6 +259,9 @@ model AuditEvent {
   @@index([organizationId, occurredAt(sort: Desc)], map: "ix_audit_org_time")
   @@index([entityType, entityId, occurredAt(sort: Desc)], map: "ix_audit_entity")
   @@index([actorUserId, occurredAt(sort: Desc)], map: "ix_audit_actor")
+  // F15 viewer filters (migration 0017_audit_viewer).
+  @@index([organizationId, action, occurredAt(sort: Desc)], map: "ix_audit_org_action_time")
+  @@index([organizationId, entityType, occurredAt(sort: Desc)], map: "ix_audit_org_entity_type_time")
   @@map("audit_event")
 }
 
