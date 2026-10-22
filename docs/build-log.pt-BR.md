@@ -4,7 +4,7 @@ Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura
 
 O trabalho foi feito em dupla: uma pessoa responsável pelo produto e um assistente de programação com IA. A pessoa respondeu perguntas, tomou as decisões de negócio e aprovou cada etapa; o assistente conduziu entrevistas, escreveu documentos e código, rodou os testes e registrou o que encontrou pelo caminho.
 
-> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação → F08 → F09 → F10 → F11 → F12 → F13 → F14 → F15.
+> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação → F08 → F09 → F10 → F11 → F12 → F13 → F14 → F15 → auditoria de aceitação da V1.
 
 English version: [build-log.en.md](build-log.en.md).
 
@@ -39,6 +39,7 @@ English version: [build-log.en.md](build-log.en.md).
 25. [Problemas encontrados e como foram resolvidos](#25-problemas-encontrados-e-como-foram-resolvidos)
 26. [Como reproduzir o ambiente do zero](#26-como-reproduzir-o-ambiente-do-zero)
 27. [Lições aprendidas](#27-lições-aprendidas)
+28. [Auditoria de aceitação da V1](#28-auditoria-de-aceitação-da-v1)
 
 ---
 
@@ -1249,3 +1250,59 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 22. **Uma máquina pequena ainda entrega com um CI forte.** A F15 rodou localmente lint, typecheck, testes unitários e verificações reduzidas de integração e de navegador, e deixou as suítes completas de integração e E2E para o GitHub Actions; o p95 de 1 milhão de eventos (427 ms contra 3 s) foi medido localmente, e as jornadas E2E commitadas passaram no CI.
 23. **Dependência descoberta ao escrever a spec volta para o PRD.** A F15 lê `patient.anonymized_at` (F14) e monta links nas telas da F05, da F06 e da F09; por isso a tabela de dependências, o grafo e as ondas foram corrigidos (a F15 foi para a onda 8), em vez de a informação ficar só numa nota da spec.
 24. **Um registro de valores precisa ser conferido contra o código que os grava.** A primeira spec da F15 oferecia `RETIME` e `SKIP` como ações de auditoria (são só resoluções de conflito de série no agendamento) e não tinha os tipos de entidade `lgpd_*`. A spec atualizada varreu o código de novo, e os testes comparam os registros com suas fontes, para que a próxima funcionalidade que gravar um tipo novo quebre um teste, e não um filtro.
+
+---
+
+## 28. Auditoria de aceitação da V1
+
+Com a F01 a F16 integradas, faltava uma pergunta antes de dar a V1 por pronta: **todo critério de aceite da Seção 9 do PRD tem um teste cujo corpo o comprova?** Um teste com o ID da funcionalidade no nome não basta; o que conta é o que o teste afirma.
+
+### 28.1 Método
+
+- **155 critérios:** 132 por funcionalidade (F01 a F16; a F06 tem 13) e 23 entre funcionalidades.
+- Os títulos de todos os testes foram extraídos (1.159 linhas de `it` e `describe`) e, em seguida, **os corpos foram lidos** para todo critério com alguma dúvida. Os testes de desempenho foram conferidos quanto ao volume pedido pelo PRD (100.000 pacientes, 1 milhão de eventos de auditoria e assim por diante).
+- Cada critério recebeu um veredito: **coberto**, **parcial** (existe teste, mas ele afirma menos do que o critério diz) ou **sem teste**.
+- Não foram encontrados `.skip`, `.todo`, `.only`, `test.fixme` nem testes pulados por condição.
+
+### 28.2 Resultado
+
+| Veredito | Critérios |
+|---|---|
+| Coberto | 144 |
+| Parcial | 11 (F07: 1, F13: 1, F16: 5, entre funcionalidades: 4) |
+| Sem teste | 0 |
+
+### 28.3 Lacunas fechadas nesta branch
+
+Quatro grupos de testes novos fecham cinco dos critérios parciais (o PDF da F13 e o critério do logotipo entre funcionalidades usam a mesma verificação). Só código de teste mudou: todos os testes novos passaram com o código existente, então nenhum defeito de produto foi encontrado.
+
+| Critério | O que faltava | O que o teste novo comprova |
+|---|---|---|
+| F07: 403 nas URLs de notas e anexos | Nos anexos só a Recepção era verificada | `clinical-records/attachment-access.test.ts`: o Route Handler de download e o caso de uso respondem 403 `AUTHZ_FORBIDDEN` a um profissional sem agendamento com o paciente, a um Administrador e a um Gestor sem vínculo com profissional e à Recepção. Cada tentativa registra um `PERMISSION_DENIED` e nenhum `READ_SENSITIVE`; o profissional com agendamento recebe o 302 para a URL de 5 minutos |
+| F16: "09:00 continua 09:00" na troca de horário de verão | Só a conversão pura; só Madri verificava 09:00 dos dois lados | `scheduling/daylight-saving.test.ts`: para Madri, Santiago e Nova York, as duas próximas trocas reais de horário são encontradas na base de fusos quando o teste roda (uma adiantando, outra atrasando). Um intervalo de atendimento 09:00–10:00, agendamentos avulsos às 09:00 e uma série semanal às 09:30 são salvos pelos casos de uso dos dois lados. O horário local continua o mesmo, o instante UTC gravado muda pela diferença de fuso, e a verificação do horário de atendimento abre às 09:00 e fecha às 10:00 locais antes, no dia e depois da troca |
+| F13: PDF com logotipo e numeração de páginas; entre funcionalidades: logotipo nos documentos da F08 e nos cabeçalhos da F13 | O cabeçalho era verificado num modelo de documento capturado; o PDF real só quanto a `%PDF` e paisagem; o logotipo em lugar nenhum | `tests/pdf-reader.ts` lê um PDF só com `node:zlib` (nenhuma dependência nova): páginas em ordem, texto decodificado pelos mapas ToUnicode das fontes e as imagens que cada página desenha. Um relatório de várias páginas mostra o logotipo no cabeçalho de todas as páginas (e nenhuma imagem antes do envio) e "Página i de N" ("Page i of N" em inglês); o PDF guardado da F08 mostra o mesmo logotipo e "Página 1 de 1" |
+| Entre funcionalidades: só serviços ativos nas cobranças avulsas da F09 | A recusa não tinha teste | `billing/automatic-charges.test.ts`: um serviço inativo é recusado com `BILLING_SERVICE_INVALID` (400) e sua mensagem de catálogo nos três idiomas, e nenhuma cobrança, evento de auditoria ou mensagem da outbox é gravada; o serviço ativo continua sendo cobrado e auditado |
+
+Os arquivos de integração novos rodaram um por vez na máquina local (`npx vitest run --project integration --maxWorkers=1 <arquivo>`), porque a máquina de desenvolvimento tem pouca memória; as suítes completas de integração e E2E rodam no CI.
+
+### 28.4 Lacunas conhecidas que continuam
+
+Restam seis critérios parciais. Eles ficam registrados aqui para não serem confundidos com critérios cobertos.
+
+| Critério | O que falta |
+|---|---|
+| F16 nº 1: toda tela no idioma escolhido | A jornada E2E verifica só a barra lateral e a lista de serviços em inglês e espanhol. A paridade dos catálogos e a regra de lint protegem contra chaves ausentes, mas "uma chave ausente quebra o build" é um teste de unidade e uma regra de lint, não uma etapa do build |
+| Entre funcionalidades: o idioma da F16 vale para as telas da F01 e a agenda da F06 | E-mails, documentos da F08, recibos da F09, relatórios da F13 e o PDF da agenda estão cobertos; nenhum teste mostra a tela da agenda ou as telas da F01 em inglês ou espanhol |
+| F16 nº 2: a tela de login segue o idioma do navegador | Só a função pura `negotiateLocale` é testada; nenhuma jornada abre a tela de login com um idioma de navegador diferente de pt-BR |
+| F16 nº 4: tipos de conselho por país e a trava do país | Os tipos de conselho só são verificados como dado estático do perfil (consultas a `countryProfile`); nenhum teste do caso de uso de profissionais verifica a lista de cada país. A trava do país por agendamentos usa uma porta falsa (as travas por cobranças e por caixas são reais) |
+| Entre funcionalidades: o perfil do país comanda os conselhos da F04 e o endereço e o telefone da F05 | Conselhos da F04 como acima; endereço e telefone da F05 por país só são verificados no esquema e no núcleo, não pelo caso de uso de pacientes |
+| F16 nº 5: documentos do responsável | Os documentos do paciente por tipo estão cobertos; validação, unicidade e máscara do documento do responsável não têm teste de caso de uso |
+
+### 28.5 Testes fracos que valem reforço
+
+Contam como cobertos, mas o corpo afirma menos do que o título ou o critério sugerem:
+
+- `i18n/countries.test.ts:267` "country profiles drive the patient address and the councils of each country": três consultas estáticas a `countryProfile()`; nenhum paciente ou profissional é criado.
+- `analytics/dashboard.test.ts:301` "KPIs match the totals from appointments, charges and payments, and expenses": o corpo compara agendamentos, concluídos e faturado; recebido e despesas só são comparados em outros testes (contra o extrato da F11).
+- Unidades fora do Brasil aplicam as regras legais brasileiras: `i18n/countries.test.ts:90` verifica só o indicador `legalRulesValidated` (o aviso ao administrador é verificado no E2E); a aplicação das regras em si não é verificada.
+- Datas em espanhol (México): a data e hora em es-MX ("06/10/2026 14:30") não é verificada; os testes do formatador cobrem datas em pt-BR, en-US e pt-PT e dinheiro em es-MX.

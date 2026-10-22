@@ -1,11 +1,14 @@
+import sharp from "sharp";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { getOrganizationProfile } from "@/modules/identity";
+import { getOrganizationProfile, identity } from "@/modules/identity";
+import { readPdf } from "../../pdf-reader";
 import { auditEvents, closeHelpers, resetDatabase } from "../helpers";
 import {
   addDays,
   billingWorld,
   controlledDataset,
   custom,
+  day,
   freshReports,
   insertAppointment,
   readBody,
@@ -166,6 +169,74 @@ describe("PDF export", () => {
     expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
     const box = /\/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]/.exec(bytes.toString("latin1"));
     expect(Number(box?.[1])).toBeGreaterThan(Number(box?.[2]));
+  });
+
+  it("F13: the real PDF has the organization logo in the header and real page numbers on every page", async () => {
+    // Sixty appointments over three days: more rows than one landscape page holds.
+    const from = day(20);
+    for (let offset = 0; offset < 3; offset += 1) {
+      for (let slot = 0; slot < 20; slot += 1) {
+        const minutes = 8 * 60 + slot * 30;
+        const time = `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+        await insertAppointment(world, {
+          date: addDays(from, offset),
+          time,
+          minutes: 30,
+          status: "COMPLETED",
+        });
+      }
+    }
+    const period = { from, to: addDays(from, 2) };
+    const render = async (ctx: BillingWorld["manager"]) => {
+      const exported = await freshReports({ realPdf: true }).api.exportReport(
+        ctx,
+        "appointments",
+        "pdf",
+        custom(period),
+      );
+      if (!exported.ok) throw new Error(exported.error.code);
+      return readPdf(Buffer.from(exported.value.body as Buffer));
+    };
+
+    // Without a logo the header paints no image, so the image found below is the logo.
+    const withoutLogo = await render(world.manager);
+    expect(withoutLogo.length).toBeGreaterThan(1);
+    expect(withoutLogo.flatMap((page) => page.images)).toEqual([]);
+
+    // The F01 logo, stored as the PNG the logo processor makes.
+    const logoPng = await sharp({ create: { width: 240, height: 96, channels: 3, background: "#336699" } })
+      .png()
+      .toBuffer();
+    const uploaded = await identity.uploadOrganizationLogo(world.admin, {
+      bytes: new Uint8Array(logoPng),
+      type: "image/png",
+    });
+    if (!uploaded.ok) throw new Error(`uploadOrganizationLogo failed: ${uploaded.error.code}`);
+    const stored = await identity.getOrganizationLogo(world.manager);
+    if (!stored.ok || !stored.value) throw new Error("logo missing");
+    const logo = await sharp(Buffer.from(stored.value.body)).metadata();
+    const profile = await getOrganizationProfile(world.manager);
+    if (!profile.ok) throw new Error(profile.error.code);
+    const clinicName = profile.value.tradeName ?? profile.value.legalName;
+
+    const pages = await render(world.manager);
+    const total = pages.length;
+    expect(total).toBeGreaterThan(1);
+    pages.forEach((page, index) => {
+      // The header repeats on every page: the logo image next to the clinic name.
+      expect(page.images).toEqual([expect.objectContaining({ width: logo.width, height: logo.height })]);
+      const lines = page.text.split("\n");
+      expect(lines).toContain(clinicName);
+      expect(lines).toContain(`Página ${index + 1} de ${total}`);
+    });
+    expect(pages[0]?.text.split("\n")).toContain("Agendamentos");
+
+    // The page label follows the language of the report.
+    const english = await render({ ...world.manager, locale: "en" as const });
+    english.forEach((page, index) => {
+      expect(page.images).toHaveLength(1);
+      expect(page.text.split("\n")).toContain(`Page ${index + 1} of ${english.length}`);
+    });
   });
 
   it("F13: PDF money totals are listed per currency", async () => {
