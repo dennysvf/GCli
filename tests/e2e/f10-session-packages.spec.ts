@@ -18,17 +18,20 @@ function localDate(offset: number): string {
   );
 }
 
-// The next weekday at least `from` days ahead (the professional works Monday to Friday).
-function nextWeekday(from: number): string {
+// The next weekday at least `from` days ahead, other than `except` (the professional works Monday
+// to Friday).
+function nextWeekday(from: number, except?: string): string {
   for (let offset = from; ; offset++) {
     const date = localDate(offset);
     const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
-    if (weekday >= 1 && weekday <= 5) return date;
+    if (weekday >= 1 && weekday <= 5 && date !== except) return date;
   }
 }
 
-// Away from the days used by F06 (2 days ahead) and the professional's vacation (10–14 days ahead).
-const day = nextWeekday(4);
+// Away from the day F06 books (its next weekday 2 or more days ahead) and the professional's
+// vacation (10–14 days ahead). F06's day is excluded explicitly: on a Thursday, "2 days ahead" is a
+// Saturday and "4 days ahead" is a Monday, so both searches would land on the same Monday.
+const day = nextWeekday(4, nextWeekday(2));
 
 let patientId: string;
 
