@@ -4,7 +4,7 @@ Este diário registra, em ordem, tudo o que foi feito no projeto desde a leitura
 
 O trabalho foi feito em dupla: uma pessoa responsável pelo produto e um assistente de programação com IA. A pessoa respondeu perguntas, tomou as decisões de negócio e aprovou cada etapa; o assistente conduziu entrevistas, escreveu documentos e código, rodou os testes e registrou o que encontrou pelo caminho.
 
-> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação → F08 → F09 → F10 → F11 → F12 → F13 → F14 → F15 → auditoria de aceitação da V1.
+> **Resumo do caminho:** briefing → entrevista → PRD → documentação bilíngue → repositório público → arquitetura e ADRs → especificação técnica e plano da F01 → implementação em 6 etapas, com testes e commit a cada etapa → F02 com branch, PR e CI → F03 → design system → F04 → F05 → F06 → F16 (idiomas e países) → F07 → ambientes separados para operação → F08 → F09 → F10 → F11 → F12 → F13 → F14 → F15 → auditoria de aceitação da V1 → fechamento da V1.
 
 English version: [build-log.en.md](build-log.en.md).
 
@@ -1250,6 +1250,8 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 22. **Uma máquina pequena ainda entrega com um CI forte.** A F15 rodou localmente lint, typecheck, testes unitários e verificações reduzidas de integração e de navegador, e deixou as suítes completas de integração e E2E para o GitHub Actions; o p95 de 1 milhão de eventos (427 ms contra 3 s) foi medido localmente, e as jornadas E2E commitadas passaram no CI.
 23. **Dependência descoberta ao escrever a spec volta para o PRD.** A F15 lê `patient.anonymized_at` (F14) e monta links nas telas da F05, da F06 e da F09; por isso a tabela de dependências, o grafo e as ondas foram corrigidos (a F15 foi para a onda 8), em vez de a informação ficar só numa nota da spec.
 24. **Um registro de valores precisa ser conferido contra o código que os grava.** A primeira spec da F15 oferecia `RETIME` e `SKIP` como ações de auditoria (são só resoluções de conflito de série no agendamento) e não tinha os tipos de entidade `lgpd_*`. A spec atualizada varreu o código de novo, e os testes comparam os registros com suas fontes, para que a próxima funcionalidade que gravar um tipo novo quebre um teste, e não um filtro.
+25. **Quando dois testes precisam ficar separados, diga isso no código.** Os E2E da F10 e da F06 escolhiam o dia por deslocamentos a partir de hoje ("2 dias à frente" e "4 dias à frente"), confiando que os números diferem. Numa quinta-feira os dois deslocamentos caem na mesma segunda-feira, e a consulta das 09:00 de um escondia o horário do outro. A correção exclui explicitamente o dia do outro teste e foi conferida nos sete dias da semana, e não só no dia em que falhou.
+26. **A automação para onde está a responsabilidade.** Abrir pull requests, acompanhar o CI, ler logs que falham e corrigir branches foi feito pelo assistente; mesclar na `main` protegida e apagar branches remotos ficaram com a pessoa responsável pelo produto, e a ferramenta recusou os dois quando tentados. Desenhar o fluxo em torno disso (um link para abrir cada pull request, a lista do que está pronto para mesclar, a ordem dos merges) não custou nada e manteve cada merge como decisão humana.
 
 ---
 
@@ -1272,7 +1274,7 @@ Com a F01 a F16 integradas, faltava uma pergunta antes de dar a V1 por pronta: *
 | Parcial | 11 (F07: 1, F13: 1, F16: 5, entre funcionalidades: 4) |
 | Sem teste | 0 |
 
-### 28.3 Lacunas fechadas nesta branch
+### 28.3 Lacunas fechadas pelo pull request da auditoria
 
 Quatro grupos de testes novos fecham cinco dos critérios parciais (o PDF da F13 e o critério do logotipo entre funcionalidades usam a mesma verificação). Só código de teste mudou: todos os testes novos passaram com o código existente, então nenhum defeito de produto foi encontrado.
 
@@ -1306,3 +1308,15 @@ Contam como cobertos, mas o corpo afirma menos do que o título ou o critério s
 - `analytics/dashboard.test.ts:301` "KPIs match the totals from appointments, charges and payments, and expenses": o corpo compara agendamentos, concluídos e faturado; recebido e despesas só são comparados em outros testes (contra o extrato da F11).
 - Unidades fora do Brasil aplicam as regras legais brasileiras: `i18n/countries.test.ts:90` verifica só o indicador `legalRulesValidated` (o aviso ao administrador é verificado no E2E); a aplicação das regras em si não é verificada.
 - Datas em espanhol (México): a data e hora em es-MX ("06/10/2026 14:30") não é verificada; os testes do formatador cobrem datas em pt-BR, en-US e pt-PT e dinheiro em es-MX.
+
+### 28.6 Fechamento da V1
+
+Depois do pull request da auditoria, aconteceram mais três coisas antes de a V1 poder ser dada como fechada. Ficam registradas em ordem.
+
+| O que aconteceu | Causa | O que foi feito |
+|---|---|---|
+| O CI da `main` ficou vermelho num commit só de documentação, em três testes E2E da F10 | As jornadas da F06 e da F10 escolhiam o dia por deslocamentos a partir de hoje; numa quinta-feira "2 dias à frente" é sábado e "4 dias à frente" é segunda, então as duas escolhiam a mesma segunda-feira e a consulta das 09:00 da F06 escondia o horário em que a F10 clica | Pull request próprio (#39): a F10 exclui explicitamente o dia da F06. Os sete dias da semana foram simulados e só a quinta colidia. É a segunda falha de E2E causada por datas relativas a "agora" (lição 21) |
+| 40 atualizações de dependências do grupo do Dependabot esperavam | O pull request foi aberto em 20 de outubro, antes das duas correções de E2E, e a última execução do CI estava vermelha | Pediu-se o rebase ao Dependabot no pull request, e a nova execução do CI (integração, lint, typecheck, testes unitários, build com E2E e a imagem Docker) passou antes do merge |
+| 19 branches remotos de pull requests mesclados ficaram para trás | O merge em squash não apaga o branch de origem | Cada branch foi ligado ao seu pull request mesclado; apagá-los ficou com a pessoa responsável pelo produto (lição 26), e "Automatically delete head branches" é a configuração que evita o acúmulo |
+
+O que resta para quem continuar o trabalho é a lista de 28.4, os testes fracos de 28.5 e uma conferência manual: com 40 pacotes atualizados, abrir as telas pesadas uma vez num navegador de verdade (exportação LGPD, PDF de relatório com o logotipo, visualizador de auditoria), porque o CI não enxerga um PDF ou um envio de arquivo como uma pessoa enxerga.

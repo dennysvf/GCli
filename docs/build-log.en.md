@@ -4,7 +4,7 @@ This log records, in order, everything done on the project from reading the brie
 
 The work was done as a pair: a product owner and an AI coding assistant. The product owner answered questions, made the business decisions and approved each stage; the assistant ran the interviews, wrote documents and code, ran the tests and recorded what it found along the way.
 
-> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations → F08 → F09 → F10 → F11 → F12 → F13 → F14 → F15 → V1 acceptance audit.
+> **The path in one line:** briefing → interview → PRD → bilingual docs → public repository → architecture and ADRs → F01 technical spec and plan → implementation in 6 stages, with tests and a commit per stage → F02 with branch, PR and CI → F03 → design system → F04 → F05 → F06 → F16 (languages and countries) → F07 → separate environments for operations → F08 → F09 → F10 → F11 → F12 → F13 → F14 → F15 → V1 acceptance audit → V1 closing.
 
 Versão em português: [build-log.pt-BR.md](build-log.pt-BR.md).
 
@@ -1250,6 +1250,8 @@ npm run setup:admin:prod -- --org-name "..." --admin-name "..." --admin-email ..
 22. **A small machine can still ship with a strong CI.** F15 ran lint, typecheck, unit tests and narrowed integration and browser checks locally, and left the full integration and E2E suites to GitHub Actions; the 1-million-event p95 (427 ms against 3 s) was measured locally, and the committed E2E journeys passed in CI.
 23. **A dependency found while writing a spec goes back into the PRD.** F15 reads `patient.anonymized_at` (F14) and mounts links on F05, F06 and F09 screens, so the dependency table, the graph and the waves were corrected (F15 moved to wave 8) instead of living only in a spec note.
 24. **A registry of values must be checked against the code that writes them.** The first F15 spec offered `RETIME` and `SKIP` as audit actions (they are only series-conflict resolutions in scheduling) and missed the `lgpd_*` entity types. The refreshed spec re-scanned the code, and the tests compare the registries with their sources so the next feature that records a new type fails a test instead of a filter.
+25. **When two tests must stay apart, say so in the code.** The F10 and F06 E2E journeys chose their days by offsets from today ("2 days ahead" and "4 days ahead"), trusting that the numbers differ. On a Thursday both offsets resolve to the same Monday and the 09:00 appointment of one hid the slot of the other. The fix excludes the other test's day explicitly, and it was checked against all seven weekdays instead of the one on which it failed.
+26. **Automation stops where responsibility sits.** Opening pull requests, watching CI, reading failing logs and fixing branches were done by the assistant; merging into the protected `main` and deleting remote branches stayed with the product owner, and the tooling refused both when tried. Designing the flow around that (a link to open each pull request, the list of what is ready to merge, the order of merges) cost nothing and kept every merge a human decision.
 
 ---
 
@@ -1272,7 +1274,7 @@ With F01 to F16 merged, one question was left before calling V1 done: **does eve
 | Partial | 11 (F07: 1, F13: 1, F16: 5, cross-feature: 4) |
 | Without a test | 0 |
 
-### 28.3 Gaps closed on this branch
+### 28.3 Gaps closed by the audit pull request
 
 Four groups of new tests close five of the partial criteria (the F13 PDF and the cross-feature logo criterion share one check). Only test code changed: every new test passed against the existing code, so no product bug was found.
 
@@ -1306,3 +1308,15 @@ These count as covered, but their bodies assert less than their titles or the cr
 - `analytics/dashboard.test.ts:301` "KPIs match the totals from appointments, charges and payments, and expenses": the body compares appointments, completed and billed; received and expenses are compared only in other tests (against the F11 statement).
 - Units outside Brazil apply the Brazilian legal rules: `i18n/countries.test.ts:90` asserts only the `legalRulesValidated` flag (the administrator warning is checked in E2E); applying the rules themselves is not asserted.
 - Dates in Spanish (Mexico): the es-MX date and time string ("06/10/2026 14:30") is not asserted; the formatter tests cover pt-BR, en-US and pt-PT dates and es-MX money.
+
+### 28.6 Closing V1
+
+After the audit pull request, three more things happened before V1 could be called closed. They are recorded in order.
+
+| What happened | Cause | What was done |
+|---|---|---|
+| The CI of `main` turned red on a documentation-only commit, in three F10 E2E tests | The F06 and F10 journeys picked their days by offsets from today; on a Thursday "2 days ahead" is a Saturday and "4 days ahead" a Monday, so both chose the same Monday and F06's 09:00 appointment hid the slot F10 clicks | Its own pull request (#39): F10 excludes F06's day explicitly. The seven weekdays were simulated and only Thursday collided. It is the second E2E failure caused by dates relative to "now" (lesson 21) |
+| 40 dependency updates from the Dependabot group were waiting | The pull request was opened on 20 October, before the two E2E fixes, and its last CI run was red | The Dependabot rebase was requested on the pull request, and the new CI run (integration, lint, typecheck, unit tests, build with E2E and the Docker image) passed before the merge |
+| 19 remote branches of merged pull requests were left behind | Squash merges do not delete the source branch | Each branch was matched to its merged pull request; deleting them was left to the product owner (lesson 26), and "Automatically delete head branches" is the setting that stops the accumulation |
+
+What remains for whoever continues the work is the list in 28.4, the weak tests in 28.5, and one manual look: with 40 packages updated, open the heavy screens once in a real browser (LGPD export, report PDF with the logo, audit log viewer), because CI does not see a PDF or an upload the way a person does.
